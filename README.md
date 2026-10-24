@@ -35,6 +35,7 @@ As regras para criar ou alterar uma skill estão em [AGENTS.md](AGENTS.md). Em r
 - `SKILL.md` com menos de 500 linhas; o resto vai para `references/`.
 - A `description` segue `[o que faz] + Use when ... + Do NOT use for ...`, com frases que o usuário realmente diria, até 1024 caracteres e sem `< >`.
 - Use a skill `skill-architect` ao criar ou modificar uma skill.
+- Ao criar ou alterar uma skill, suba o `metadata.version` no `SKILL.md` e atualize a coluna "Versão" deste README no mesmo commit.
 
 ## Licença
 

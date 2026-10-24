@@ -19,3 +19,7 @@ Keep `SKILL.md` under 500 lines; offload reference material to `references/`.
 - **"Do NOT use for"** is mandatory — add negative triggers to prevent overlap with similar skills
 - **Under 1024 characters** — no XML angle brackets (`< >`)
 - **User perspective** — write trigger phrases as things the user would actually say, not internal jargon
+
+### Versioning
+
+**Whenever a skill is created or updated, bump `metadata.version` in its `SKILL.md` and update the matching "Versão" column in `README.md` in the same commit.** The two must always match.
