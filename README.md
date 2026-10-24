@@ -60,4 +60,4 @@ As regras para criar ou alterar uma skill estão em [AGENTS.md](AGENTS.md). Em r
 
 ## Licença
 
-O repositório está sob [MIT](LICENSE). A skill `plan-review` declara `CC-BY-4.0` no frontmatter do `SKILL.md`.
+[CC BY 4.0](LICENSE) © 2026 Dávilos Tavares. Pode usar, adaptar e redistribuir, inclusive comercialmente, desde que dê crédito ao autor, inclua o link da licença e indique o que foi alterado.
