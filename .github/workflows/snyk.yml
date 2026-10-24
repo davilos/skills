@@ -26,7 +26,8 @@ jobs:
       - name: Scan skills for prompt injection, malicious code and secrets
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: uvx "snyk-agent-scan@${AGENT_SCAN_VERSION}" --ci skills
+        # --ci demands --dangerously-run-mcp-servers; scanning only skills/ there are none to run.
+        run: uvx "snyk-agent-scan@${AGENT_SCAN_VERSION}" --ci --dangerously-run-mcp-servers skills
 
   snyk-code:
     name: Snyk Code (scripts)

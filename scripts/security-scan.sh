@@ -16,7 +16,8 @@ fi
 status=0
 
 echo "==> Snyk Agent Scan (skills/)"
-uvx "snyk-agent-scan@${AGENT_SCAN_VERSION}" --ci skills || status=1
+# --ci demands --dangerously-run-mcp-servers; scanning only skills/ there are none to run.
+uvx "snyk-agent-scan@${AGENT_SCAN_VERSION}" --ci --dangerously-run-mcp-servers skills || status=1
 
 # Like CI, only high severity fails; run plain `snyk code test` to list medium/low findings too.
 echo "==> Snyk Code (high severity)"
