@@ -36,6 +36,7 @@ As regras para criar ou alterar uma skill estão em [AGENTS.md](AGENTS.md). Em r
 - A `description` segue `[o que faz] + Use when ... + Do NOT use for ...`, com frases que o usuário realmente diria, até 1024 caracteres e sem `< >`.
 - Use a skill `skill-architect` ao criar ou modificar uma skill.
 - Ao criar ou alterar uma skill, suba o `metadata.version` no `SKILL.md` e atualize a coluna "Versão" deste README no mesmo commit.
+- Rode `scripts/security-scan.sh` (com `SNYK_TOKEN` definido) antes de commitar: o Snyk Agent Scan procura prompt injection, código malicioso e segredos nas skills, e o Snyk Code analisa os scripts. O mesmo roda no CI a cada push e PR.
 
 ## Licença
 

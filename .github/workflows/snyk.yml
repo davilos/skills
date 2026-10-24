@@ -1,0 +1,67 @@
+name: Snyk
+
+# The public Agent Scan has a daily usage limit, so only run when something scannable changes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - ".github/workflows/snyk.yml"
+  pull_request:
+    paths:
+      - "skills/**"
+      - ".github/workflows/snyk.yml"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AGENT_SCAN_VERSION: "0.6.9"
+
+jobs:
+  agent-scan:
+    name: Agent Scan (skills)
+    # Forks don't receive SNYK_TOKEN, so skip their PRs instead of failing.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+      - name: Scan skills for prompt injection, malicious code and secrets
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # --ci demands --dangerously-run-mcp-servers; scanning only skills/ there are none to run.
+        run: uvx "snyk-agent-scan@${AGENT_SCAN_VERSION}" --ci --dangerously-run-mcp-servers skills
+
+  snyk-code:
+    name: Snyk Code (scripts)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: snyk/actions/setup@v1.0.0
+      - name: Static analysis of skill scripts
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # Exit 1 only means "issues found": the gate below decides, so every finding still
+        # reaches Code Scanning. Exit 2+ (auth, unsupported project) fails here.
+        run: snyk code test --sarif-file-output=snyk-code.sarif || [ $? -eq 1 ]
+      - name: Upload results to GitHub Code Scanning
+        if: ${{ !cancelled() && hashFiles('snyk-code.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: snyk-code.sarif
+          category: snyk-code
+      - name: Fail on high-severity findings
+        # Medium/low findings are path arguments the CLI scripts read by design; they stay visible
+        # in Code Scanning without blocking the build.
+        run: |
+          high=$(jq '[.runs[].results[] | select(.level == "error")] | length' snyk-code.sarif)
+          echo "High-severity findings: $high"
+          test "$high" -eq 0
