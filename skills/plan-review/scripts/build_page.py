@@ -425,6 +425,7 @@ def main() -> int:
 
     pg = json.loads(pg_path.read_text(encoding="utf-8"))
     current = plan_hash(plan_path)
+    ui_path = feat / "ui-preview.json"
 
     if args.mark_published:
         now = fingerprints(extract(plan_path), pg)
@@ -495,6 +496,9 @@ def main() -> int:
         print(f"build_page: {len(errors)} error(s); page not built", file=sys.stderr)
         return 1
 
+    # The optional UI preview is its own artifact; the page only links to it.
+    if ui_path.exists():
+        pg["ui_preview_url"] = json.loads(ui_path.read_text(encoding="utf-8")).get("artifact_url") or ""
     html = TEMPLATE.read_text(encoding="utf-8")
     title = pg.get("title") or plan["title"]
     html = (html.replace("__TITLE__", title.replace("<", "&lt;"))
