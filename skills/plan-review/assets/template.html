@@ -1,0 +1,1173 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Documentation layout: top bar, section tree on the left (with the review state),
+   the plan in file order in the center and the review panel on the right. Below 1180 px the panel
+   goes away (progress moves to the tree); below 860 px the tree becomes a menu that opens from the top. */
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f6f7f9;
+  --bg-hover: #f0f2f5;
+  --fg: #11141a;
+  --fg-2: #353b47;
+  --muted: #5d6471;
+  --line: #e4e7ec;
+  --line-strong: #cfd4dc;
+  --accent: #3b4fd8;
+  --accent-soft: #eef0fd;
+  --ok: #157347;
+  --ok-soft: #e6f4ec;
+  --pend: #8f5600;
+  --pend-soft: #fcf1de;
+  --chg: #c0291b;
+  --chg-soft: #fdebe8;
+  --del: #b4321f;
+  --del-soft: #fcece9;
+  --add: #157347;
+  --add-soft: #e6f4ec;
+  --shadow: 0 1px 2px rgba(17, 20, 26, .06), 0 4px 12px rgba(17, 20, 26, .06);
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --top: 52px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1013; --bg-subtle: #15181d; --bg-hover: #1c2027; --fg: #e9ebef; --fg-2: #c3c8d1; --muted: #9098a6;
+    --line: #252a32; --line-strong: #353b45; --accent: #8e9bff; --accent-soft: #1c2140;
+    --ok: #55c58f; --ok-soft: #12291e; --pend: #e3ab4a; --pend-soft: #2e2412; --chg: #f2877a; --chg-soft: #351b18;
+    --del: #f2877a; --del-soft: #351b18; --add: #55c58f; --add-soft: #12291e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 16px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1013; --bg-subtle: #15181d; --bg-hover: #1c2027; --fg: #e9ebef; --fg-2: #c3c8d1; --muted: #9098a6;
+  --line: #252a32; --line-strong: #353b45; --accent: #8e9bff; --accent-soft: #1c2140;
+  --ok: #55c58f; --ok-soft: #12291e; --pend: #e3ab4a; --pend-soft: #2e2412; --chg: #f2877a; --chg-soft: #351b18;
+  --del: #f2877a; --del-soft: #351b18; --add: #55c58f; --add-soft: #12291e;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 16px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+/* The jump offset lives only in each target's scroll-margin; adding scroll-padding here would double it. */
+html { scroll-behavior: smooth; scrollbar-color: var(--line-strong) transparent; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before { transition: none !important; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss03"; caret-color: var(--accent); }
+::selection { background: var(--accent-soft); color: var(--fg); }
+[hidden] { display: none !important; }
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; color: var(--fg); }
+h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 23px; line-height: 1.25; font-weight: 650; letter-spacing: -0.015em; }
+h3 { font-size: 15.5px; line-height: 1.35; font-weight: 600; letter-spacing: -0.005em; }
+p { margin: 0; max-width: 72ch; }
+code { font-family: var(--mono); font-size: 0.84em; background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg); padding: 0 4px; border-radius: 4px; overflow-wrap: anywhere; }
+b { font-weight: 600; }
+.ic { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: -3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* top bar */
+.topbar { position: sticky; top: 0; z-index: 20; height: var(--top); display: flex; align-items: center; gap: 12px; padding: 0 max(20px, env(safe-area-inset-left, 0px)); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.brand { font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; }
+.crumb-sep { color: var(--line-strong); }
+.slug { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.top-right { margin-left: auto; display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+.hash { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.top-progress { font-variant-numeric: tabular-nums; color: var(--fg-2); font-weight: 500; }
+.menu-btn { display: none; }
+
+.page {
+  max-width: 1440px; margin: 0 auto;
+  display: grid; grid-template-columns: 248px minmax(0, 1fr) 232px; gap: 0 48px; align-items: start;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+
+/* section tree */
+nav.toc { position: sticky; top: var(--top); min-height: calc(100vh - var(--top)); max-height: calc(100vh - var(--top)); overflow-y: auto; padding: 28px 4px 40px 0; border-right: 1px solid var(--line); margin-right: -24px; padding-right: 20px; }
+.toc-title { font-size: 13px; font-weight: 600; color: var(--fg); padding: 0 10px 8px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+nav.toc a { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 6px; color: var(--fg-2); text-decoration: none; font-size: 14px; line-height: 1.4; transition: background-color .15s, color .15s; }
+nav.toc a:hover { background: var(--bg-hover); color: var(--fg); }
+nav.toc a[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 550; }
+nav.toc .sub { margin: 2px 0 4px 17px; padding-left: 8px; border-left: 1px solid var(--line); }
+nav.toc .sub a { font-size: 13px; padding: 3px 10px; }
+.toc-progress { margin: 16px 10px 0; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; display: none; }
+/* State icon: validated (check), not reviewed (empty circle), changed since (triangle). */
+.st { width: 14px; height: 14px; flex-shrink: 0; display: inline-flex; color: var(--line-strong); }
+.st svg { width: 14px; height: 14px; }
+.st[data-state="ok"] { color: var(--ok); }
+.st[data-state="pend"] { color: var(--pend); }
+.st[data-state="chg"] { color: var(--chg); }
+
+/* review panel */
+aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--top)); overflow-y: auto; padding: 28px 0 40px; display: grid; gap: 22px; align-content: start; font-size: 13px; }
+.rail h2 { font-size: 13px; font-weight: 600; letter-spacing: 0; margin-bottom: 8px; }
+.rail-count { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rail-count span { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.cells { display: grid; grid-template-columns: repeat(auto-fit, minmax(10px, 1fr)); gap: 3px; margin-top: 10px; }
+.cells a { height: 8px; border-radius: 2px; background: var(--line); transition: background-color .25s, transform .15s; }
+.cells a:hover { transform: scaleY(1.5); }
+.cells a[data-state="ok"] { background: var(--ok); }
+.cells a[data-state="pend"] { background: var(--pend-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pend) 45%, transparent); }
+.cells a[data-state="chg"] { background: var(--chg); }
+.rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail li a { display: flex; align-items: center; gap: 8px; color: var(--fg-2); text-decoration: none; padding: 3px 0; }
+.rail li a:hover { color: var(--accent); }
+.rail .empty { color: var(--muted); }
+.rail dl { margin: 0; display: grid; gap: 8px; }
+.rail dt { color: var(--muted); font-size: 12px; }
+.rail dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
+.rail dd.mono { font-family: var(--mono); font-size: 12px; }
+
+main { display: grid; gap: 72px; min-width: 0; padding: 36px 0 96px; }
+
+/* plan header */
+.head { display: grid; gap: 14px; }
+.plan-path { font-family: var(--mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12.5px; line-height: 1.4; padding: 3px 9px; border-radius: 999px; background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg-2); overflow-wrap: anywhere; }
+.tag.warn { background: var(--pend-soft); border-color: color-mix(in srgb, var(--pend) 30%, transparent); color: var(--pend); font-weight: 550; }
+.tag.mono { font-family: var(--mono); font-size: 12px; }
+.status { background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font-size: 14px; color: var(--fg-2); }
+.status b.lead { color: var(--fg); margin-right: 4px; }
+.note { font-size: 13px; color: var(--muted); }
+.note:empty { display: none; }
+
+/* section */
+section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20px); min-width: 0; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.sec-head h2 { margin-right: auto; }
+.tabs { display: flex; align-items: flex-end; gap: 20px; border-bottom: 1px solid var(--line); margin-top: -6px; }
+.tabs [role="tab"] { all: unset; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); padding: 8px 0 9px; margin-bottom: -1px; border-bottom: 2px solid transparent; transition: color .15s, border-color .15s; }
+.tabs [role="tab"]:hover { color: var(--fg); }
+.tabs [role="tab"][aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tabs [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.tab-note { margin-left: auto; font-size: 12.5px; color: var(--muted); padding-bottom: 9px; text-align: right; }
+.view { display: grid; gap: 20px; min-width: 0; }
+.blocks { display: grid; gap: 14px; color: var(--fg-2); }
+.blocks > p { color: var(--fg-2); }
+pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+.lead-in { color: var(--fg); }
+
+/* review badge and button */
+.rv { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 550; line-height: 1; padding: 5px 9px 5px 8px; border-radius: 999px; white-space: nowrap; transition: background-color .25s, color .25s; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.pend { background: var(--pend-soft); color: var(--pend); }
+.badge.stale { background: var(--chg-soft); color: var(--chg); }
+.rv-btn { font: inherit; font-size: 13px; font-weight: 550; line-height: 1; padding: 7px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); box-shadow: 0 1px 1px rgba(17, 20, 26, .04); transition: background-color .15s, border-color .15s; }
+.rv-btn:hover { background: var(--bg-hover); border-color: var(--muted); }
+.rv-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rv-btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+:root[data-theme="dark"] .rv-btn.primary { color: #0e1013; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rv-btn.primary { color: #0e1013; } }
+.rv-btn:disabled { opacity: .55; cursor: progress; }
+.stale-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 550; color: var(--chg); background: var(--chg-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; vertical-align: 1px; }
+
+/* plan lists */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.steps li:first-child { border-top: 0; }
+.steps .n { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.notes { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.notes li::marker { color: var(--muted); }
+.door-mark { font-size: 12px; font-weight: 600; color: var(--fg-2); background: var(--bg); border: 1px solid var(--line-strong); padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+
+/* tables */
+/* No overflow on the table box: with it, the header cannot stick to the page while scrolling.
+   Columns wrap their text and fit the width; code breaks anywhere. */
+.tbl { border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-top: 1px solid var(--line); }
+thead th { border-top: 0; font-size: 12.5px; font-weight: 600; color: var(--muted); background: var(--bg-subtle); white-space: nowrap; }
+/* Sticky header: pinned just below the bar while the table scrolls past; the bottom line is drawn as a shadow, because the border disappears in sticky mode. */
+thead th { position: sticky; top: var(--top); z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
+thead th:first-child { border-top-left-radius: 7px; }
+thead th:last-child { border-top-right-radius: 7px; }
+td { color: var(--fg-2); line-height: 1.55; }
+/* Short-value columns (#, Kind, Confirmed?) stay narrow; prose columns share the rest. */
+th.narrow, td.narrow { width: 1%; white-space: nowrap; }
+/* Confirmed? column: the plan value becomes a badge; the literal stays for screen readers (and for the coverage check). */
+.conf { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 550; line-height: 1; padding: 4px 9px 4px 6px; border-radius: 999px; white-space: nowrap; }
+.conf .ic { width: 14px; height: 14px; }
+.conf.yes { background: var(--ok-soft); color: var(--ok); }
+.conf.no { background: var(--pend-soft); color: var(--pend); }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* clickable cards (symptom, impact) */
+.card-btn { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; gap: 6px; padding: 14px 16px; }
+.card-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.chev { color: var(--muted); transition: transform .2s cubic-bezier(.2, .8, .2, 1); margin-top: 2px; }
+[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.detail { padding: 0 16px 14px; font-size: 14px; }
+.detail dl { margin: 0; display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.detail dt { color: var(--muted); font-size: 13px; font-weight: 500; }
+.detail dd { margin: 0; overflow-wrap: anywhere; color: var(--fg-2); }
+.where-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.where-list code { white-space: normal; overflow-wrap: break-word; }
+.where-lead { flex-basis: 100%; color: var(--fg-2); }
+.where-note { color: var(--muted); font-size: 13.5px; margin: 0 6px 0 2px; }
+a.xref { font-weight: 600; text-decoration: none; border-radius: 3px; }
+a.xref:hover { text-decoration: underline; }
+a.door-mark.xref { color: var(--accent); }
+.acs li, .door, .slice { scroll-margin-top: calc(var(--top) + 20px); }
+.acs li:target { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: 2px; }
+.door:target, .slice:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Problem */
+.pay-filter { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.pay-btn { font: inherit; font-size: 14px; line-height: 1.45; text-align: left; cursor: pointer; color: var(--fg-2); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; transition: border-color .15s, background-color .15s; }
+.pay-btn:hover { border-color: var(--line-strong); background: var(--bg-subtle); }
+.pay-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); box-shadow: 0 0 0 1px var(--accent); }
+/* Problem symptoms and Impact cards as a list, not a grid: every row has the same structure
+   (title, content, tag, chevron) and opening a row expands it in place, without reshuffling the others. */
+.syms, .imps { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.sym, .imp { min-width: 0; border-top: 1px solid var(--line); transition: opacity .2s, background-color .15s; }
+.sym:first-child, .imp:first-child { border-top: 0; }
+.sym-btn { grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) auto 16px; gap: 6px 20px; align-items: baseline; padding: 12px 16px; transition: background-color .15s; }
+.imp-btn { grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) minmax(0, 12rem) 16px; gap: 6px 20px; align-items: baseline; padding: 12px 16px; transition: background-color .15s; }
+.sym-btn:hover, .imp-btn:hover { background: var(--bg-subtle); }
+.sym.open, .imp.open { background: var(--bg-subtle); }
+.sym-what, .imp-what { font-weight: 600; color: var(--fg); }
+.imp-mid { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+/* The chevron stays on the title line, even when the row is tall. */
+.sym-btn .chev, .imp-btn .chev { align-self: start; margin-top: 3px; }
+.sym.hit .sym-what { color: var(--accent); }
+.sym.dim, .imp.dim { opacity: .35; }
+/* An open card takes the whole row: the detail is not squeezed into a column. */
+.sym .today { color: var(--fg-2); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sym .detail { padding: 0 16px 14px; }
+.fix-tag { font-size: 12.5px; font-weight: 550; color: var(--ok); display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.fix-link { font-weight: 600; text-decoration: none; }
+.callout { background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; color: var(--fg-2); }
+.callout b:first-child { color: var(--fg); }
+.hint { font-size: 13px; color: var(--muted); }
+
+/* Flow */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.switch { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; color: var(--fg-2); }
+.switch .track { width: 28px; height: 16px; border-radius: 999px; background: var(--line-strong); position: relative; transition: background-color .2s; }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .2s cubic-bezier(.2, .8, .2, 1); }
+.switch[aria-pressed="true"] .track { background: var(--accent); }
+.switch[aria-pressed="true"] .track::after { transform: translateX(12px); }
+.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.legend { display: inline-flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; border: 1px solid var(--line-strong); }
+.legend i.add { background: var(--add-soft); border-color: var(--add); }
+.paths { display: grid; gap: 12px; }
+.path { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.path-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.path-head .when { font-size: 13px; color: var(--muted); }
+.chain { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
+.chain .sep { align-self: center; color: var(--muted); display: inline-flex; }
+/* The arrow sticks to the next step: when the chain wraps, no arrow is left alone at the end of a line. */
+.chain .unit { display: inline-flex; align-items: stretch; gap: 6px; min-width: 0; max-width: 100%; }
+.node { border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; display: grid; gap: 2px; align-content: start; min-width: 0; max-width: 100%; background: var(--bg-subtle); transition: opacity .2s, border-color .15s, box-shadow .15s; }
+.node.changed { border-color: color-mix(in srgb, var(--add) 55%, transparent); background: var(--add-soft); }
+.node .nk { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.node .nn { font-family: var(--mono); font-size: 12.5px; color: var(--fg); overflow-wrap: anywhere; }
+.node .no { font-family: var(--mono); font-size: 11.5px; color: var(--del); text-decoration: line-through; overflow-wrap: anywhere; }
+.node .nnote { font-size: 12px; color: var(--add); }
+/* A value that is a sentence, not an identifier, uses the text font. */
+.node .prose, .name.prose { font-family: var(--font); font-size: 13px; }
+.paths.focus .node:not(.changed) { opacity: .3; }
+.node-btn { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.node-btn:hover { border-color: var(--add); }
+.node-btn[aria-expanded="true"] { border-color: var(--add); box-shadow: 0 0 0 2px color-mix(in srgb, var(--add) 35%, transparent); }
+/* The same node as the open card, repeated in another path: a ring in the accent color, on the path too. */
+.node.same { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.path.has-same { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+/* With a card open, only it and its repeats stay lit; the rest fades and comes back on hover. */
+.paths.picking .node:not(.same):not([aria-expanded="true"]) { opacity: .3; }
+.paths.picking .node-btn:hover, .paths.picking .node-btn:focus-visible { opacity: 1; }
+.legend i.same { background: var(--bg); border: 2px solid var(--accent); }
+.path .detail { padding: 0; }
+
+/* Impact */
+.aud { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.aud .lbl { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.chip { font: inherit; font-size: 13px; font-weight: 500; padding: 4px 11px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--fg-2); transition: background-color .15s, border-color .15s, color .15s; }
+.chip:hover { border-color: var(--line-strong); color: var(--fg); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.groups { display: grid; gap: 28px; }
+.group { display: grid; gap: 12px; }
+.group-head { display: flex; gap: 8px; align-items: center; }
+.group-head i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.group-head.code i { background: var(--fg); }
+.group-head.ops i { background: var(--muted); }
+.group-head .gcount { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ba { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* The arrow sticks to the new name: when it wraps, it is not left alone on the line. */
+.ba-new { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
+.who { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.who span { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--bg-subtle); border: 1px solid var(--line); color: var(--muted); }
+.risk { font-size: 13px; color: var(--fg-2); }
+.risk b { color: var(--fg); }
+.imp-detail { display: grid; gap: 12px; }
+.imp .detail { padding: 0 16px 14px; }
+.plan-text { font-size: 13.5px; color: var(--fg-2); background: var(--bg-subtle); border-radius: 6px; padding: 10px 12px; }
+.plan-text b.lead { display: block; color: var(--muted); font-size: 12.5px; font-weight: 500; margin-bottom: 2px; }
+.trees { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.tree { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+.tree h3 { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 4px; }
+.tree-lines { font-family: var(--mono); font-size: 12.5px; line-height: 1.7; }
+/* Hanging indent: a wrapped line continues after the "├── ", not below it. */
+.tree-lines .tl { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 4ch; text-indent: -4ch; }
+.t-del { color: var(--del); } .t-add { color: var(--add); } .t-mut { color: var(--muted); }
+.keep { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.keep li { display: grid; gap: 2px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.keep li:last-child { border-bottom: 0; padding-bottom: 0; }
+.keep .why { color: var(--muted); font-size: 13.5px; }
+.keep-names { display: flex; flex-wrap: wrap; gap: 4px; }
+/* Landing in plain language: each alternative considered, with the reason it was not chosen. */
+.door-v .field p { color: var(--fg-2); }
+.door-v .keep-names { margin-top: 6px; }
+.alts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.alts li { display: grid; gap: 2px; padding-left: 12px; border-left: 2px solid var(--line-strong); }
+.alts b { color: var(--fg); }
+.alts span { color: var(--fg-2); }
+
+/* Landing */
+.door { border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: grid; gap: 12px; min-width: 0; transition: border-color .2s, box-shadow .2s; }
+.door-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.door-head h3 { flex: 1 1 260px; }
+.door-head h3 .n { white-space: nowrap; }
+.field { display: grid; gap: 4px; }
+.field > h4 { margin: 0; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.shape { background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 14px; color: var(--fg-2); }
+
+/* Criteria */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-subtle); }
+.filters .lbl { font-size: 13px; color: var(--muted); margin-right: 2px; }
+.search { font: inherit; font-size: 14px; padding: 5px 10px; border-radius: 6px; min-width: 0; flex: 1 1 180px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); }
+.search::placeholder { color: var(--muted); }
+.search:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.slice { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+.slice-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 14px 18px; background: var(--bg-subtle); border-bottom: 1px solid var(--line); }
+.slice-head .sid { font-weight: 650; color: var(--accent); font-variant-numeric: tabular-nums; }
+.slice-head h3 { flex: 1 1 280px; }
+.slice-head .prio { font-size: 12.5px; color: var(--muted); }
+.slice-body { padding: 16px 18px; display: grid; gap: 14px; }
+.slice-body > h4, .renames-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg); }
+.acs { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.acs li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; font-size: 14.5px; color: var(--fg-2); }
+.acs .n { font-weight: 600; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.indep { font-size: 14px; color: var(--fg-2); background: var(--bg-subtle); border-radius: 6px; padding: 10px 12px; }
+.renames { border-top: 1px solid var(--line); }
+.renames-title { padding: 12px 18px 6px; }
+.row { border-top: 1px solid var(--line); }
+.renames-title + .row { border-top: 0; }
+.row-btn { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 9px 18px; transition: background-color .15s; }
+.row-btn.single { grid-template-columns: minmax(0, 1fr) auto auto; }
+.row-btn:hover { background: var(--bg-hover); }
+.row-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.row-btn[aria-expanded="true"] { background: var(--bg-subtle); }
+.name { font-family: var(--mono); font-size: 12.5px; padding: 2px 6px; border-radius: 4px; overflow-wrap: anywhere; justify-self: start; }
+.name.old { background: var(--del-soft); color: var(--del); text-decoration: line-through; text-decoration-thickness: 1px; }
+.name.new { background: var(--add-soft); color: var(--add); }
+/* A name the plan has not fixed yet: a "not defined" badge and, below it, what it will be. */
+.tbd-cell { display: inline-grid; gap: 2px; justify-items: start; min-width: 0; }
+.tbd { font-size: 12px; font-weight: 550; line-height: 1.4; color: var(--pend); background: var(--pend-soft); padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.tbd-desc { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.arrow { color: var(--muted); display: inline-flex; }
+.kind { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.kind.warn { border-color: color-mix(in srgb, var(--pend) 45%, transparent); color: var(--pend); background: var(--pend-soft); }
+.row .detail { padding: 0 18px 14px; }
+.none { padding: 12px 18px 14px; color: var(--muted); font-size: 14px; }
+
+/* Copy file:line from the Where chips. */
+.where-item { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.copy-btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; padding: 2px; border-radius: 4px; color: var(--muted); opacity: 0; transition: opacity .15s, color .15s; }
+.where-item:hover .copy-btn, .copy-btn:focus-visible, .copy-btn.done { opacity: 1; }
+.copy-btn:hover { color: var(--accent); background: var(--bg-hover); }
+.copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.copy-btn.done { color: var(--ok); }
+.copy-btn .ic { width: 14px; height: 14px; }
+@media (hover: none) { .copy-btn { opacity: .7; } }
+/* Notice after validating: says what to review next. */
+.toast { position: fixed; z-index: 30; right: 20px; bottom: 20px; max-width: min(420px, calc(100vw - 32px)); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 11px 14px; border-radius: 8px; background: var(--fg); color: var(--bg); font-size: 13.5px; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); transform: translateY(0); opacity: 1; transition: transform .25s cubic-bezier(.2, .8, .2, 1), opacity .25s; }
+.toast[hidden] { display: flex !important; transform: translateY(12px); opacity: 0; pointer-events: none; visibility: hidden; }
+.toast a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.toast a:focus-visible { outline: 2px solid var(--bg); outline-offset: 2px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 1180px) {
+  .page { grid-template-columns: 232px minmax(0, 1fr); gap: 0 40px; }
+  aside.rail { display: none; }
+  .toc-progress { display: block; }
+}
+@media (max-width: 860px) {
+  .page { grid-template-columns: minmax(0, 1fr); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .topbar { padding: 0 16px; gap: 10px; }
+  .hash, .crumb-sep, .slug { display: none; }
+  .menu-btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13.5px; font-weight: 500; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); cursor: pointer; }
+  nav.toc { position: fixed; top: var(--top); left: 0; right: 0; z-index: 15; min-height: 0; max-height: min(70vh, 560px); margin: 0; padding: 12px 16px 16px; background: var(--bg); border-right: 0; border-bottom: 1px solid var(--line); box-shadow: var(--shadow); }
+  nav.toc:not(.open) { display: none; }
+  main { padding-top: 24px; gap: 56px; }
+  h1 { font-size: 25px; }
+  h2 { font-size: 21px; }
+}
+@media (max-width: 600px) {
+  .row-btn, .row-btn.single { grid-template-columns: minmax(0, 1fr) auto; }
+  .row-btn .arrow { display: none; }
+  .row-btn .name.new { grid-column: 1; }
+  .row-btn .kind { grid-row: 1; grid-column: 2; }
+  .row-btn .chev { display: none; }
+  .sym-btn, .imp-btn { grid-template-columns: minmax(0, 1fr) 16px; }
+  .sym-btn .sym-what, .imp-btn .imp-what { grid-column: 1; grid-row: 1; }
+  .sym-btn .chev, .imp-btn .chev { grid-column: 2; grid-row: 1; }
+  .sym-btn .today, .sym-btn .fix-tag, .imp-btn .imp-mid, .imp-btn .who { grid-column: 1 / -1; }
+  .imp-btn .who { justify-content: flex-start; }
+  .imp-btn .imp-mid:empty { display: none; }
+  .sym-btn .today:empty, .sym-btn .fix-tag:empty { display: none; }
+  .detail dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .detail dt { margin-top: 8px; }
+  .tab-note { display: none; }
+  .toast { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+  /* The table becomes label/value blocks: no column runs off the screen. */
+  .tbl table, .tbl tbody, .tbl tr, .tbl td { display: block; width: auto; }
+  .tbl thead { display: none; }
+  .tbl tr { padding: 10px 14px; border-top: 1px solid var(--line); }
+  .tbl tr:first-child { border-top: 0; }
+  .tbl td { border: 0; padding: 2px 0; white-space: normal; }
+  .tbl td::before { content: attr(data-label); display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+  .tbl td:empty { display: none; }
+  /* On phones the Flow chain is vertical, with the arrow pointing down. */
+  .chain { flex-direction: column; align-items: stretch; }
+  .chain .unit { flex-direction: column; align-items: stretch; }
+  .chain .sep { align-self: flex-start; margin-left: 14px; transform: rotate(90deg); }
+  .node { max-width: none; }
+  .slice-head, .slice-body { padding-left: 14px; padding-right: 14px; }
+  .renames-title, .row-btn, .row .detail, .none { padding-left: 14px; padding-right: 14px; }
+}
+</style>
+
+<div class="topbar">
+  <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="toc-nav"><span>Sections</span></button>
+  <span class="brand">Plan review</span><span class="crumb-sep">/</span><span class="slug" id="slug"></span>
+  <div class="top-right"><span class="hash" id="top-hash"></span><span class="top-progress" id="top-progress"></span></div>
+</div>
+<div class="page">
+  <nav class="toc" id="toc-nav" aria-label="Plan sections">
+    <div class="toc-title">Plan sections</div>
+    <ol id="toc"></ol>
+    <div class="toc-progress" id="progress"></div>
+  </nav>
+  <main id="main">
+    <header class="head">
+      <div class="plan-path" id="plan-path"></div>
+      <h1 id="plan-title"></h1>
+      <div class="tags" id="tags"></div>
+      <div class="status"><b class="lead">Status:</b><span id="status"></span></div>
+      <div class="note" id="review-note" role="status"></div>
+    </header>
+  </main>
+  <aside class="rail" aria-label="Review">
+    <div><h2>Review</h2><div class="rail-count" id="rail-count"></div><div class="cells" id="rail-cells"></div></div>
+    <div><h2>Not reviewed</h2><ul id="rail-todo"></ul></div>
+    <div id="rail-chg-box" hidden><h2>Changed since validated</h2><ul id="rail-chg"></ul></div>
+    <div><h2>This page</h2><dl id="rail-meta"></dl></div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+/* Generated by the plan-review skill: do not edit by hand. Data comes from plan.md (PLAN) and review-page.json (PAGE_DATA). */
+var PLAN = __PLAN_JSON__;
+var PAGE_DATA = __PAGE_DATA_JSON__;
+(function () {
+  window.__PLAN_PAGE__ = { PLAN: PLAN, PAGE_DATA: PAGE_DATA };
+  var EN = PAGE_DATA || {};
+  var REVIEW = EN.review || {};
+
+  /* Icons (single-stroke SVG, 16 px). */
+  function svg(d, cls) { return '<svg class="' + (cls || "ic") + '" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + "</svg>"; }
+  var IC = {
+    chev: svg('<path d="M4 6l4 4 4-4"/>', "ic chev"),
+    arrow: svg('<path d="M3 8h10M9 4l4 4-4 4"/>'),
+    ok: svg('<circle cx="8" cy="8" r="6.25"/><path d="M5.3 8.2l1.8 1.8 3.6-3.8"/>'),
+    pend: svg('<circle cx="8" cy="8" r="6.25" stroke-dasharray="2.4 2.2"/>'),
+    chg: svg('<path d="M8 2.2l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.6v.1"/>'),
+    copy: svg('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>'),
+    check: svg('<path d="M3.5 8.5l3 3 6-7"/>')
+  };
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function md(s) {
+    return esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/\(door (\d+)\)/g, '(<span class="door-mark">door $1</span>)');
+  }
+  /* What changed in the plan since the last publish (build_page.py compares the hashes). */
+  var STALE = PLAN.stale || { sections: {}, derived: {} };
+  function staleTag(key) { return STALE.derived[key] ? ' <span class="stale-tag" title="The part of the plan this was taken from changed since the last publish">re-check: the plan changed here</span>' : ""; }
+  var store = {
+    get: function (k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+  };
+  /* Review state: comes from the artifact db (review/<key>) when it exists; otherwise from review-page.json.
+     Each validation stores the fingerprint of the validated text (fp): if the plan changes, it becomes "changed since". */
+  var FP = PLAN.fingerprints || {};
+  var DBREV = null, CAN_WRITE = false, ME = null, DB = null;
+  function jsonOk(key) { return key.indexOf("door:") === 0 ? (EN.doors_confirmed || []).indexOf(Number(key.slice(5))) !== -1 : !!REVIEW[key]; }
+  function reviewOf(key) {
+    var d = DBREV && DBREV[key];
+    if (d) { var ok = d.state === "validated"; return { ok: ok, changed: ok && d.fp !== FP[key], src: "page", at: d.at }; }
+    var ok2 = jsonOk(key);
+    return { ok: ok2, changed: ok2 && !!STALE.sections[key], src: "json" };
+  }
+  function stateOf(key) { var r = reviewOf(key); return r.ok ? (r.changed ? "chg" : "ok") : "pend"; }
+  function reviewSlot(key, okText) {
+    return '<span class="rv" data-rk="' + esc(key) + '" data-ok="' + esc(okText) + '"><span class="badge"></span>' +
+      '<button type="button" class="rv-btn" data-rk-btn="' + esc(key) + '" hidden></button></span>';
+  }
+  function nameOf(key) {
+    var s = SECTIONS.filter(function (x) { return x.id === key; })[0];
+    return s ? s.name : key;
+  }
+  function paintReview() {
+    document.querySelectorAll("[data-rk]").forEach(function (el) {
+      var key = el.getAttribute("data-rk"), okText = el.getAttribute("data-ok"), r = reviewOf(key), door = key.indexOf("door:") === 0;
+      var b = el.querySelector(".badge");
+      b.className = "badge " + (r.ok ? (r.changed ? "stale" : "ok") : "pend");
+      b.textContent = r.ok ? okText + (r.changed ? " · changed since" : "") : (door ? "not confirmed" : "not reviewed");
+      b.title = r.changed ? "The text changed after it was validated" : (r.src === "page" && r.at ? "Marked on this page at " + String(r.at).slice(0, 16).replace("T", " ") : "");
+      var btn = el.querySelector(".rv-btn");
+      btn.hidden = !CAN_WRITE;
+      btn.textContent = !r.ok ? (door ? "Confirm" : "Validate") : (r.changed ? (door ? "Confirm again" : "Validate again") : "Undo");
+      btn.classList.toggle("primary", !r.ok || r.changed);
+    });
+    document.querySelectorAll("[data-rk-dot]").forEach(function (el) {
+      var st = stateOf(el.getAttribute("data-rk-dot"));
+      if (el.getAttribute("data-state") === st) return;
+      el.setAttribute("data-state", st);
+      var label = st === "ok" ? "validated" : st === "chg" ? "changed since validated" : "not reviewed";
+      el.setAttribute("aria-label", label);
+      el.title = label;
+      if (el.classList.contains("st")) el.innerHTML = IC[st];
+    });
+    var done = SECTIONS.filter(function (s) { return stateOf(s.id) === "ok"; }).length;
+    var txt = done + " of " + SECTIONS.length + " sections validated";
+    var pr = document.getElementById("progress"); if (pr) pr.textContent = txt;
+    var tp = document.getElementById("top-progress"); if (tp) tp.textContent = done + "/" + SECTIONS.length + " validated";
+    var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = done + " <span>of " + SECTIONS.length + " sections validated</span>";
+    /* Panel: what is left and what changed, sections and slices in plan order. */
+    var keys = [];
+    SECTIONS.forEach(function (s) { keys.push([s.id, s.name, "#" + s.id]); if (s.criteria) s.criteria.slices.forEach(function (x) { keys.push([x.id, x.id, "#slice-" + x.id]); }); });
+    function items(st) {
+      return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) {
+        return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>";
+      }).join("");
+    }
+    var todo = document.getElementById("rail-todo");
+    if (todo) { var t = items("pend"); todo.innerHTML = t || '<li class="empty">Nothing left: everything is validated.</li>'; }
+    var chg = document.getElementById("rail-chg");
+    if (chg) { var c = items("chg"); chg.innerHTML = c; document.getElementById("rail-chg-box").hidden = !c; }
+  }
+  /* Door mark without a link: for use inside buttons, where <a> is not allowed. */
+  function doorMark(n) { return n ? ' · <span class="door-mark">door ' + esc(n) + "</span>" : ""; }
+  /* Door mark linking to the One-way door in Landing. */
+  function doorLink(n) { return n ? ' · <a class="door-mark xref" href="#door-' + esc(n) + '">door ' + esc(n) + "</a>" : ""; }
+  /* Proof with links: "AC 10 to 12" → each number links to its criterion; "door N" to Landing; "S5" to the slice.
+     Ranges and lists: "AC 1 to 4", "AC 1–3", "AC 10, 12", "AC 5 and 6" (the Portuguese "a" / "e" still work). */
+  var AC_RUN = /\bAC\s+\d+(?:\s*(?:,|–|-|\b(?:to|and|a|e)\b)\s*\d+)*/g;
+  function proof(s) {
+    return esc(s)
+      .replace(AC_RUN, function (run) { return run.replace(/\d+/g, function (n) { return '<a class="xref" href="#ac-' + n + '">' + n + "</a>"; }); })
+      .replace(/\bdoor (\d+)\b/g, '<a class="xref" href="#door-$1">door $1</a>')
+      .replace(/\b(S\d+[a-z]?)\b/g, '<a class="xref" href="#slice-$1">$1</a>');
+  }
+  function linkDoors(html) {
+    return html.replace(/<span class="door-mark">door (\d+)<\/span>/g, '<a class="door-mark xref" href="#door-$1">door $1</a>');
+  }
+  /* A sentence (two or more plain words, at least half of the tokens) uses the text font; an identifier or a list of identifiers stays in mono. */
+  function pr(s) {
+    var toks = String(s || "").trim().split(/\s+/);
+    var words = toks.filter(function (t) { return /^([a-zà-ú]{2,}|[A-ZÀ-Ú]{2,})$/.test(t); }).length;
+    return words >= 2 && words * 2 >= toks.length ? " prose" : "";
+  }
+  /* New name. With `tbd`, the plan has not fixed the name yet: the page says "not defined" and the text becomes the description of what it will be. */
+  function newName(text, tbd, cls) {
+    if (tbd) return '<span class="tbd-cell"><span class="tbd">not defined</span><span class="tbd-desc">' + esc(text) + "</span></span>";
+    return '<span class="' + cls + pr(text) + '">' + esc(text) + "</span>";
+  }
+  function newNameText(text, tbd) { return tbd ? "not defined · " + esc(text) : "<code>" + esc(text) + "</code>"; }
+  function dl(pairs) {
+    return "<dl>" + pairs.filter(function (p) { return p[1]; }).map(function (p) { return "<dt>" + esc(p[0]) + "</dt><dd>" + p[1] + "</dd>"; }).join("") + "</dl>";
+  }
+
+  /* ---------- plan blocks ---------- */
+  function table(b) {
+    var confirmCol = b.header.map(function (h) { return h.toLowerCase(); }).indexOf("confirmed?");
+    var narrow = b.header.map(function (h, i) { return b.rows.every(function (r) { return String(r[i] || "").length <= 12; }) ? ' class="narrow"' : ""; });
+    /* Text columns share the width by the root mean square of their cell lengths (minimum 18%):
+       a long prose column is not squeezed, and a very long cell also weighs in, so that
+       no row gets too tall. */
+    var avg = b.header.map(function (h, i) {
+      if (narrow[i]) return 0;
+      var sq = b.rows.reduce(function (n, r) { var l = String(r[i] || "").replace(/[`*]/g, "").length; return n + l * l; }, 0);
+      return Math.sqrt(sq / Math.max(b.rows.length, 1));
+    });
+    var total = avg.reduce(function (n, x) { return n + x; }, 0);
+    var cols = total ? "<colgroup>" + avg.map(function (x, i) {
+      return narrow[i] ? "<col>" : '<col style="width:' + Math.max(18, Math.round(x / total * 100)) + '%">';
+    }).join("") + "</colgroup>" : "";
+    return '<div class="tbl"><table>' + cols + '<thead><tr>' + b.header.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      b.rows.map(function (r) {
+        return "<tr>" + r.map(function (c, i) {
+          var td = "<td" + narrow[i] + ' data-label="' + esc(b.header[i] || "") + '">';
+          if (i === confirmCol) return td + (c === "y" ? '<span class="conf yes">' + IC.ok + "confirmed</span>" : '<span class="conf no">' + IC.pend + "not confirmed</span>") + '<span class="sr"> (plan.md: ' + esc(c) + ")</span></td>";
+          return td + md(c) + "</td>";
+        }).join("") + "</tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+  function blocks(list) {
+    return linkDoors('<div class="blocks">' + (list || []).map(function (b) {
+      if (b.type === "p") return "<p>" + md(b.text) + "</p>";
+      if (b.type === "ul") return '<ul class="notes">' + b.items.map(function (it) { return "<li>" + md(it.text) + "</li>"; }).join("") + "</ul>";
+      if (b.type === "ol") return '<ol class="steps">' + b.items.map(function (it) { return '<li><span class="n">' + it.n + "</span><span>" + md(it.text) + "</span></li>"; }).join("") + "</ol>";
+      if (b.type === "table") return table(b);
+      if (b.type === "code" && b.lang === "mermaid") return '<pre class="mermaid">' + esc(b.text) + "</pre>";
+      if (b.type === "code") return '<pre class="code">' + esc(b.text) + "</pre>";
+      return "";
+    }).join("") + "</div>");
+  }
+  function firstTable(sec) { return (sec.blocks || []).filter(function (b) { return b.type === "table"; })[0]; }
+
+  /* ---------- sections ---------- */
+  var main = document.getElementById("main");
+  var SECTIONS = PLAN.sections;
+  SECTIONS.forEach(function (s, i) { s.i = i + 1; });
+
+  var TAB_NOTE = { visual: "A reading of the code by whoever generated the page. The Plan text is what binds.", text: "The literal text of plan.md." };
+  function section(s, inner, planText) {
+    var el = document.createElement("section");
+    el.className = "sec"; el.id = s.id;
+    el.setAttribute("aria-labelledby", "h-" + s.id);
+    var tabs = "", body = inner;
+    if (planText) {
+      var mode = store.get("plan-review:view:" + s.id) === "text" ? "text" : "visual";
+      tabs = '<div class="tabs" role="tablist" aria-label="Reading mode for ' + esc(s.name) + '">' +
+        '<button type="button" role="tab" id="tab-' + s.id + '-visual" aria-controls="v-' + s.id + '-visual" data-view="visual" aria-selected="' + (mode === "visual") + '" tabindex="' + (mode === "visual" ? 0 : -1) + '">Visual</button>' +
+        '<button type="button" role="tab" id="tab-' + s.id + '-text" aria-controls="v-' + s.id + '-text" data-view="text" aria-selected="' + (mode === "text") + '" tabindex="' + (mode === "text" ? 0 : -1) + '">Plan text</button>' +
+        '<span class="tab-note">' + TAB_NOTE[mode] + "</span></div>";
+      body = '<div class="view" role="tabpanel" id="v-' + s.id + '-visual" aria-labelledby="tab-' + s.id + '-visual" data-v="visual"' + (mode === "visual" ? "" : " hidden") + ">" + inner + "</div>" +
+        '<div class="view" role="tabpanel" id="v-' + s.id + '-text" aria-labelledby="tab-' + s.id + '-text" data-v="text"' + (mode === "text" ? "" : " hidden") + ">" + planText + "</div>";
+    }
+    el.innerHTML = '<div class="sec-head"><h2 id="h-' + s.id + '">' + esc(s.name) + "</h2>" + reviewSlot(s.id, "validated") + "</div>" + tabs + body;
+    main.appendChild(el);
+    if (planText) {
+      var tl = el.querySelector(".tabs");
+      var pick = function (b) {
+        var v = b.getAttribute("data-view");
+        tl.querySelectorAll("[role=tab]").forEach(function (x) { var on = x === b; x.setAttribute("aria-selected", String(on)); x.tabIndex = on ? 0 : -1; });
+        el.querySelectorAll(":scope > .view").forEach(function (x) { x.hidden = x.getAttribute("data-v") !== v; });
+        tl.querySelector(".tab-note").textContent = TAB_NOTE[v];
+        store.set("plan-review:view:" + s.id, v);
+      };
+      tl.addEventListener("click", function (e) { var b = e.target.closest("[role=tab]"); if (b) pick(b); });
+      tl.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        var all = tl.querySelectorAll("[role=tab]"), cur = e.target.closest("[role=tab]"); if (!cur) return;
+        var nxt = all[cur === all[0] ? 1 : 0]; pick(nxt); nxt.focus(); e.preventDefault();
+      });
+    }
+    return el;
+  }
+
+  function treeHtml(lines) {
+    return (lines || []).map(function (l) {
+      return '<div class="tl"><span class="' + (l[1] ? "t-" + l[1] : "") + '">' + esc(l[0]) + "</span>" + (l[2] ? '<span class="t-mut">' + esc(l[2]) + "</span>" : "") + "</div>";
+    }).join("");
+  }
+  var CHANGES = EN.changes || [];
+  /* Where: one location per chip (separated by " · "), so wrapping falls between locations, not in the middle of a name.
+     Only the file:line becomes copyable code. A lead title at the start ("7 files import the package:")
+     goes on its own line; a comment after the file, and an item that is only text, stay as text. */
+  /* Where text: a file, path or identifier with _ in the middle of a sentence renders as code. */
+  function whereNote(t) { return '<span class="where-note">' + codeText(t) + "</span>"; }
+  function codeText(t) {
+    return esc(t).replace(/(^|[^\w§\/])([A-Za-z0-9\/][\w\/.{}-]*(?:_|\/|\.[a-z]{2,4}\b)[\w\/.{}-]*(?::[\d,\-]+)?)/g, function (all, pre, tok) {
+      if (/^([a-z]\/[a-z]{1,2}|and\/or)$/.test(tok) || tok === "/") return all;  // "and/or" (or "e/ou") is text
+      var tail = /[,.\-]+$/.exec(tok); tail = tail ? tail[0] : "";
+      return pre + "<code>" + tok.slice(0, tok.length - tail.length) + "</code>" + tail;
+    });
+  }
+  function whereList(s) {
+    if (!s) return "";
+    var items = String(s).split(/\s+·\s+/), lead = "";
+    var lm = /^([^:]*\s[^:]*):\s+(.+)$/.exec(items[0]);
+    if (lm && !/[\/.]/.test(lm[1])) { lead = '<span class="where-lead">' + esc(lm[1]) + ":</span>"; items[0] = lm[2]; }
+    return '<span class="where-list">' + lead + items.map(function (w) {
+      var m = /^(\S+(?:\s+→\s+\S+)*)(.*)$/.exec(w);
+      if (!m || !/[\/.]|:\d/.test(m[1].split(/\s/)[0])) return whereNote(w);
+      var code = m[1].replace(/[,;]$/, ""), note = w.slice(code.length).replace(/^[,;]?\s*/, "");
+      return '<span class="where-item"><code>' + esc(code) + '</code><button type="button" class="copy-btn" data-copy="' + esc(code) + '" aria-label="Copy ' + esc(code) + '" title="Copy">' + IC.copy + "</button>" +
+        (note ? whereNote(note) : "") + "</span>";
+    }).join("") + "</span>";
+  }
+  function changeDetail(c, extra) {
+    return '<div class="detail">' + dl((extra || []).concat([
+      ["Where", whereList(c.where)],
+      ["Why", esc(c.why)],
+      ["Proof", proof(c.proof) + doorLink(c.door)]
+    ])) + "</div>";
+  }
+
+  /* Problem: clickable symptoms (Where / Today / Fixed in) and "who pays" as a filter */
+  function renderProblem(s) {
+    var v = EN.problem_visual;
+    if (!v) return section(s, blocks(s.blocks));
+    var syms = v.symptoms || [], pays = v.pays || [];
+    var st = { pay: null, open: {} };
+    var html = staleTag("problem-visual") + (pays.length ? '<h3>Who pays</h3><div class="pay-filter">' + pays.map(function (p, i) {
+      return '<button type="button" class="pay-btn" data-p="' + i + '" aria-pressed="false">' + md(p) + "</button>";
+    }).join("") + "</div>" : "") +
+      '<h3>What is wrong today</h3><div class="syms"></div>' +
+      (pays.length ? '<p class="hint">Click who pays to see what hits them; click a symptom to see where it is and what fixes it.</p>' : "") +
+      (v.why_now ? '<div class="callout"><b>Why now:</b> ' + md(v.why_now) + "</div>" : "") +
+      (v.outcome ? '<div class="callout"><b>Once shipped:</b> ' + md(v.outcome) + "</div>" : "");
+    var el = section(s, html, blocks(s.blocks));
+    var box = el.querySelector(".syms");
+    function fixHtml(f) {
+      if (!f) return "";
+      return '<a class="fix-link" href="#slice-' + esc(f.slice) + '">' + esc(f.slice) + "</a> · " + proof(f.proof) + doorLink(f.door) + (f.text ? " · " + md(f.text) : "");
+    }
+    function render() {
+      box.innerHTML = syms.map(function (x, i) {
+        var open = !!st.open[i];
+        var dim = st.pay !== null && (x.pays || []).indexOf(st.pay) === -1;
+        return '<article class="sym' + (open ? " open" : "") + (dim ? " dim" : "") + (st.pay !== null && !dim ? " hit" : "") + '">' +
+          '<button type="button" class="sym-btn card-btn" data-i="' + i + '" aria-expanded="' + open + '"><span class="sym-what">' + esc(x.what) + staleTag("symptom:" + i) + "</span>" +
+          '<span class="today">' + (open ? "" : md(x.today)) + "</span>" + '<span class="fix-tag">' + (x.fix ? "Fixed in " + esc(x.fix.slice) : "") + "</span>" + IC.chev + "</button>" +
+          (open ? '<div class="detail">' + dl([["Where", whereList(x.where)], ["Today", md(x.today)], ["Fixed in", fixHtml(x.fix)],
+            ["Who pays", (x.pays || []).map(function (p) { return md(pays[p]); }).join("<br>")]]) + "</div>" : "") +
+          "</article>";
+      }).join("");
+    }
+    render();
+    el.addEventListener("click", function (e) {
+      var pb = e.target.closest(".pay-btn");
+      if (pb) {
+        var p = Number(pb.getAttribute("data-p"));
+        st.pay = st.pay === p ? null : p;
+        el.querySelectorAll(".pay-btn").forEach(function (b) { b.setAttribute("aria-pressed", String(Number(b.getAttribute("data-p")) === st.pay)); });
+        render();
+        return;
+      }
+      var b = e.target.closest(".sym-btn"); if (!b) return;
+      var i = b.getAttribute("data-i"); st.open[i] = !st.open[i]; render();
+      var again = el.querySelector('.sym-btn[data-i="' + i + '"]'); if (again) again.focus();
+    });
+  }
+
+  /* Flow: clickable paths */
+  function renderFlow(s) {
+    var v = EN.flow_visual;
+    if (!v) return section(s, blocks(s.blocks));
+    var intro = (s.blocks || []).filter(function (b) { return b.type === "p"; })[0];
+    var st = { sel: null };
+    // Where each changing node appears: its card opens in one place, and the other occurrences light up with it.
+    // Every copy opens the same card: `change` comes from the occurrence that carries it in the data.
+    var seen = {}, cardOf = {};
+    v.paths.forEach(function (p, pi) {
+      p.nodes.forEach(function (x, ni) {
+        if (x.o || x.note) (seen[x.n] = seen[x.n] || []).push(pi + "-" + ni);
+        if (x.change != null && !(x.n in cardOf)) cardOf[x.n] = x.change;
+      });
+    });
+    function cardIdx(x) { return x.change != null ? x.change : cardOf[x.n]; }
+    var repeats = Object.keys(seen).some(function (n) { return seen[n].length > 1; });
+    var html = (intro ? '<p class="lead-in">' + md(intro.text) + "</p>" : "") +
+      '<div class="toolbar"><button type="button" class="switch flow-focus" aria-pressed="false"><span class="track"></span>Highlight only what changes</button>' +
+      '<span class="legend"><span><i class="add"></i>changes: click to see where, why and proof</span><span>struck through = the name today</span>' +
+      (repeats ? '<span><i class="same"></i>the same node in another path</span>' : "") + '</span></div><div class="paths"></div>';
+    var el = section(s, html, blocks(s.blocks));
+    var box = el.querySelector(".paths");
+    function selNode() {
+      if (!st.sel) return null;
+      var at = st.sel.split("-");
+      return v.paths[+at[0]].nodes[+at[1]];
+    }
+    function node(x, key, selN) {
+      var changed = !!(x.o || x.note);
+      var same = changed && selN != null && x.n === selN && key !== st.sel;
+      var inner = '<span class="nk">' + esc(x.k) + doorMark(x.d) + "</span>" + (x.o ? '<span class="no' + pr(x.o) + '">' + esc(x.o) + "</span>" : "") +
+        newName(x.n, x.tbd, "nn") + (x.note ? '<span class="nnote">' + esc(x.note) + "</span>" : "");
+      if (!changed) return '<div class="node">' + inner + "</div>";
+      if (cardIdx(x) == null) return '<div class="node changed' + (same ? " same" : "") + '"' + (same ? ' title="The same node as the open card"' : "") + ">" + inner + "</div>";
+      return '<button type="button" class="node changed node-btn' + (same ? " same" : "") + '" data-key="' + key + '" aria-expanded="' + (st.sel === key) + '">' + inner + "</button>";
+    }
+    function render() {
+      var cur = selNode(), selN = cur ? cur.n : null;
+      box.classList.toggle("picking", !!cur);
+      box.innerHTML = v.paths.map(function (p, pi) {
+        var sel = null, hasSame = false;
+        var chain = p.nodes.map(function (x, ni) {
+          var key = pi + "-" + ni; if (st.sel === key) sel = x;
+          if (selN != null && x.n === selN && key !== st.sel && (x.o || x.note)) hasSame = true;
+          return ni === 0 ? node(x, key, selN) : '<span class="unit"><span class="sep">' + IC.arrow + "</span>" + node(x, key, selN) + "</span>";
+        }).join("");
+        var panel = sel ? changeDetail(CHANGES[cardIdx(sel)], [["Before", "<code>" + esc(sel.o || sel.n) + "</code>"], ["After", newNameText(sel.n, sel.tbd) + (sel.note ? " · " + esc(sel.note) : "")]]) : "";
+        return '<div class="path' + (hasSame ? " has-same" : "") + '"><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") + (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + panel + "</div>";
+      }).join("");
+    }
+    render();
+    el.querySelector(".flow-focus").addEventListener("click", function (e) {
+      var on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+      e.currentTarget.setAttribute("aria-pressed", String(on));
+      box.classList.toggle("focus", on);
+    });
+    el.addEventListener("click", function (e) {
+      var b = e.target.closest(".node-btn"); if (!b) return;
+      var k = b.getAttribute("data-key");
+      st.sel = st.sel === k ? null : k;
+      render();
+      var again = el.querySelector('.node-btn[data-key="' + k + '"]'); if (again) again.focus();
+    });
+  }
+
+  /* Impact: cards by group, "who feels it" filter */
+  function renderImpact(s) {
+    var v = EN.impact_visual;
+    if (!v) return section(s, blocks(s.blocks));
+    var rows = (firstTable(s) || { rows: [] }).rows;
+    var st = { aud: null, open: {} };
+    var auds = v.audiences || [];
+    var html = (auds.length ? '<div class="aud"><span class="lbl">Who feels it</span><button type="button" class="chip" data-a="" aria-pressed="true">All</button>' +
+      auds.map(function (a) { return '<button type="button" class="chip" data-a="' + esc(a) + '" aria-pressed="false">' + esc(a) + "</button>"; }).join("") + "</div>" : "") +
+      '<div class="groups"></div><p class="hint">Click a card to see where, why, proof and the plan text for that row.</p>';
+    var el = section(s, html, blocks(s.blocks));
+    var box = el.querySelector(".groups");
+    function card(c, i) {
+      var open = !!st.open[i];
+      var dim = st.aud && (c.who || []).indexOf(st.aud) === -1;
+      var detail = "";
+      if (open) {
+        detail = '<div class="imp-detail detail">' + dl([["Where", whereList(c.where)], ["Why", esc(c.why)], ["Proof", proof(c.proof)]]);
+        // What stays: each name is its own code chip; the reason shows files and identifiers as code.
+        if (c.keep && v.keep) detail += '<ul class="keep">' + v.keep.map(function (k) {
+          return '<li><span class="keep-names">' + String(k[0]).split(/\s+·\s+/).map(function (n) { return "<code>" + esc(n) + "</code>"; }).join("") +
+            '</span><span class="why">' + codeText(k[1]) + "</span></li>";
+        }).join("") + "</ul>";
+        if (c.tree && v.tree) detail += '<div class="trees"><div class="tree"><h3>Before</h3><div class="tree-lines">' + treeHtml(v.tree.before) + '</div></div><div class="tree"><h3>After</h3><div class="tree-lines">' + treeHtml(v.tree.after) + "</div></div></div>";
+        var r = rows[c.row];
+        if (r) detail += '<div class="plan-text"><b class="lead">Plan text · ' + esc(r[0]) + "</b>" + md(r.slice(1).join(" · ")) + "</div>";
+        detail += "</div>";
+      }
+      return '<article class="imp ' + esc(c.g) + (open ? " open" : "") + (dim ? " dim" : "") + '"><button type="button" class="imp-btn card-btn" data-i="' + i + '" aria-expanded="' + open + '">' +
+        '<span class="imp-what">' + esc(c.title) + staleTag("impact:" + i) + "</span>" + '<span class="imp-mid">' +
+        (c.before || c.after ? '<span class="ba">' + (c.before ? '<span class="name old' + pr(c.before) + '">' + esc(c.before) + "</span>" : "") + '<span class="ba-new">' + (c.before ? '<span class="arrow">' + IC.arrow + "</span>" : "") + newName(c.after, c.tbd, "name new") + "</span></span>" : "") +
+        (c.risk ? '<span class="risk"><b>Risk:</b> ' + esc(c.risk) + "</span>" : "") + "</span>" +
+        '<span class="who">' + (c.who || []).map(function (w) { return "<span>" + esc(w) + "</span>"; }).join("") + "</span>" + IC.chev + "</button>" + detail + "</article>";
+    }
+    function render() {
+      box.innerHTML = (v.groups || []).map(function (g) {
+        var cs = v.cards.map(function (c, i) { return [c, i]; }).filter(function (p) { return p[0].g === g[0]; });
+        if (!cs.length) return "";
+        return '<div class="group"><div class="group-head ' + esc(g[0]) + '"><i></i><h3>' + esc(g[1]) + '</h3><span class="gcount">' + cs.length + "</span></div>" +
+          '<div class="imps">' + cs.map(function (p) { return card(p[0], p[1]); }).join("") + "</div></div>";
+      }).join("");
+    }
+    render();
+    var audBox = el.querySelector(".aud");
+    if (audBox) audBox.addEventListener("click", function (e) {
+      var b = e.target.closest(".chip"); if (!b) return;
+      st.aud = b.getAttribute("data-a") || null;
+      audBox.querySelectorAll(".chip").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      render();
+    });
+    el.addEventListener("click", function (e) {
+      var b = e.target.closest(".imp-btn"); if (!b) return;
+      var i = b.getAttribute("data-i"); st.open[i] = !st.open[i]; render();
+      var again = el.querySelector('.imp-btn[data-i="' + i + '"]'); if (again) again.focus();
+    });
+  }
+
+  /* Landing: one card per one-way door.
+     With `landing_visual`, the Visual tab explains each door in plain language (it holds the
+     "Confirm" button and the door-N id); the plan table stays in the "Plan text" tab. */
+  function renderLanding(s) {
+    var t = firstTable(s);
+    if (!t || !/one-way door/i.test(t.header[0] || "")) return section(s, blocks(s.blocks));
+    var lv = EN.landing_visual, byN = {};
+    ((lv && lv.doors) || []).forEach(function (d) { byN[String(d.n)] = d; });
+    var rest = s.blocks.filter(function (b) { return b !== t; });
+    /* Door N is the N-th row of the Landing table (the canonical tlc-spec-lean format, and how
+       build_page.py numbers the door:N fingerprints). A legacy "N. name" first cell gives N and the title. */
+    function head(r, i) { var m = /^(\d+)\.\s*(.*)$/.exec(r[0]); return { n: m ? m[1] : String(i + 1), title: m ? m[2] : r[0] }; }
+    function planCard(r, i, live) {
+      var h = head(r, i), n = h.n;
+      return '<article class="door"' + (live && n ? ' id="door-' + esc(n) + '"' : "") + '><div class="door-head"><h3><span class="n">One-way door ' + esc(n) + "</span> · " + md(h.title) + "</h3>" +
+        (live && n ? reviewSlot("door:" + n, "confirmed") : "") + "</div>" +
+        '<div class="field"><h4>' + esc(t.header[1] || "Literal shape") + '</h4><div class="shape">' + md(r[1] || "") + "</div></div>" +
+        '<div class="field"><h4>' + esc(t.header[2] || "Alternative rejected") + "</h4><p>" + md(r[2] || "") + "</p></div></article>";
+    }
+    if (!lv) return section(s, t.rows.map(function (r, i) { return planCard(r, i, true); }).join("") + blocks(rest));
+    function field(label, html) { return '<div class="field"><h4>' + esc(label) + "</h4>" + html + "</div>"; }
+    function para(x) { return "<p>" + codeText(x) + "</p>"; }
+    var visual = (lv.intro ? '<div class="callout">' + md(lv.intro) + "</div>" : "") + t.rows.map(function (r, i) {
+      var h = head(r, i), n = h.n, d = byN[n] || {};
+      return '<article class="door door-v" id="door-' + esc(n) + '"><div class="door-head"><h3><span class="n">One-way door ' + esc(n) + "</span> · " + esc(d.title || h.title) + "</h3>" +
+        staleTag("landing:" + n) + reviewSlot("door:" + n, "confirmed") + "</div>" +
+        (d.decide ? field("What is decided", para(d.decide)) : "") +
+        (d.choice ? field("What we chose", para(d.choice) + (d.names ? '<div class="keep-names">' + d.names.map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("") + "</div>" : "")) : "") +
+        (d.hard ? field("Why it is hard to undo", para(d.hard)) : "") +
+        (d.risk ? field("On deploy", para(d.risk)) : "") +
+        (d.alternatives ? field("What was rejected", '<ul class="alts">' + d.alternatives.map(function (a) { return "<li><b>" + codeText(a[0]) + "</b><span>" + codeText(a[1]) + "</span></li>"; }).join("") + "</ul>") : "") +
+        (d.proof ? field("Proof", "<p>" + proof(d.proof) + "</p>") : "") + "</article>";
+    }).join("") + blocks(rest);
+    return section(s, visual, t.rows.map(function (r, i) { return planCard(r, i, false); }).join("") + blocks(rest));
+  }
+
+  /* Criteria: slices, criteria and each slice's changes */
+  function renderCriteria(s) {
+    var c = s.criteria;
+    var kinds = [];
+    CHANGES.forEach(function (x) { if (x.k && kinds.indexOf(x.k) === -1) kinds.push(x.k); });
+    var warnKinds = EN.warn_kinds || [];
+    var filter = CHANGES.length ? '<div class="filters"><span class="lbl">Changes</span><button type="button" class="chip" data-k="" aria-pressed="true">All kinds</button>' +
+      kinds.map(function (k) { return '<button type="button" class="chip" data-k="' + esc(k) + '" aria-pressed="false">' + esc(k) + "</button>"; }).join("") +
+      '<input class="search" type="search" placeholder="Search name, file…" aria-label="Search changes"><span class="count"></span></div>' : "";
+    var html = blocks(c.intro) + (CHANGES.length ? '<p class="hint">Each slice lists its changes below its criteria; click a row to see where, why and proof.</p>' : "") + filter +
+      c.slices.map(function (sl) {
+        return '<article class="slice" id="slice-' + esc(sl.id) + '"><div class="slice-head"><span class="sid">' + esc(sl.id) + "</span><h3>" + md(sl.title) + '</h3><span class="prio">' + esc(sl.prio) + "</span>" +
+          reviewSlot(sl.id, "validated") + "</div>" +
+          '<div class="slice-body">' + blocks(sl.desc) + '<h4>Acceptance Criteria</h4><ol class="acs">' +
+          sl.acs.map(function (a) { return '<li id="ac-' + a.n + '"><span class="n">' + a.n + ".</span><span>" + linkDoors(md(a.text)) + "</span></li>"; }).join("") + "</ol>" +
+          (sl.indep ? '<div class="indep"><b>Independent test:</b> ' + md(sl.indep) + "</div>" : "") + blocks(sl.extra) + "</div>" +
+          '<div class="renames" data-slice="' + esc(sl.id) + '"></div></article>';
+      }).join("");
+    var el = section(s, html);
+    var st = { kind: "", q: "", open: {} };
+    function matches(x) {
+      if (st.kind && x.k !== st.kind) return false;
+      if (st.q && ((x.old || "") + " " + x.neu + " " + (x.where || "") + " " + (x.why || "")).toLowerCase().indexOf(st.q) === -1) return false;
+      return true;
+    }
+    function render() {
+      var shown = 0;
+      el.querySelectorAll(".renames").forEach(function (box) {
+        var sid = box.getAttribute("data-slice");
+        var all = CHANGES.map(function (x, i) { return [x, i]; }).filter(function (p) { return p[0].s === sid; });
+        if (!all.length) { box.innerHTML = CHANGES.length ? '<div class="none">' + esc((EN.slice_notes || {})[sid] || "No changes listed for this slice.") + "</div>" : ""; return; }
+        var rows = all.filter(function (p) { return matches(p[0]); });
+        shown += rows.length;
+        var h = '<h4 class="renames-title">Changes in this slice</h4>';
+        if (!rows.length) h += '<div class="none">No change in this slice matches the filter.</div>';
+        rows.forEach(function (p) {
+          var x = p[0], i = p[1], open = !!st.open[i];
+          h += '<div class="row"><button type="button" class="row-btn' + (x.old ? "" : " single") + '" aria-expanded="' + open + '" data-i="' + i + '">' +
+            (x.old ? '<span class="name old' + pr(x.old) + '">' + esc(x.old) + '</span><span class="arrow">' + IC.arrow + "</span>" : "") + newName(x.neu, x.tbd, "name new") + staleTag("change:" + i) +
+            (x.k ? '<span class="kind' + (warnKinds.indexOf(x.k) !== -1 ? " warn" : "") + '">' + esc(x.k) + "</span>" : "<span></span>") + IC.chev + "</button>" +
+            (open ? changeDetail(x) : "") + "</div>";
+        });
+        box.innerHTML = h;
+      });
+      var cnt = el.querySelector(".filters .count"); if (cnt) cnt.textContent = shown + " of " + CHANGES.length;
+    }
+    var f = el.querySelector(".filters");
+    if (f) {
+      f.addEventListener("click", function (e) {
+        var b = e.target.closest(".chip"); if (!b) return;
+        st.kind = b.getAttribute("data-k");
+        f.querySelectorAll(".chip").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        render();
+      });
+      f.querySelector(".search").addEventListener("input", function (e) { st.q = e.target.value.trim().toLowerCase(); render(); });
+    }
+    el.addEventListener("click", function (e) {
+      var b = e.target.closest(".row-btn"); if (!b) return;
+      var i = b.getAttribute("data-i"); st.open[i] = !st.open[i]; render();
+      var again = el.querySelector('.row-btn[data-i="' + i + '"]'); if (again) again.focus();
+    });
+    render();
+  }
+
+  /* ---------- page assembly ---------- */
+  var planPath = EN.plan_path || PLAN.path;
+  var slugM = /features\/([^/]+)\//.exec(planPath || "");
+  document.getElementById("slug").textContent = slugM ? slugM[1] : (planPath || "");
+  document.getElementById("top-hash").textContent = PLAN.hash ? "plan.md " + PLAN.hash : "";
+  document.getElementById("plan-path").textContent = planPath;
+  document.getElementById("plan-title").textContent = PLAN.title;
+  document.getElementById("status").innerHTML = md(PLAN.status);
+  document.getElementById("tags").innerHTML = (EN.tags || []).map(function (t) { return '<span class="tag' + (t.warn ? " warn" : "") + '">' + esc(t.text) + "</span>"; }).join("") +
+    (PLAN.hash ? '<span class="tag mono" title="Hash of the plan.md this page was generated from. If the current plan.md has a different hash, the page is out of date.">plan.md ' + esc(PLAN.hash) + (PLAN.generated ? " · generated " + esc(PLAN.generated) : "") + "</span>" : "");
+
+  SECTIONS.forEach(function (s) {
+    if (s.id === "problem") return renderProblem(s);
+    if (s.id === "flow") return renderFlow(s);
+    if (s.id === "impact") return renderImpact(s);
+    if (s.id === "landing") return renderLanding(s);
+    if (s.id === "criteria") return renderCriteria(s);
+    section(s, blocks(s.blocks));
+  });
+
+  var foot = document.createElement("footer");
+  foot.innerHTML = "Mirror of <code>" + esc(planPath) + "</code>" + (PLAN.hash ? " (hash " + esc(PLAN.hash) + ")" : "") + (PLAN.generated ? ", generated " + esc(PLAN.generated) : "") +
+    ". Section text comes from the plan; Where, Why and Proof come from reading the code" + (EN.code_ref ? " at " + esc(EN.code_ref) : "") + ".";
+  main.appendChild(foot);
+
+  document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
+    var li = '<li><a href="#' + esc(s.id) + '" data-sec="' + esc(s.id) + '"><span class="st" data-rk-dot="' + esc(s.id) + '"></span><span>' + esc(s.name) + "</span></a>";
+    if (s.criteria) li += '<ol class="sub">' + s.criteria.slices.map(function (x) { return '<li><a href="#slice-' + esc(x.id) + '"><span class="st" data-rk-dot="' + esc(x.id) + '"></span><span>' + esc(x.id) + "</span></a></li>"; }).join("") + "</ol>";
+    return li + "</li>";
+  }).join("");
+  document.getElementById("rail-cells").innerHTML = SECTIONS.map(function (s) {
+    return '<a href="#' + esc(s.id) + '" data-rk-dot="' + esc(s.id) + '"></a>';
+  }).join("");
+  document.getElementById("rail-meta").innerHTML =
+    (PLAN.hash ? '<dt>plan.md</dt><dd class="mono">' + esc(PLAN.hash) + "</dd>" : "") +
+    (PLAN.generated ? "<dt>Generated</dt><dd>" + esc(PLAN.generated) + "</dd>" : "") +
+    (EN.code_ref ? "<dt>Code read</dt><dd>" + esc(EN.code_ref) + "</dd>" : "");
+
+  /* Section menu on phones. */
+  var nav = document.getElementById("toc-nav"), menu = document.getElementById("menu-btn");
+  function setMenu(open) { nav.classList.toggle("open", open); menu.setAttribute("aria-expanded", String(open)); }
+  menu.addEventListener("click", function () { setMenu(!nav.classList.contains("open")); });
+  nav.addEventListener("click", function (e) { if (e.target.closest("a")) setMenu(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && nav.classList.contains("open")) { setMenu(false); menu.focus(); } });
+
+  /* Current section in the tree: the last section (and, in Criteria, the last slice) whose top has passed
+     the line just below the bar. At the bottom of the page, the last section that starts in the top two
+     thirds of the screen. A click on an internal link marks the target at once and holds it until scrolling stops. */
+  var tocLinks = {};
+  document.querySelectorAll("nav.toc a[href^='#']").forEach(function (a) { tocLinks[a.getAttribute("href").slice(1)] = a; });
+  var spyLock = false, spyTimer = null, spyFrame = 0;
+  function markToc(ids) {
+    Object.keys(tocLinks).forEach(function (k) { tocLinks[k].setAttribute("aria-current", String(ids.indexOf(k) !== -1)); });
+  }
+  function spy() {
+    spyFrame = 0;
+    if (spyLock) return;
+    var bar = document.querySelector(".topbar"), line = (bar ? bar.offsetHeight : 52) + 80;
+    var secs = [].slice.call(document.querySelectorAll("section.sec"));
+    if (!secs.length) return;
+    var cur = secs[0];
+    secs.forEach(function (sec) { if (sec.getBoundingClientRect().top <= line) cur = sec; });
+    var doc = document.documentElement;
+    if (window.innerHeight + window.scrollY >= doc.scrollHeight - 4) {
+      secs.forEach(function (sec) { if (sec.getBoundingClientRect().top < window.innerHeight * 2 / 3) cur = sec; });
+    }
+    var ids = [cur.id];
+    if (cur.id === "criteria") {
+      var sl = null;
+      cur.querySelectorAll(".slice").forEach(function (x) { if (x.getBoundingClientRect().top <= line) sl = x; });
+      if (sl) ids.push(sl.id);
+    }
+    markToc(ids);
+  }
+  function releaseSpy() { spyLock = false; spyTimer = null; }
+  window.addEventListener("scroll", function () {
+    if (spyLock) { clearTimeout(spyTimer); spyTimer = setTimeout(releaseSpy, 200); return; }
+    if (!spyFrame) spyFrame = (window.requestAnimationFrame || setTimeout)(spy);
+  }, { passive: true });
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest("a[href^='#']"); if (!a) return;
+    var target = document.getElementById(a.getAttribute("href").slice(1)); if (!target) return;
+    var sec = target.closest("section.sec"), sl = target.closest(".slice");
+    if (!sec) return;
+    markToc(sl ? [sec.id, sl.id] : [sec.id]);
+    spyLock = true; clearTimeout(spyTimer); spyTimer = setTimeout(releaseSpy, 1000);
+  });
+  spy();
+
+  paintReview();
+  var note = document.getElementById("review-note");
+  function say(t) { if (note) note.textContent = t; }
+  var api = window.claude && typeof window.claude.use === "function" ? window.claude : null;
+  if (api) {
+    api.use("db").then(function (db) {
+      if (!db) return;
+      DB = db;
+      db.collection("review").onSnapshot(function (snap) {
+        var m = {};
+        snap.docs.forEach(function (d) { if (d.exists) m[d.id] = d.data(); });
+        DBREV = m;
+        paintReview();
+      }, function () { say("The validations for this page could not be loaded right now."); });
+      return api.use("user").then(function (user) {
+        if (!user) return;
+        return Promise.all([user.canEdit(), user.id()]).then(function (v) {
+          CAN_WRITE = !!v[0]; ME = v[1];
+          paintReview();
+          say(CAN_WRITE ? "What you validate or confirm here is saved on this page." : "Only editors of this page can validate.");
+        });
+      });
+    });
+  }
+  /* Review order: sections in plan order, with the doors inside Landing and the slices inside Criteria. */
+  function reviewOrder() {
+    var out = [];
+    SECTIONS.forEach(function (s) {
+      out.push([s.id, s.name, "#" + s.id]);
+      if (s.id === "landing") Object.keys(FP).filter(function (k) { return k.indexOf("door:") === 0; })
+        .sort(function (a, b) { return Number(a.slice(5)) - Number(b.slice(5)); })
+        .forEach(function (k) { out.push([k, "One-way door " + k.slice(5), "#door-" + k.slice(5)]); });
+      if (s.criteria) s.criteria.slices.forEach(function (x) { out.push([x.id, x.id, "#slice-" + x.id]); });
+    });
+    return out;
+  }
+  var toastTimer = null;
+  function toast(html) {
+    var t = document.getElementById("toast"); if (!t) return;
+    t.innerHTML = html; t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 8000);
+  }
+  /* After validating: points to the next pending item, starting from the one just validated. */
+  function nextToast(key) {
+    var order = reviewOrder(), at = order.map(function (o) { return o[0]; }).indexOf(key);
+    var done = order[at] ? order[at][1] : key, isDoor = key.indexOf("door:") === 0;
+    for (var i = 1; i < order.length; i++) {
+      var o = order[(at + i) % order.length];
+      if (stateOf(o[0]) !== "ok") {
+        toast("<span>" + esc(done) + (isDoor ? " confirmed." : " validated.") + '</span><span>Next to review: <a href="' + esc(o[2]) + '">' + esc(o[1]) + "</a></span>");
+        return;
+      }
+    }
+    toast("<span>" + esc(done) + (isDoor ? " confirmed." : " validated.") + " Everything is reviewed.</span>");
+  }
+  document.addEventListener("click", function (e) { if (e.target.closest("#toast a")) document.getElementById("toast").hidden = true; });
+  /* Copy: the clipboard may be blocked in the artifact iframe; the legacy method covers that case. */
+  function legacyCopy(t) {
+    var ta = document.createElement("textarea"), ok = false;
+    ta.value = t; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+    document.body.removeChild(ta);
+    return ok ? Promise.resolve() : Promise.reject(new Error("copy"));
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).catch(function () { return legacyCopy(t); });
+    return legacyCopy(t);
+  }
+  document.addEventListener("click", function (e) {
+    var c = e.target.closest(".copy-btn"); if (!c) return;
+    var text = c.getAttribute("data-copy");
+    copyText(text).then(function () {
+      c.classList.add("done"); c.innerHTML = IC.check; c.setAttribute("aria-label", "Copied: " + text);
+      setTimeout(function () { c.classList.remove("done"); c.innerHTML = IC.copy; c.setAttribute("aria-label", "Copy " + text); }, 1500);
+    }, function () { toast("<span>Could not copy. Select the text and copy it by hand.</span>"); });
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".rv-btn");
+    if (!b || !DB || !CAN_WRITE) return;
+    var key = b.getAttribute("data-rk-btn"), r = reviewOf(key);
+    var next = r.ok && !r.changed ? "pending" : "validated";
+    b.disabled = true;
+    DB.doc("review/" + key).set({ state: next, fp: FP[key] || null, plan: PLAN.hash || null, by: ME, at: new Date().toISOString() })
+      .then(function () { b.disabled = false; say(""); if (next === "validated") nextToast(key); })
+      .catch(function (err) { b.disabled = false; say("Could not save (" + ((err && err.code) || "error") + "). Try again."); });
+  });
+})();
+</script>
