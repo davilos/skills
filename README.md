@@ -1,9 +1,5 @@
 # skills
 
-Skills para agentes de código (Claude Code, Cursor, Windsurf e outros compatíveis com o formato `SKILL.md`), feitas para o dia a dia de engenheiros de software.
-
-Uma skill é uma pasta com instruções e scripts que o agente carrega sozinho quando o pedido combina com a descrição dela. Você instala uma vez e passa a pedir em linguagem natural, por exemplo "make the review page for the plan".
-
 ## Skills disponíveis
 
 | Skill                                     | O que faz                                                                                                                                                           | Versão |
@@ -21,24 +17,6 @@ npx skills add davilos/skills
 # só uma skill
 npx skills add davilos/skills --skill plan-review
 ```
-
-O CLI copia a skill para a pasta de cada agente (`.claude/skills/`, `.cursor/skills/`, `.windsurf/skills/`...).
-
-Instalação manual: copie a pasta `skills/<nome>/` para `.claude/skills/` do projeto ou para `~/.claude/skills/` (vale para todos os projetos). O caminho muda conforme o agente.
-
-## plan-review
-
-Gera uma página de revisão que espelha o `plan.md` de uma feature (`.specs/features/{slug}/plan.md`): Problem, Flow, Impact e Landing ganham visões visuais, cada mudança mostra **Where / Why / Proof** (arquivo e linha, motivo, critério que garante) e cada seção pode ser validada na própria página.
-
-- **Fiel ao plano, e isso é verificado.** O build recusa gerar a página se algum trecho do `plan.md` não chegou aos dados, e o check roda a página no jsdom para confirmar que cada trecho aparece na seção certa e na ordem do plano (`planCoverage: N/N`).
-- **Sabe quando ficou desatualizada.** A página guarda o hash do `plan.md` publicado. Se o plano mudar, o build avisa `STALE` e o que foi validado sobre o texto antigo aparece como "validated · changed since".
-- **Validação na página.** Publicada como Artifact no claude.ai, a página tem botões "Validate" por seção e "Confirm" por One-way door, e `sync_review.py` traz essas validações de volta para o projeto. Sem Artifact, gera um HTML local que funciona offline.
-
-**Requisitos:** Python 3 (só biblioteca padrão), Node.js com [jsdom](https://www.npmjs.com/package/jsdom) para o check, e um plano no formato do tlc-spec-lean.
-
-**Como pedir:** "make a page for the plan", "plan review page", "update the plan page", "sync what I validated on the page".
-
-Procedimento completo, regras da página e troubleshooting no [SKILL.md](skills/plan-review/SKILL.md). Formato do `review-page.json` em [references/review-page-json.md](skills/plan-review/references/review-page-json.md).
 
 ## Estrutura
 
