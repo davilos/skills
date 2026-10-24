@@ -18,7 +18,8 @@ status=0
 echo "==> Snyk Agent Scan (skills/)"
 uvx "snyk-agent-scan@${AGENT_SCAN_VERSION}" --ci skills || status=1
 
-echo "==> Snyk Code"
-snyk code test || status=1
+# Like CI, only high severity fails; run plain `snyk code test` to list medium/low findings too.
+echo "==> Snyk Code (high severity)"
+snyk code test --severity-threshold=high || status=1
 
 exit "$status"
