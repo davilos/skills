@@ -4,7 +4,7 @@ description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lea
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.1.0'
+  version: '1.1.1'
 ---
 
 # Tech Lead's Club - Plan Review
