@@ -1,9 +1,16 @@
 name: Snyk
 
+# The public Agent Scan has a daily usage limit, so only run when something scannable changes.
 on:
   push:
     branches: [main]
+    paths:
+      - "skills/**"
+      - ".github/workflows/snyk.yml"
   pull_request:
+    paths:
+      - "skills/**"
+      - ".github/workflows/snyk.yml"
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
