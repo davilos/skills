@@ -1,5 +1,7 @@
 # AI folders
 .agents
-.claude
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 .cursor
 .windsurf
