@@ -206,6 +206,11 @@ if (data) {
 async function checkReviewFlow() {
   const store = {},
     writes = []
+  // An empty section (no content, or only `None - <why>`) has nothing to validate: no button, a "nothing to validate" badge.
+  const toReview = data.PLAN.sections.filter((s) => !s.empty)
+  // Exercise one section with content (starting as pending on the page, whatever review-page.json says) and another for "changed since".
+  const [key, other] = toReview.map((s) => s.id)
+  if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   let listener = null
   const snap = () => ({ docs: Object.keys(store).map((id) => ({ id, exists: true, data: () => store[id] })) })
   const fakeDb = {
@@ -243,36 +248,44 @@ async function checkReviewFlow() {
   const out = []
   const slots = d2.querySelectorAll('[data-rk]').length
   const want =
-    P2.sections.length +
+    toReview.length +
     (P2.sections.find((s) => s.id === 'criteria')?.criteria.slices.length || 0) +
     Object.keys(P2.fingerprints || {}).filter((k) => k.startsWith('door:')).length
-  if (slots !== want) out.push(`review: ${slots} review badges, expected ${want} (sections + slices + doors)`)
-  const btn = d2.querySelector('.rv-btn[data-rk-btn="relations"]')
+  if (slots !== want) out.push(`review: ${slots} review badges, expected ${want} (sections with content + slices + doors)`)
+  for (const s of P2.sections.filter((x) => x.empty)) {
+    if (d2.querySelector(`[data-rk="${s.id}"]`)) out.push(`review: the empty section ${s.id} has a validate button`)
+    if (!d2.querySelector(`section#${s.id} .badge.na`)) out.push(`review: the empty section ${s.id} does not say "nothing to validate"`)
+  }
+  const badgeOf = (k) => d2.querySelector(`[data-rk="${k}"] .badge`).textContent
+  if (!other) {
+    out.push('review: the plan needs two sections with content to exercise the buttons')
+    return { out, errs }
+  }
+  const btn = d2.querySelector(`.rv-btn[data-rk-btn="${key}"]`)
   if (!btn || btn.hidden) {
     out.push('review: the validate button does not show for an editor')
     return { out, errs }
   }
-  const badgeOf = (k) => d2.querySelector(`[data-rk="${k}"] .badge`).textContent
   btn.click()
   await tick()
   const w = writes[writes.length - 1]
-  if (!w || w.path !== 'review/relations' || w.data.state !== 'validated')
-    out.push('review: clicking Validate did not write review/relations as validated')
-  else if (w.data.fp !== P2.fingerprints.relations)
+  if (!w || w.path !== `review/${key}` || w.data.state !== 'validated')
+    out.push(`review: clicking Validate did not write review/${key} as validated`)
+  else if (w.data.fp !== P2.fingerprints[key])
     out.push('review: the stored fingerprint is not the one of the current text')
-  if (badgeOf('relations') !== 'validated')
-    out.push(`review: after validating, the badge says "${badgeOf('relations')}"`)
-  d2.querySelector('.rv-btn[data-rk-btn="relations"]').click()
+  if (badgeOf(key) !== 'validated')
+    out.push(`review: after validating, the badge says "${badgeOf(key)}"`)
+  d2.querySelector(`.rv-btn[data-rk-btn="${key}"]`).click()
   await tick()
   if (writes[writes.length - 1].data.state !== 'pending') out.push('review: Undo did not write pending')
-  if (badgeOf('relations') !== 'not reviewed')
-    out.push(`review: after undoing, the badge says "${badgeOf('relations')}"`)
+  if (badgeOf(key) !== 'not reviewed')
+    out.push(`review: after undoing, the badge says "${badgeOf(key)}"`)
   // A validation made on an old text: fingerprint differs from the current one.
-  store.surface = { state: 'validated', fp: 'old-fingerprint', at: '2026-01-01T00:00:00Z' }
+  store[other] = { state: 'validated', fp: 'old-fingerprint', at: '2026-01-01T00:00:00Z' }
   listener(snap())
   await tick()
-  if (!/changed since/.test(badgeOf('surface')))
-    out.push(`review: a validation of an old text shows as "${badgeOf('surface')}"`)
+  if (!/changed since/.test(badgeOf(other)))
+    out.push(`review: a validation of an old text shows as "${badgeOf(other)}"`)
   return { out, errs, writes: writes.length }
 }
 

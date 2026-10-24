@@ -42,15 +42,17 @@ def _h(obj) -> str:
 def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
     """Fingerprint of every part of the plan something on the page depends on.
 
-    Sections, slices and doors: what the user validates. Derived items (Impact card,
-    Flow path, change, symptom, Problem visual): the part of the plan they were drawn
-    from. Recorded by --mark-published; on the next build, whatever differs becomes
-    "changed since" / "re-check: the plan changed here" on the page.
+    Sections, slices and doors: what the user validates (an empty section has nothing to
+    validate, so it has none). Derived items (Impact card, Flow path, change, symptom,
+    Problem visual): the part of the plan they were drawn from. Recorded by
+    --mark-published; on the next build, whatever differs becomes "changed since" /
+    "re-check: the plan changed here" on the page.
     """
     fp: dict[str, str] = {}
     secs = {s["id"]: s for s in plan["sections"]}
     for sid, s in secs.items():
-        fp[sid] = _h(s.get("blocks") or s.get("criteria"))
+        if not s.get("empty"):
+            fp[sid] = _h(s.get("blocks") or s.get("criteria"))
     slices = secs.get("criteria", {}).get("criteria", {}).get("slices", [])
     acs = {}
     for sl in slices:
@@ -161,8 +163,10 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
     for k in review:
         if k not in sections and k not in slice_ids:
             errors.append(f"review.{k}: not a section or slice of the plan")
-    for sid in sections:
-        if sid not in review:
+        elif sections.get(k, {}).get("empty"):
+            warns.append(f"review.{k}: the section is empty in the plan, so there is nothing to validate; ignored")
+    for sid, sec in sections.items():
+        if sid not in review and not sec.get("empty"):
             warns.append(f"review has no '{sid}': the section shows as 'not reviewed'")
 
     changes = pg.get("changes", [])
