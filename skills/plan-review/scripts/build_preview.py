@@ -8,7 +8,7 @@ and criteria the plan has and points at an element of the mockup; fragments stay
 
 Usage:
     python3 build_preview.py --root <project> <feature> --detect
-        (does the plan touch front-end files? prints them; exit 0 either way)
+        (does the plan change what the user sees? ui: yes / code-only / no, with the evidence; exit 0)
     python3 build_preview.py --root <project> <feature> --out <file.html>
     python3 build_preview.py --root <project> <feature> --mark-published
         (after publishing: records in ui-preview.json the plan that went live)
@@ -32,6 +32,14 @@ TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "preview-template
 # a false positive costs one question.
 UI_FILE = re.compile(r"[\w./{}\[\]-]+\.(?:tsx|jsx|vue|svelte|astro|html?|css|scss|sass|less|erb|hbs|ejs|njk|twig|cshtml|razor|blade\.php)\b")
 UI_DIR = re.compile(r"[\w./-]*\b(?:components|pages|views|screens|layouts|ui|templates)/[\w./{}\[\]-]*")
+# A criterion about what the user sees: on screen, in words or state (English and Portuguese plans).
+# Only filters the offer: code-only front-end plans (a hook, a renamed CSS variable) are not asked.
+VISIBLE = re.compile(
+    r"\b(?:shows?|shown|displays?|displayed|renders?|rendered|visible|hidden|hides?|appears?|"
+    r"button|link|label|copy|title|heading|text|message|page|screen|card|dialog|modal|menu|tab|form|field|input|"
+    r"icon|colou?r|amber|red|green|layout|header|footer|banner|toast|tooltip|badge|bar|disabled|enabled|empty state|"
+    r"placeholder|highlight|mostra|exibe|aparece|botão|tela|página|texto|campo|cor|desabilitad[oa]|habilitad[oa])\b",
+    re.I)
 MARK = re.compile(r"""\bdata-mark\s*=\s*["']?(\d+)""")
 # What a fragment must not carry: it renders inside the page, offline and without code.
 UNSAFE = [
@@ -51,7 +59,13 @@ def detect(plan_text: str) -> list[str]:
         ref = m[0].strip(".,;:")
         if ref not in hits:
             hits.append(ref)
-    return hits
+    # `PlanCard.tsx` cited alone is the same file as `src/components/PlanCard.tsx`.
+    return [h for h in hits if not any(o != h and o.endswith("/" + h) for o in hits)]
+
+
+def visible_criteria(plan: dict) -> list[tuple[int, str]]:
+    """Criteria that describe something the user sees: the evidence that a preview has anything to show."""
+    return [(a["n"], a["text"]) for s in slice_map(plan).values() for a in s["acs"] if VISIBLE.search(a["text"])]
 
 
 def slice_map(plan: dict) -> dict[str, dict]:
@@ -169,9 +183,13 @@ def main() -> int:
 
     if args.detect:
         hits = detect(plan_text)
-        print(f"ui: {'yes' if hits else 'no'}")
-        for h in hits:
-            print(f"  {h}")
+        seen = visible_criteria(extract(plan_path)) if hits else []
+        # yes: front-end files and criteria about what the user sees; code-only: the files change, the screen does not.
+        print(f"ui: {'yes' if seen else 'code-only' if hits else 'no'}")
+        if hits:
+            print("  files: " + " · ".join(hits))
+        for n, text in seen:
+            print(f"  AC {n}: {text[:100]}")
         return 0
 
     pv_path = Path(args.data) if args.data else feat / "ui-preview.json"
