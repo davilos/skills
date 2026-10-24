@@ -1,8 +1,8 @@
 {
   "permissions": {
     "deny": [
-      "Bash(git push)",
-      "Bash(git push *)"
+      "Bash(git push * main)",
+      "Bash(git push *:main)"
     ]
   },
   "hooks": {
