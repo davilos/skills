@@ -121,6 +121,23 @@ def cited_acs(text: str) -> list[int]:
     return out
 
 
+def plain(text: str) -> str:
+    """Text without bold/code markup, case or extra spaces: for comparing what was copied from the plan."""
+    return re.sub(r"\s+", " ", re.sub(r"\*\*|`", "", text or "")).strip().casefold()
+
+
+def blocks_text(blocks) -> str:
+    parts = []
+    for b in blocks or []:
+        if b["type"] in ("p", "code"):
+            parts.append(b["text"])
+        elif b["type"] in ("ul", "ol"):
+            parts += [it["text"] for it in b["items"]]
+        elif b["type"] == "table":
+            parts += b["header"] + [c for r in b["rows"] for c in r]
+    return " ".join(parts)
+
+
 def as_script_json(data) -> str:
     # `</` would close the <script>; U+2028/2029 break old JS strings.
     return (json.dumps(data, ensure_ascii=False)
@@ -186,6 +203,15 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
         for p in range(n_pays):
             if p not in hit:
                 warns.append(f"problem_visual.pays[{p}] highlights no symptom")
+        # Who pays is copied from the Problem, nothing beyond. Literal comparison: the same payer
+        # written differently ("MASTER who configures the robot" vs "the MASTER") also lands here,
+        # so it is a warning, not an error.
+        if "problem" in sections:
+            problem = plain(blocks_text(sections["problem"].get("blocks")))
+            for p, who in enumerate(pv.get("pays", [])):
+                if plain(who) not in problem:
+                    warns.append(f"problem_visual.pays[{p}] = {who!r} is not in the plan's Problem: copy who pays "
+                                 "as the Problem writes it (if it is the same payer written differently, rewrite it the same way)")
 
     fv = pg.get("flow_visual")
     if fv:
