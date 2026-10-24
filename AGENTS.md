@@ -1,3 +1,5 @@
+Always follow the general rules in @general-rules.md.
+
 ## Skill Structure
 
 ```
