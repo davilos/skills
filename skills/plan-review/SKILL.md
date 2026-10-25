@@ -4,7 +4,7 @@ description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lea
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.3.0'
+  version: '1.3.1'
 ---
 
 # Tech Lead's Club - Plan Review
@@ -53,7 +53,7 @@ Run everything from the project root (where `.specs/` lives). `{skill-dir}` is t
 
 ## UI preview (optional)
 
-A second page, its own artifact, with before/after mockups of every screen the plan changes, a numbered highlight on each change and, next to it, the slice and criteria that require it. It helps people who review by looking. It is **opt-in** because it costs more: on a small React plan (two screens, 4 to 7 changes), building it after the review page added about 13k tokens (+21%) and doubled the time (1 to 2 minutes), measured over 2 runs each. It grows with the number and size of the screens drawn.
+A second page, its own artifact, with before/after mockups of every screen the plan changes, a numbered highlight on each change and, next to it, the slice and criteria that require it. It helps people who review by looking. It is **opt-in** because it costs more: on a small React plan (two screens, 4 to 7 changes), building it after the review page added about 13k tokens (+21%) and doubled the time (1 to 2 minutes), measured over 2 runs each ([the numbers](references/ui-preview.md#what-it-costs)). It grows with the number and size of the screens drawn.
 
 1. **Detect.** `python3 {skill-dir}/scripts/build_preview.py --root . {slug} --detect` prints `ui: yes` when the plan cites front-end files (components, pages, templates, styles) **and** has criteria about what the user sees (text, position, state, a new screen), listing both; `ui: code-only` when it cites the files but no criterion changes the screen (a hook, a renamed CSS variable); `ui: no` otherwise. The criteria match on words, so read the ones listed: if none really changes the screen, treat it as `code-only`.
 2. **Offer once.** On `ui: yes`, if review-page.json has no `"ui_preview": false` and there is no `ui-preview.json` yet, ask in one line at the end of step 7, with the cost: "This plan changes {screens}. Want a before/after preview of them? It adds about 20% to the tokens of this review, more for many or large screens." Count the screens from the visible criteria (a dialog or a state worth its own picture counts as one). **Above 3 screens, offer the main ones and name the rest**: "Want a preview of Billing and the cancel dialog? The other 4 are variations of them (empty, error...)"; the user may still ask for all. On no, write `"ui_preview": false` in review-page.json and do not ask again for this plan. Build it straight away when the user asked for it up front ("with a UI preview", "show how the screen will look"). On `ui: code-only` or `ui: no` say nothing, unless the user asks: there is nothing on screen to compare.

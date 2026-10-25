@@ -9,6 +9,7 @@ Optional. A separate page with before/after mockups of the screens a front-end p
 - Fragments
 - Drawing faithfully
 - Spending few tokens
+- What it costs
 - Minimal example
 
 ## Files
@@ -76,6 +77,21 @@ The mockup is the expensive part of this skill: every line is output. Keep it to
 - **Styles once per screen** in `css`, shared by both states; inline `style` only for one-offs.
 - **Read only the files of the screens you draw**: the component, its parent and its styles. The Where of the review page usually already points there.
 - `build_preview.py` warns above 30 KB per fragment: that size means it draws more than the change.
+
+## What it costs
+
+Measured on 2026-10-24 (plan-review 1.2.0), two runs per arm, each a fresh subagent on its own copy of the same project: a small React app whose plan adds a usage meter to the billing page and moves "Cancel subscription" into a Danger zone card with a confirmation dialog (2 slices, 6 criteria, 1 One-way door). Arm A built the review page only (Procedure steps 1 to 5); arm B built the review page and then the UI preview (steps 1, 3 and 4 of the preview), with the user's yes given up front. Nothing was published.
+
+| Run | What it built | Tokens | Tool calls | Time |
+| --- | --- | --- | --- | --- |
+| A1 | review page | 60,524 | 9 | 60 s |
+| A2 | review page | 59,985 | 9 | 63 s |
+| B1 | review page + preview, After written in one go | 72,268 | 18 | 115 s |
+| B2 | review page + preview, After copied and edited | 73,775 | 22 | 127 s |
+
+Averages: A 60.3k, B 73.0k, so the preview added about **12.8k tokens (+21%)** and doubled the time. The previews had 2 screens (one with Before and After, one new dialog with After only), 4 to 7 marks and about 4 KB of mockup, so most of the cost is the extra calls (reading this reference, writing each fragment, building), each carrying the context so far, not the mockup itself. B2's copy-and-edit route cost 1.5k more than B1's single write, which is why "Spending few tokens" says to write small fragments in one go. Expect more for more or larger screens.
+
+To measure again after changing the skill, run the same two arms with the same project and compare the subagents' token totals.
 
 ## Minimal example
 
