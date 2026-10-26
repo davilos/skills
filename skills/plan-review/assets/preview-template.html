@@ -196,7 +196,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     ".ph{background:#e7e9ee;border-radius:6px;min-height:14px}.ph-line{height:10px;border-radius:4px;background:#e7e9ee;margin:8px 0}.ph-line.short{width:40%}" +
     "html.marks [data-mark]{outline:2px var(--mks,solid) var(--mk);outline-offset:3px;border-radius:4px;position:relative;cursor:pointer}" +
     "html.marks [data-mark]::after{content:attr(data-mark);position:absolute;top:-11px;right:-11px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--mk);color:#fff;font:600 12px/20px system-ui,sans-serif;text-align:center;z-index:9}" +
-    "html.marks [data-mark].flash{outline-width:4px;outline-offset:5px;transition:outline-width .2s,outline-offset .2s}";
+    "html.marks [data-mark].flash{outline-width:4px;outline-offset:5px;transition:outline-width .2s,outline-offset .2s}" +
+    /* A change only in copy: the words that go out in <del> (Before), the words that come in in <ins> (After). */
+    "html.marks del{color:#b4321f;background:#fcece9;text-decoration-thickness:1.5px;border-radius:3px;padding:0 2px}" +
+    "html.marks ins{color:#157347;background:#e6f4ec;text-decoration:none;border-radius:3px;padding:0 2px;font-weight:600}" +
+    "html:not(.marks) del,html:not(.marks) ins{text-decoration:none;background:none;color:inherit;font-weight:inherit;padding:0}";
   var MK = { before: "#b4321f", after: "#157347" };
   /* With a kind, the mark keeps its colour on both sides; without one, it takes the side's. */
   var KIND = { add: "#157347", change: "#9a5b00", remove: "#b4321f" };

@@ -77,6 +77,7 @@ The build rejects: a slice or criterion the plan does not have, an unknown `kind
 - The `<body>` content of the screen, plus `<style>` if needed. No `<html>`, no scripts, no external images, fonts or stylesheets: the page is offline and the frame runs no code.
 - Every frame gets a neutral base (system font, white background) and two placeholder classes for context that does not change: `.ph` (a grey block; give it a height and width inline) and `.ph-line` (a line of text; `.ph-line.short` is 40% wide).
 - Put `data-mark` on an element that can hold a badge (a `div`, `section`, `button`), not on `input` or `img`: wrap those.
+- **A change only in copy:** mark the element as usual and wrap the words that differ: `<del>` around what goes out in `before`, `<ins>` around what comes in in `after` (`… acompanha "Quantidade por via" <del>da configuração do e-mail</del>` / `<ins>das configurações gerais</ins>`). The page strikes and highlights them; with highlights off they read as plain text.
 - Static states only. If the change is a state (disabled, error, empty, loading), draw that state; if more than one state matters, add them to the screen's `states`.
 
 ## Drawing faithfully
