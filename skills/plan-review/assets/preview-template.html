@@ -126,9 +126,18 @@ a.tag:hover { border-color: var(--accent); color: var(--accent); }
 .mark-text { color: var(--fg); }
 .mark-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 .mark-meta .w { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
-.badge { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; }
-.badge.tbd { background: var(--pend-soft); color: var(--pend); }
+.badge { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.badge.tbd { border: 1px dashed var(--line-strong); color: var(--muted); }
+/* The kind of a mark sets its colour: arrives (green), changes (amber), goes away (red); "same" and "effect" have no element. */
+.num.k-add { background: var(--add); } .num.k-change { background: var(--pend); } .num.k-remove { background: var(--del); }
+.num.k-same, .num.k-effect { background: transparent; border: 1.5px dashed var(--line-strong); color: var(--muted); }
+.badge.k-add { background: var(--add-soft); color: var(--add); }
+.badge.k-change { background: var(--pend-soft); color: var(--pend); }
+.badge.k-remove { background: var(--del-soft); color: var(--del); }
+.badge.k-same, .badge.k-effect { background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg-2); }
+.marks-title.sub { margin-top: 10px; }
 .badge.stale { background: var(--chg-soft); color: var(--chg); }
+.badge.st { white-space: normal; }
 .badge.side, .badge.st { background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg-2); font-weight: 500; }
 
 footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; }
@@ -185,17 +194,25 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
      and the numbered highlights (red where something goes or changes today, green where it arrives). */
   var FRAME_BASE = "html,body{margin:0}body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#11141a;background:#fff;font-size:14px;line-height:1.5}" +
     ".ph{background:#e7e9ee;border-radius:6px;min-height:14px}.ph-line{height:10px;border-radius:4px;background:#e7e9ee;margin:8px 0}.ph-line.short{width:40%}" +
-    "html.marks [data-mark]{outline:2px solid var(--mk);outline-offset:3px;border-radius:4px;position:relative;cursor:pointer}" +
+    "html.marks [data-mark]{outline:2px var(--mks,solid) var(--mk);outline-offset:3px;border-radius:4px;position:relative;cursor:pointer}" +
     "html.marks [data-mark]::after{content:attr(data-mark);position:absolute;top:-11px;right:-11px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--mk);color:#fff;font:600 12px/20px system-ui,sans-serif;text-align:center;z-index:9}" +
     "html.marks [data-mark].flash{outline-width:4px;outline-offset:5px;transition:outline-width .2s,outline-offset .2s}";
   var MK = { before: "#b4321f", after: "#157347" };
+  /* With a kind, the mark keeps its colour on both sides; without one, it takes the side's. */
+  var KIND = { add: "#157347", change: "#9a5b00", remove: "#b4321f" };
+  var KIND_LABEL = { add: "new", change: "changes", remove: "goes away", same: "same as today", effect: "effect" };
+  function kindCSS(sc) {
+    return (sc.marks || []).filter(function (m) { return m.n && KIND[m.kind]; }).map(function (m) {
+      return '[data-mark="' + m.n + '"]{--mk:' + KIND[m.kind] + (m.kind === "remove" ? ";--mks:dashed" : "") + "}";
+    }).join("");
+  }
   /* The fragment a side shows in a state: the state's own, or the screen's when the state has none. */
   function frag(sc, st, side) {
     var name = st && Object.prototype.hasOwnProperty.call(st, side) ? st[side] : sc[side];
     return name ? D.frags[name] : null;
   }
   function srcdoc(sc, html, side) {
-    return '<!doctype html><html class="marks" style="--mk:' + MK[side] + '"><head><meta charset="utf-8"><style>' + FRAME_BASE + "</style>" +
+    return '<!doctype html><html class="marks" style="--mk:' + MK[side] + '"><head><meta charset="utf-8"><style>' + FRAME_BASE + kindCSS(sc) + "</style>" +
       (sc.css ? "<style>" + D.frags[sc.css] + "</style>" : "") + "</head><body>" + html + "</body></html>";
   }
   function holds(m, state) { return !m.states || !m.states.length || !state || m.states.indexOf(state) >= 0; }
@@ -240,7 +257,10 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     var saved = store.get("ui-preview:view:" + sc.id);
     var mode = saved && (both || saved !== "both") ? saved : (both ? "both" : (anyAfter ? "after" : "before"));
     var views = [["before", "Before"], ["after", "After"], ["both", "Side by side"]];
-    var marks = (sc.marks || []).slice().sort(function (a, b) { return a.n - b.n; });
+    /* Numbered marks first, in order; then the "same" and "effect" notes, which have no element. */
+    var all = (sc.marks || []).map(function (m, i) { return Object.assign({ _i: i }, m); });
+    var marks = all.filter(function (m) { return m.n; }).sort(function (a, b) { return a.n - b.n; });
+    var notes = all.filter(function (m) { return !m.n; });
     el.innerHTML = '<div class="screen-head"><h2>' + esc(sc.name) + "</h2>" + (sc.route ? '<span class="route">' + esc(sc.route) + "</span>" : "") + "</div>" +
       (sc.where ? '<div class="where"><b>Drawn from</b>' + esc(sc.where) + "</div>" : "") +
       '<div class="controls"><div class="tabs" role="tablist" aria-label="View of ' + esc(sc.name) + '">' + views.map(function (v) {
@@ -262,15 +282,18 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     /* Marks of the other states stay in the list, dimmed; a click on one switches to its state. */
     function renderMarks() {
       var here = marks.filter(function (m) { return holds(m, state); }).length;
-      list.innerHTML = '<li class="marks-title">What changes' + (states ? " in this state" : "") + " (" + here + ")</li>" + marks.map(function (m) {
-        var key = "mark:" + sc.id + ":" + m.n, other = !holds(m, state);
-        return '<li><button type="button" class="mark' + (other ? " other" : "") + '" data-n="' + m.n + '" data-to="' + (other ? esc(m.states[0]) : "") + '" aria-pressed="false"><span class="num">' + m.n + "</span><span>" +
-          '<span class="mark-text">' + md(m.text) + "</span>" + (m.tbd ? ' <span class="badge tbd" title="The plan does not fix this yet: the mockup shows a placeholder">not defined</span>' : "") +
+      function item(m) {
+        var key = m.n ? "mark:" + sc.id + ":" + m.n : "note:" + sc.id + ":" + m._i, other = !holds(m, state);
+        var badge = m.kind ? '<span class="num k-' + esc(m.kind) + '">' + (m.n || (m.kind === "effect" ? "→" : "=")) + "</span>" : '<span class="num">' + m.n + "</span>";
+        return '<li><button type="button" class="mark' + (other ? " other" : "") + '" data-n="' + (m.n || "") + '" data-to="' + (other ? esc(m.states[0]) : "") + '" aria-pressed="false">' + badge + "<span>" +
+          '<span class="mark-text">' + md(m.text) + "</span>" + (KIND_LABEL[m.kind] ? ' <span class="badge k-' + esc(m.kind) + '">' + KIND_LABEL[m.kind] + "</span>" : "") + (m.tbd ? ' <span class="badge tbd" title="The plan does not fix this yet: the mockup shows a placeholder">not defined</span>' : "") +
           (D.stale[key] ? ' <span class="badge stale" title="The slice or criteria this was drawn from changed since the last publish">re-check: the plan changed here</span>' : "") +
           (other ? ' <span class="badge st">in: ' + esc(m.states.map(stateLabel).join(", ")) + "</span>" : "") +
           '<span class="mark-meta"><span>' + rlink("slice-" + m.s, m.s) + (D.slices[m.s] ? " · " + esc(D.slices[m.s]) : "") + "</span><span>" + proof(m.proof) + "</span>" +
           (m.where ? '<span class="w">' + esc(m.where) + "</span>" : "") + "</span></span></button></li>";
-      }).join("");
+      }
+      list.innerHTML = '<li class="marks-title">What changes' + (states ? " in this state" : "") + " (" + here + ")</li>" + marks.map(item).join("") +
+        (notes.length ? '<li class="marks-title sub">No change to draw (' + notes.length + ")</li>" + notes.map(item).join("") : "");
     }
     function load(side) {
       var box = el.querySelector('.pane[data-side="' + side + '"] .frame');
@@ -349,8 +372,8 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     list.addEventListener("click", function (e) {
       var b = e.target.closest(".mark"); if (!b || e.target.closest("a")) return;
       var to = b.getAttribute("data-to");
-      if (to) { pending = b.getAttribute("data-n"); setState(to); return; }
-      select(b.getAttribute("data-n"), true);
+      if (to) { pending = b.getAttribute("data-n") || null; setState(to); return; }
+      if (b.getAttribute("data-n")) select(b.getAttribute("data-n"), true);
     });
     show(mode);
     setState(state);

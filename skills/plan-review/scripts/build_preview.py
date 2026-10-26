@@ -52,6 +52,10 @@ UNSAFE = [
     (re.compile(r"""url\(\s*["']?\s*(?:https?:|//)""", re.I), "an external url() in CSS"),
     (re.compile(r"@import\b", re.I), "a CSS @import"),
 ]
+# What a mark says about its element: it arrives, changes or goes away. "same" and "effect" have no
+# element: a criterion the screen keeps as today, or one that acts elsewhere (a request, another screen).
+DRAWN_KINDS = ("add", "change", "remove")
+NOTE_KINDS = ("same", "effect")
 BIG_FRAGMENT = 30_000  # bytes: above it the mockup likely draws more than the change needs
 
 
@@ -81,8 +85,9 @@ def fingerprints(plan: dict, pv: dict) -> dict[str, str]:
     acs = {a["n"]: a["text"] for s in slices.values() for a in s["acs"]}
     fp = {}
     for sc in pv.get("screens", []):
-        for mk in sc.get("marks", []):
-            fp[f"mark:{sc.get('id')}:{mk.get('n')}"] = _h([slices.get(mk.get("s")), [acs.get(n) for n in cited_acs(mk.get("proof"))]])
+        for j, mk in enumerate(sc.get("marks", [])):
+            key = f"note:{sc.get('id')}:{j}" if mk.get("kind") in NOTE_KINDS else f"mark:{sc.get('id')}:{mk.get('n')}"
+            fp[key] = _h([slices.get(mk.get("s")), [acs.get(n) for n in cited_acs(mk.get("proof"))]])
     return fp
 
 
@@ -159,11 +164,17 @@ def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str]
         seen = set()
         for j, mk in enumerate(sc.get("marks") or []):
             at = f"{where}.marks[{j}]"
-            n = mk.get("n")
-            if not isinstance(n, int) or n < 1:
+            n, kind = mk.get("n"), mk.get("kind")
+            if kind is not None and kind not in DRAWN_KINDS + NOTE_KINDS:
+                errors.append(f"{at}.kind = {kind!r}: use one of {', '.join(DRAWN_KINDS + NOTE_KINDS)}, or leave it out")
+            note = kind in NOTE_KINDS
+            if note:
+                if n is not None:
+                    errors.append(f"{at}: a '{kind}' mark has no number and no element; drop 'n' (or use add/change/remove)")
+            elif not isinstance(n, int) or n < 1:
                 errors.append(f"{at}.n = {n!r}: marks are numbered 1, 2, 3...")
                 continue
-            if n in seen:
+            elif n in seen:
                 errors.append(f"{at}.n = {n} repeats another mark of this screen")
             seen.add(n)
             for key in ("text", "s", "proof"):
@@ -184,7 +195,7 @@ def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str]
                     for x in ms:
                         if x not in state_ids:
                             errors.append(f"{at}.states names {x!r}, which is not a state of this screen ({', '.join(map(str, state_ids))})")
-            for st_id, b, a in vws:
+            for st_id, b, a in [] if note else vws:
                 if states and isinstance(ms, list) and ms and st_id not in ms:
                     continue
                 if not any(n in marked.get(f, ()) for f in (b, a) if f):
@@ -195,7 +206,7 @@ def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str]
                 errors.append(f"{at}.where has prose; Where takes file[:lines] or folder/, separated by ' · '")
         # Every highlight a state shows needs a mark that holds in that state.
         for st_id, b, a in vws:
-            holds = {mk.get("n") for mk in sc.get("marks") or []
+            holds = {mk.get("n") for mk in sc.get("marks") or [] if mk.get("kind") not in NOTE_KINDS
                      if not states or not isinstance(mk.get("states"), list) or not mk["states"] or st_id in mk["states"]}
             for f in (b, a):
                 for n in sorted(marked.get(f, set()) - holds):

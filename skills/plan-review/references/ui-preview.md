@@ -48,9 +48,9 @@ Screen: `{id, name, route?, where, before?, after?, css?, width?, states?, marks
 | `css`    | a stylesheet both fragments load, so the styles are written once                                                                 |
 | `width`  | the width the mockup is drawn at, in px (default 1280; 390 for a phone screen); the page scales it to fit                        |
 | `states` | versions of the screen the reviewer switches between: `[{id, label, before?, after?}]`; see States below                        |
-| `marks`  | what changes, numbered: `[{n, text (md), s, proof, where?, tbd?, states?}]`                                                      |
+| `marks`  | what changes, numbered: `[{n, kind?, text (md), s, proof, where?, tbd?, states?}]`                                               |
 
-Mark: `n` = 1, 2, 3... and the element that changes carries `data-mark="n"` in the fragment (in `after` for what arrives or changes, in `before` too for what leaves or moves; the page paints it red in Before and green in After). `text` = what the reviewer should notice, in one sentence; `s` = slice; `proof` = criteria, as in review-page.json (`AC 1, 2`); `where` = where it lands in code, when the plan says; `tbd: true` = the plan does not fix this detail (copy, exact position, colour), the mockup shows a neutral placeholder or a plausible guess, and the page says "not defined"; `states` = the ids of the states the mark holds in (leave it out when it holds in all).
+Mark: `n` = 1, 2, 3... and the element that changes carries `data-mark="n"` in the fragment (in `after` for what arrives or changes, in `before` too for what leaves or moves). `kind` = `add` (green), `change` (amber) or `remove` (red, dashed): the highlight keeps that colour on both sides; without `kind` it is red in Before and green in After. `same` and `effect` are criteria with nothing to draw: the screen stays as today (`same`), or the criterion acts elsewhere, like the request a save sends (`effect`); they have no `n` and no element, and the page lists them under "No change to draw". `text` = what the reviewer should notice, in one sentence; `s` = slice; `proof` = criteria, as in review-page.json (`AC 1, 2`); `where` = where it lands in code, when the plan says; `tbd: true` = the plan does not fix this detail (copy, exact position, colour), the mockup shows a neutral placeholder or a plausible guess, and the page says "not defined"; `states` = the ids of the states the mark holds in (leave it out when it holds in all).
 
 ### States
 
@@ -70,7 +70,7 @@ When a criterion is about a state of the screen (loading, error, empty, disabled
 
 Marks of other states stay in the list, dimmed; a click on one switches to its state. An animation or a sequence (click, animating, open, closed) is a set of states too, one per moment that matters.
 
-The build rejects: a slice or criterion the plan does not have, a mark with no element in a state it holds in, an element `data-mark` with no mark holding in that state, a mark naming a state the screen does not have, a Where with prose, a missing fragment, and a fragment with a script, an event handler, an iframe/link/meta, or any external URL.
+The build rejects: a slice or criterion the plan does not have, an unknown `kind`, a `same` or `effect` mark with a number, a mark with no element in a state it holds in, an element `data-mark` with no mark holding in that state, a mark naming a state the screen does not have, a Where with prose, a missing fragment, and a fragment with a script, an event handler, an iframe/link/meta, or any external URL.
 
 ## Fragments
 
@@ -115,8 +115,8 @@ The mockup is the expensive part of this skill: every line is output. Keep it to
       "css": "billing.css",
       "width": 1100,
       "marks": [
-        { "n": 1, "text": "Usage meter under the plan name, amber at 80%", "s": "S1", "proof": "AC 1, 2" },
-        { "n": 2, "text": "Header keeps only \"Change plan\"", "s": "S2", "proof": "AC 4", "where": "src/pages/BillingPage.tsx:17-26" }
+        { "n": 1, "kind": "add", "text": "Usage meter under the plan name, amber at 80%", "s": "S1", "proof": "AC 1, 2" },
+        { "n": 2, "kind": "change", "text": "Header keeps only \"Change plan\"", "s": "S2", "proof": "AC 4", "where": "src/pages/BillingPage.tsx:17-26" }
       ]
     }
   ]
