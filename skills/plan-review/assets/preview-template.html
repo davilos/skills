@@ -90,11 +90,19 @@ a.tag:hover { border-color: var(--accent); color: var(--accent); }
 .route { font-family: var(--mono); font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 .where { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 .where b { color: var(--fg-2); font-weight: 550; margin-right: 6px; }
-.tabs { display: flex; align-items: flex-end; gap: 20px; border-bottom: 1px solid var(--line); }
+.controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; align-items: flex-end; gap: 20px; }
 .tabs [role="tab"] { all: unset; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); padding: 8px 0 9px; margin-bottom: -1px; border-bottom: 2px solid transparent; transition: color .15s, border-color .15s; }
 .tabs [role="tab"]:hover { color: var(--fg); }
 .tabs [role="tab"][aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
 .tabs [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+/* States of one screen (loading, error, empty...): pills next to the view tabs. */
+.states { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-bottom: 9px; }
+.states-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.states [role="tab"] { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--fg-2); padding: 3px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); }
+.states [role="tab"]:hover { border-color: var(--line-strong); }
+.states [role="tab"][aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.states [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
 .stage { display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); gap: 16px; align-items: start; min-width: 0; }
@@ -112,6 +120,8 @@ a.tag:hover { border-color: var(--accent); color: var(--accent); }
 .mark { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 13.5px; line-height: 1.5; color: var(--fg-2); transition: border-color .15s, background-color .15s; }
 .mark:hover { border-color: var(--line-strong); background: var(--bg-hover); }
 .mark[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.mark.other { opacity: .6; }
+.mark.other:hover { opacity: .9; }
 .num { width: 22px; height: 22px; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: 12px; font-weight: 650; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
 .mark-text { color: var(--fg); }
 .mark-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--muted); margin-top: 4px; }
@@ -119,7 +129,7 @@ a.tag:hover { border-color: var(--accent); color: var(--accent); }
 .badge { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; }
 .badge.tbd { background: var(--pend-soft); color: var(--pend); }
 .badge.stale { background: var(--chg-soft); color: var(--chg); }
-.badge.side { background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg-2); font-weight: 500; }
+.badge.side, .badge.st { background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg-2); font-weight: 500; }
 
 footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; }
 
@@ -179,27 +189,30 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     "html.marks [data-mark]::after{content:attr(data-mark);position:absolute;top:-11px;right:-11px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--mk);color:#fff;font:600 12px/20px system-ui,sans-serif;text-align:center;z-index:9}" +
     "html.marks [data-mark].flash{outline-width:4px;outline-offset:5px;transition:outline-width .2s,outline-offset .2s}";
   var MK = { before: "#b4321f", after: "#157347" };
-  function srcdoc(sc, side) {
-    return '<!doctype html><html class="marks" style="--mk:' + MK[side] + '"><head><meta charset="utf-8"><style>' + FRAME_BASE + "</style>" +
-      (sc.css ? "<style>" + sc.css + "</style>" : "") + "</head><body>" + sc[side] + "</body></html>";
+  /* The fragment a side shows in a state: the state's own, or the screen's when the state has none. */
+  function frag(sc, st, side) {
+    var name = st && Object.prototype.hasOwnProperty.call(st, side) ? st[side] : sc[side];
+    return name ? D.frags[name] : null;
   }
+  function srcdoc(sc, html, side) {
+    return '<!doctype html><html class="marks" style="--mk:' + MK[side] + '"><head><meta charset="utf-8"><style>' + FRAME_BASE + "</style>" +
+      (sc.css ? "<style>" + D.frags[sc.css] + "</style>" : "") + "</head><body>" + html + "</body></html>";
+  }
+  function holds(m, state) { return !m.states || !m.states.length || !state || m.states.indexOf(state) >= 0; }
 
   var showMarks = store.get("ui-preview:marks") !== "off";
   var toggle = document.getElementById("show-marks");
   toggle.checked = showMarks;
   var frames = [];
   function fit(f) {
-    var w = f.width, box = f.iframe.parentNode, scale = Math.min(1, box.clientWidth / w || 1);
+    var w = f.width, box = f.iframe.parentNode; if (!box) return;
+    var scale = Math.min(1, box.clientWidth / w || 1);
     f.iframe.style.width = w + "px";
     f.iframe.style.transform = "scale(" + scale + ")";
     var doc = f.iframe.contentDocument, h = doc && doc.documentElement ? Math.max(doc.documentElement.scrollHeight, 120) : 480;
     f.iframe.style.height = h + "px";
     box.style.height = Math.ceil(h * scale) + "px";
     f.scale = scale;
-  }
-  function frameHTML(sc, side) {
-    if (!sc[side]) return '<div class="frame"><div class="none">' + (side === "before" ? "This screen does not exist today." : "This screen goes away with the plan.") + "</div></div>";
-    return '<div class="frame"><iframe sandbox="allow-same-origin" title="' + esc(sc.name) + " · " + side + '" data-side="' + side + '" loading="lazy"></iframe></div>';
   }
 
   /* ---------- header ---------- */
@@ -219,52 +232,59 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   D.screens.forEach(function (sc) {
     var el = document.createElement("section");
     el.className = "screen"; el.id = "screen-" + sc.id;
-    var both = sc.before && sc.after;
+    var states = sc.states && sc.states.length ? sc.states : null;
+    var state = states ? states[0].id : null;
+    var anyBefore = !!sc.before || (states || []).some(function (s) { return s.before; });
+    var anyAfter = !!sc.after || (states || []).some(function (s) { return s.after; });
+    var both = anyBefore && anyAfter;
     var saved = store.get("ui-preview:view:" + sc.id);
-    var mode = saved && (both || saved !== "both") ? saved : (both ? "both" : (sc.after ? "after" : "before"));
+    var mode = saved && (both || saved !== "both") ? saved : (both ? "both" : (anyAfter ? "after" : "before"));
     var views = [["before", "Before"], ["after", "After"], ["both", "Side by side"]];
     var marks = (sc.marks || []).slice().sort(function (a, b) { return a.n - b.n; });
     el.innerHTML = '<div class="screen-head"><h2>' + esc(sc.name) + "</h2>" + (sc.route ? '<span class="route">' + esc(sc.route) + "</span>" : "") + "</div>" +
       (sc.where ? '<div class="where"><b>Drawn from</b>' + esc(sc.where) + "</div>" : "") +
-      '<div class="tabs" role="tablist" aria-label="View of ' + esc(sc.name) + '">' + views.map(function (v) {
+      '<div class="controls"><div class="tabs" role="tablist" aria-label="View of ' + esc(sc.name) + '">' + views.map(function (v) {
         return '<button type="button" role="tab" data-view="' + v[0] + '" aria-selected="' + (mode === v[0]) + '" tabindex="' + (mode === v[0] ? 0 : -1) + '">' + v[1] + "</button>";
       }).join("") + "</div>" +
+      (states ? '<div class="states" role="tablist" aria-label="State of ' + esc(sc.name) + '"><span class="states-label">State</span>' + states.map(function (s, i) {
+        return '<button type="button" role="tab" data-state="' + esc(s.id) + '" aria-selected="' + (i === 0) + '" tabindex="' + (i === 0 ? 0 : -1) + '">' + esc(s.label) + "</button>";
+      }).join("") + "</div>" : "") + "</div>" +
       '<div class="body"><div class="stage">' +
-        '<div class="pane" data-side="before"><div class="pane-label">Before · today</div>' + frameHTML(sc, "before") + "</div>" +
-        '<div class="pane" data-side="after"><div class="pane-label">After · with the plan</div>' + frameHTML(sc, "after") + "</div>" +
+        '<div class="pane" data-side="before"><div class="pane-label">Before · today</div><div class="frame"></div></div>' +
+        '<div class="pane" data-side="after"><div class="pane-label">After · with the plan</div><div class="frame"></div></div>' +
       "</div>" +
-      '<ol class="marks" aria-label="What changes on ' + esc(sc.name) + '"><li class="marks-title">What changes (' + marks.length + ")</li>" + marks.map(function (m) {
-        var key = "mark:" + sc.id + ":" + m.n;
-        return '<li><button type="button" class="mark" data-n="' + m.n + '" aria-pressed="false"><span class="num">' + m.n + "</span><span>" +
-          '<span class="mark-text">' + md(m.text) + "</span>" + (m.tbd ? ' <span class="badge tbd" title="The plan does not fix this yet: the mockup shows a placeholder">not defined</span>' : "") +
-          (D.stale[key] ? ' <span class="badge stale" title="The slice or criteria this was drawn from changed since the last publish">re-check: the plan changed here</span>' : "") +
-          '<span class="mark-meta"><span>' + rlink("slice-" + m.s, m.s) + (D.slices[m.s] ? " · " + esc(D.slices[m.s]) : "") + "</span><span>" + proof(m.proof) + "</span>" +
-          (m.where ? '<span class="w">' + esc(m.where) + "</span>" : "") + "</span></span></button></li>";
-      }).join("") + "</ol></div>";
+      '<ol class="marks" aria-label="What changes on ' + esc(sc.name) + '"></ol></div>';
     main.appendChild(el);
 
-    var stage = el.querySelector(".stage");
-    function show(v) {
-      el.querySelectorAll("[role=tab]").forEach(function (b) { var on = b.getAttribute("data-view") === v; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
-      el.querySelector('.pane[data-side="before"]').hidden = v === "after";
-      el.querySelector('.pane[data-side="after"]').hidden = v === "before";
-      stage.style.setProperty("--cols", v === "both" ? 2 : 1);
-      frames.forEach(function (f) { if (f.screen === sc.id) fit(f); });
+    var stage = el.querySelector(".stage"), list = el.querySelector(".marks");
+    var pending = null;  /* mark to flash once the frames of the state it lives in have loaded */
+    function stateLabel(id) { var s = (states || []).filter(function (x) { return x.id === id; })[0]; return s ? s.label : id; }
+    /* Marks of the other states stay in the list, dimmed; a click on one switches to its state. */
+    function renderMarks() {
+      var here = marks.filter(function (m) { return holds(m, state); }).length;
+      list.innerHTML = '<li class="marks-title">What changes' + (states ? " in this state" : "") + " (" + here + ")</li>" + marks.map(function (m) {
+        var key = "mark:" + sc.id + ":" + m.n, other = !holds(m, state);
+        return '<li><button type="button" class="mark' + (other ? " other" : "") + '" data-n="' + m.n + '" data-to="' + (other ? esc(m.states[0]) : "") + '" aria-pressed="false"><span class="num">' + m.n + "</span><span>" +
+          '<span class="mark-text">' + md(m.text) + "</span>" + (m.tbd ? ' <span class="badge tbd" title="The plan does not fix this yet: the mockup shows a placeholder">not defined</span>' : "") +
+          (D.stale[key] ? ' <span class="badge stale" title="The slice or criteria this was drawn from changed since the last publish">re-check: the plan changed here</span>' : "") +
+          (other ? ' <span class="badge st">in: ' + esc(m.states.map(stateLabel).join(", ")) + "</span>" : "") +
+          '<span class="mark-meta"><span>' + rlink("slice-" + m.s, m.s) + (D.slices[m.s] ? " · " + esc(D.slices[m.s]) : "") + "</span><span>" + proof(m.proof) + "</span>" +
+          (m.where ? '<span class="w">' + esc(m.where) + "</span>" : "") + "</span></span></button></li>";
+      }).join("");
     }
-    var tl = el.querySelector(".tabs");
-    tl.addEventListener("click", function (e) {
-      var b = e.target.closest("[role=tab]"); if (!b) return;
-      var v = b.getAttribute("data-view"); store.set("ui-preview:view:" + sc.id, v); show(v);
-    });
-    tl.addEventListener("keydown", function (e) {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      var tabs = Array.prototype.slice.call(tl.querySelectorAll("[role=tab]")), i = tabs.indexOf(document.activeElement);
-      var nx = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; nx.focus(); nx.click();
-    });
-
-    el.querySelectorAll("iframe").forEach(function (ifr) {
-      var side = ifr.getAttribute("data-side");
-      var f = { iframe: ifr, width: sc.width || 1280, screen: sc.id, side: side, scale: 1 };
+    function load(side) {
+      var box = el.querySelector('.pane[data-side="' + side + '"] .frame');
+      var st = (states || []).filter(function (s) { return s.id === state; })[0];
+      var html = frag(sc, st, side);
+      frames = frames.filter(function (f) { return !(f.screen === sc.id && f.side === side); });
+      if (!html) {
+        var whole = side === "before" ? !anyBefore : !anyAfter;
+        box.innerHTML = '<div class="none">' + (side === "before" ? (whole ? "This screen does not exist today." : "This state does not exist today.") : (whole ? "This screen goes away with the plan." : "This state goes away with the plan.")) + "</div>";
+        box.style.height = "";
+        return;
+      }
+      box.innerHTML = '<iframe sandbox="allow-same-origin" title="' + esc(sc.name) + " · " + side + '" data-side="' + side + '"></iframe>';
+      var ifr = box.firstChild, f = { iframe: ifr, width: sc.width || 1280, screen: sc.id, side: side, scale: 1 };
       frames.push(f);
       ifr.addEventListener("load", function () {
         var doc = ifr.contentDocument; if (!doc) return;
@@ -275,9 +295,40 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
           var t = e.target.closest && e.target.closest("[data-mark]"); if (!t) return;
           e.preventDefault(); select(t.getAttribute("data-mark"), false);
         });
+        if (pending) { var n = pending; pending = null; select(n, true); }
       });
-      ifr.srcdoc = srcdoc(sc, side);
+      ifr.srcdoc = srcdoc(sc, html, side);
+    }
+    function setState(id) {
+      state = id;
+      el.querySelectorAll(".states [role=tab]").forEach(function (b) { var on = b.getAttribute("data-state") === id; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
+      load("before"); load("after"); renderMarks();
+    }
+    function show(v) {
+      el.querySelectorAll(".tabs [role=tab]").forEach(function (b) { var on = b.getAttribute("data-view") === v; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
+      el.querySelector('.pane[data-side="before"]').hidden = v === "after";
+      el.querySelector('.pane[data-side="after"]').hidden = v === "before";
+      stage.style.setProperty("--cols", v === "both" ? 2 : 1);
+      frames.forEach(function (f) { if (f.screen === sc.id) fit(f); });
+    }
+    function arrows(tl) {
+      tl.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+        var tabs = Array.prototype.slice.call(tl.querySelectorAll("[role=tab]")), i = tabs.indexOf(document.activeElement);
+        var nx = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; nx.focus(); nx.click();
+      });
+    }
+    var tl = el.querySelector(".tabs");
+    tl.addEventListener("click", function (e) {
+      var b = e.target.closest("[role=tab]"); if (!b) return;
+      var v = b.getAttribute("data-view"); store.set("ui-preview:view:" + sc.id, v); show(v);
     });
+    arrows(tl);
+    var sl = el.querySelector(".states");
+    if (sl) {
+      sl.addEventListener("click", function (e) { var b = e.target.closest("[role=tab]"); if (b) setState(b.getAttribute("data-state")); });
+      arrows(sl);
+    }
 
     /* A click on a line in the list scrolls to its highlight and makes it flash. */
     function select(n, scroll) {
@@ -295,11 +346,14 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
         window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
       }
     }
-    el.querySelector(".marks").addEventListener("click", function (e) {
+    list.addEventListener("click", function (e) {
       var b = e.target.closest(".mark"); if (!b || e.target.closest("a")) return;
+      var to = b.getAttribute("data-to");
+      if (to) { pending = b.getAttribute("data-n"); setState(to); return; }
       select(b.getAttribute("data-n"), true);
     });
     show(mode);
+    setState(state);
   });
 
   toggle.addEventListener("change", function () {

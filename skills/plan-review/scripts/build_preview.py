@@ -86,6 +86,14 @@ def fingerprints(plan: dict, pv: dict) -> dict[str, str]:
     return fp
 
 
+def views(sc: dict) -> list[tuple[str | None, str | None, str | None]]:
+    """(state, before, after) for each state of a screen; a state without its own before or after uses the screen's."""
+    if not sc.get("states"):
+        return [(None, sc.get("before"), sc.get("after"))]
+    return [(st.get("id"), st["before"] if "before" in st else sc.get("before"),
+             st["after"] if "after" in st else sc.get("after")) for st in sc["states"]]
+
+
 def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str], dict[str, str]]:
     errors, warns, frags = [], [], {}
     slices = slice_map(plan)
@@ -104,7 +112,22 @@ def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str]
         ids.add(sid)
         if not sc.get("name"):
             errors.append(f"{where} has no 'name'")
-        if not sc.get("before") and not sc.get("after"):
+        states = sc.get("states")
+        state_ids = []
+        if states is not None and (not isinstance(states, list) or not states):
+            errors.append(f"{where}.states is empty: leave it out for a screen with a single state")
+            states = sc["states"] = []
+        for k, st in enumerate(states or []):
+            st_id = st.get("id")
+            if not st_id or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", st_id):
+                errors.append(f"{where}.states[{k}].id = {st_id!r}: use a kebab-case id")
+            elif st_id in state_ids:
+                errors.append(f"{where}.states[{k}].id = {st_id!r} repeats another state")
+            state_ids.append(st_id)
+            if not st.get("label"):
+                errors.append(f"{where}.states[{k}] has no 'label' (the tab the reviewer clicks)")
+        vws = views(sc)
+        if not any(b or a for _, b, a in vws):
             errors.append(f"{where} has neither 'before' nor 'after'")
         w = (sc.get("where") or "").strip()
         if not w:
@@ -112,26 +135,26 @@ def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str]
         prose = [x for x in re.split(r"\s+·\s+", w) if w and not CODE_REF.fullmatch(x)]
         if prose:
             errors.append(f"{where}.where has prose, not only code references: {prose}; the explanation goes in a mark's text")
-        marked = {}
-        for key in ("before", "after", "css"):
-            name = sc.get(key)
+        marked = {}  # fragment file -> numbers of the data-mark elements in it
+        files = [(key, sc.get(key)) for key in ("before", "after", "css")]
+        files += [(f"states[{k}].{side}", st.get(side)) for k, st in enumerate(states or []) for side in ("before", "after")]
+        for key, name in files:
             if not name:
                 continue
-            path = frag_dir / name
-            if path.parent != frag_dir or not path.exists():
-                errors.append(f"{where}.{key} = {name!r} is not a file in {frag_dir}")
-                continue
-            text = path.read_text(encoding="utf-8")
-            frags[name] = text
-            for rx, what in UNSAFE:
-                if rx.search(text):
-                    errors.append(f"{name} has {what}: fragments are static HTML and CSS, with no external resources")
-            if len(text.encode()) > BIG_FRAGMENT:
-                warns.append(f"{name} has {len(text.encode()) // 1000} KB: draw only the region that changes, the rest as .ph placeholders (references/ui-preview.md)")
+            if name not in frags:
+                path = frag_dir / name
+                if path.parent != frag_dir or not path.exists():
+                    errors.append(f"{where}.{key} = {name!r} is not a file in {frag_dir}")
+                    continue
+                text = frags[name] = path.read_text(encoding="utf-8")
+                for rx, what in UNSAFE:
+                    if rx.search(text):
+                        errors.append(f"{name} has {what}: fragments are static HTML and CSS, with no external resources")
+                if len(text.encode()) > BIG_FRAGMENT:
+                    warns.append(f"{name} has {len(text.encode()) // 1000} KB: draw only the region that changes, the rest as .ph placeholders (references/ui-preview.md)")
             if key != "css":
-                for n in MARK.findall(text):
-                    marked.setdefault(int(n), []).append(key)
-        if sc.get("before") and sc.get("after") and sc["before"] == sc["after"]:
+                marked[name] = {int(n) for n in MARK.findall(frags[name])}
+        if not states and sc.get("before") and sc.get("after") and sc["before"] == sc["after"]:
             errors.append(f"{where}: before and after are the same file")
         seen = set()
         for j, mk in enumerate(sc.get("marks") or []):
@@ -151,16 +174,37 @@ def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str]
             for num in AC_NUM.findall(mk.get("proof") or ""):
                 if int(num) not in ac_nums:
                     errors.append(f"{at}.proof cites criterion {num}, which is not in the plan")
-            if n not in marked:
-                errors.append(f"{at}: no element in the mockup has data-mark=\"{n}\" (put it on the element that changes)")
+            ms = mk.get("states")
+            if ms is not None:
+                if not states:
+                    errors.append(f"{at}.states: the screen has no states; leave it out")
+                elif not isinstance(ms, list) or not ms:
+                    errors.append(f"{at}.states is empty: leave it out for a mark that holds in every state")
+                else:
+                    for x in ms:
+                        if x not in state_ids:
+                            errors.append(f"{at}.states names {x!r}, which is not a state of this screen ({', '.join(map(str, state_ids))})")
+            for st_id, b, a in vws:
+                if states and isinstance(ms, list) and ms and st_id not in ms:
+                    continue
+                if not any(n in marked.get(f, ()) for f in (b, a) if f):
+                    in_state = f" of state {st_id!r}" if st_id else ""
+                    errors.append(f"{at}: no element in the mockup{in_state} has data-mark=\"{n}\" (put it on the element that changes)")
             mw = (mk.get("where") or "").strip()
             if mw and any(not CODE_REF.fullmatch(x) for x in re.split(r"\s+·\s+", mw)):
                 errors.append(f"{at}.where has prose; Where takes file[:lines] or folder/, separated by ' · '")
-        for n in sorted(set(marked) - seen):
-            errors.append(f"{where}: data-mark=\"{n}\" in {'/'.join(marked[n])} has no entry in marks (every highlight says what changes and why)")
+        # Every highlight a state shows needs a mark that holds in that state.
+        for st_id, b, a in vws:
+            holds = {mk.get("n") for mk in sc.get("marks") or []
+                     if not states or not isinstance(mk.get("states"), list) or not mk["states"] or st_id in mk["states"]}
+            for f in (b, a):
+                for n in sorted(marked.get(f, set()) - holds):
+                    in_state = f" (state {st_id!r})" if st_id else ""
+                    errors.append(f"{where}: data-mark=\"{n}\" in {f}{in_state} has no entry in marks (every highlight says what changes and why)")
         if not sc.get("marks"):
             warns.append(f"{where} has no marks: the reviewer sees two pictures and no explanation of what changed")
-    return errors, warns, frags
+    # A fragment shared by several states would repeat the same error once per state.
+    return list(dict.fromkeys(errors)), warns, frags
 
 
 def main() -> int:
@@ -245,7 +289,9 @@ def main() -> int:
         "review_url": review_url or "",
         "slices": {k: s["title"] for k, s in slice_map(plan).items()},
         "stale": stale,
-        "screens": [dict(sc, **{k: frags.get(sc.get(k)) for k in ("before", "after", "css")}) for sc in pv["screens"]],
+        # Fragments by file name: a state that reuses the screen's fragment does not repeat it in the page.
+        "frags": frags,
+        "screens": pv["screens"],
     }
     html = TEMPLATE.read_text(encoding="utf-8")
     html = html.replace("__TITLE__", data["title"].replace("<", "&lt;")).replace("__PREVIEW_JSON__", as_script_json(data))
