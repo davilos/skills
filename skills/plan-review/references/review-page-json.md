@@ -32,7 +32,7 @@ Proof fields (`changes[].proof`, `impact_visual.cards[].proof`, `problem_visual.
 | `review`                 | `{id: bool}`      | review state when the page has no db (outside claude.ai) or the item was not marked on it yet; what the user marks on the page (db `review/{key}`) wins, and `sync_review.py` brings it back here. Section ids: `problem`, `flow`, `impact`, `relations`, `surface`, `landing`, `criteria`, `out`, `assumptions`, `questions`, `observable`, `sources`; slice ids: `S1`, `S2`... Missing = "not reviewed". Leave out empty sections (no content or only `None - <why>`): they have nothing to validate and the build ignores them                                                 |
 | `doors_confirmed`        | `[int]`           | numbers of the one-way doors the user confirmed                                                                                                                                                                                                                                                                                                                                                                                                           |
 
-Doors are numbered by their row in the `## Landing` table (first row = door 1), the same numbering the plan uses in "(door N)". A first cell written as `1. name` also works.
+Doors are the rows of the first `## Landing` table whose first header is `One-way door` (the tlc-spec-lean form), numbered by row (first row = door 1), the same numbering the plan uses in "(door N)". A first cell written as `1. name` also works. A Landing table with any other header is plain text, with no doors.
 
 ## Changes (Criteria)
 

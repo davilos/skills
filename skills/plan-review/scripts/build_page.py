@@ -39,6 +39,15 @@ def _h(obj) -> str:
     return hashlib.sha256(json.dumps(obj, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:12]
 
 
+def door_table(section: dict | None) -> dict | None:
+    """The Landing table that holds the one-way doors: the first table, when its first header
+    is `One-way door` (the tlc-spec-lean form). The page uses the same rule (renderLanding)."""
+    tables = [b for b in (section or {}).get("blocks", []) if b["type"] == "table"]
+    if tables and re.search(r"one-way door", tables[0]["header"][0] if tables[0]["header"] else "", re.I):
+        return tables[0]
+    return None
+
+
 def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
     """Fingerprint of every part of the plan something on the page depends on.
 
@@ -59,8 +68,9 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
         fp[sl["id"]] = _h(sl)
         for a in sl["acs"]:
             acs[a["n"]] = a["text"]
-    land = [b for b in secs.get("landing", {}).get("blocks", []) if b["type"] == "table"]
-    for k, row in enumerate(land[0]["rows"] if land else [], 1):
+    doors = door_table(secs.get("landing"))
+    land_rows = doors["rows"] if doors else []
+    for k, row in enumerate(land_rows, 1):
         fp[f"door:{k}"] = _h(row)
 
     def cited(text):
@@ -83,7 +93,6 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
         fp[f"impact:{i}"] = _h([rows[r] if r is not None and r < len(rows) else None, cited(c.get("proof"))])
     for i, c in enumerate(pg.get("changes", [])):
         fp[f"change:{i}"] = _h([c.get("s"), cited(c.get("proof"))])
-    land_rows = land[0]["rows"] if land else []
     for d in (pg.get("landing_visual") or {}).get("doors", []):
         n = d.get("n")
         if isinstance(n, int) and 1 <= n <= len(land_rows):
@@ -278,8 +287,18 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
 
     landing = sections.get("landing")
     if landing:
-        tables = [b for b in landing.get("blocks", []) if b["type"] == "table"]
-        n_doors = len(tables[0]["rows"]) if tables else 0
+        doors = door_table(landing)
+        n_doors = len(doors["rows"]) if doors else 0
+        # Every "door N" the page links (plan text "(door N)", Proof, `door`/`d` fields) needs that door.
+        cited = {int(n) for n in re.findall(r"\(door (\d+)\)", json.dumps(plan["sections"], ensure_ascii=False))}
+        cited |= {int(n) for n in re.findall(r"\bdoor (\d+)\b", json.dumps(pg, ensure_ascii=False))}
+        cited |= {c["door"] for c in changes if isinstance(c.get("door"), int)}
+        cited |= {x["d"] for p in (pg.get("flow_visual") or {}).get("paths", []) for x in p.get("nodes", []) if isinstance(x.get("d"), int)}
+        cited |= {x["fix"]["door"] for x in (pg.get("problem_visual") or {}).get("symptoms", []) if isinstance((x.get("fix") or {}).get("door"), int)}
+        over = sorted(n for n in cited if n > n_doors)
+        if over:
+            errors.append(f"door {', '.join(map(str, over))} is cited, but the Landing has {n_doors} door(s): "
+                          "doors are the rows of a Landing table whose first header is `One-way door`")
         for n in pg.get("doors_confirmed", []):
             if not (1 <= n <= n_doors):
                 errors.append(f"doors_confirmed has {n}, but the Landing has {n_doors} doors")
