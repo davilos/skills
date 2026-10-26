@@ -4,7 +4,7 @@ description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lea
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.0.1'
+  version: '1.1.0'
 ---
 
 # Tech Lead's Club - Plan Review
@@ -50,6 +50,8 @@ Run everything from the project root (where `.specs/` lives). `{skill-dir}` is t
 ## Validating on the page
 
 On a published artifact the user validates the plan on the page itself: every section and slice has "Validate" / "Undo", and every One-way door has "Confirm". A click writes to the artifact db at `review/{key}` (`problem`, `S1`, `door:1`...) as `{state: "validated" | "pending", fp, plan, by, at}`, where `fp` is the fingerprint of the validated text. If the plan changes later, the fingerprint stops matching and the page shows "validated · changed since" on its own. Only people who can edit the artifact see the buttons; outside claude.ai (or without the db) the page shows the state from review-page.json, with no buttons.
+
+**Empty sections are not validated.** A section with no content, or whose whole content is a single `None - <why>` (also `nothing`, `N/A`, `-`), such as `Relations` with `None - no stored-data shape change`, comes out of `extract_plan.py` with `empty: true`. The page still shows its text, with a "nothing to validate" badge instead of the button, and leaves it out of the progress count and the "Not reviewed" list. Do not put it in `review`: the build ignores it with a warning, and `sync_review.py` lists it under "nothing to validate" rather than "pending". Once the plan gives it real content, it needs validating like any other section.
 
 **Bring validations into the plan** (step 0, and whenever the user asks):
 

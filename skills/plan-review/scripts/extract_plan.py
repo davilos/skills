@@ -3,9 +3,10 @@
 
 This is the mechanical part of the page: the text of each section, tables, lists,
 mermaid blocks, the `## Criteria` slices with their numbered criteria, and the
-`**Status**:` line. Nothing here interprets the plan; whatever requires reading the
-code (Where / Why / Proof, Flow paths, Impact cards) comes from the
-`review-page.json` the agent writes.
+`**Status**:` line. A section with no content or only `None - <why>` comes out with
+`empty: true`: there is nothing in it to validate. Nothing else here interprets the
+plan; whatever requires reading the code (Where / Why / Proof, Flow paths, Impact
+cards) comes from the `review-page.json` the agent writes.
 
 Usage:
     python3 extract_plan.py --root <project> <feature> [--out plan.json]
@@ -37,6 +38,9 @@ SLICE_RE = re.compile(r"^###\s+(S\d+[a-z]?)\s*[:\-–—]?\s*(.*?)\s*(?:\((P\d)\
 OL_RE = re.compile(r"^(\d+)\.\s+(.*)$")
 UL_RE = re.compile(r"^[-*]\s+(.*)$")
 OPEN_Q_RE = re.compile(r"^\*\*Open questions:?\*\*:?\s*(.*)$", re.IGNORECASE)
+# A section with nothing to review: no content, or a single `None - <why>` answer (the
+# tlc-spec-lean template's way of saying it does not apply). The page shows it, without validation.
+EMPTY_RE = re.compile(r"^(?:none|nothing|n/?a)\b|^[-–—]?$", re.IGNORECASE)
 
 
 def section_id(name: str) -> str:
@@ -44,6 +48,14 @@ def section_id(name: str) -> str:
     if key in KNOWN_IDS:
         return KNOWN_IDS[key]
     return re.sub(r"[^a-z0-9]+", "-", key).strip("-") or "section"
+
+
+def is_empty(blocks: list[dict]) -> bool:
+    if not blocks:
+        return True
+    if len(blocks) > 1 or blocks[0]["type"] != "p":
+        return False
+    return bool(EMPTY_RE.match(re.sub(r"[`*_]", "", blocks[0]["text"]).strip()))
 
 
 def split_row(line: str) -> list[str]:
@@ -211,12 +223,15 @@ def extract(plan_path: Path) -> dict:
             cut = next((k for k, ln in enumerate(raw) if OPEN_Q_RE.match(ln.strip())), None)
             if cut is not None:
                 s["blocks"] = parse_blocks(raw[:cut])
+                s["empty"] = is_empty(s["blocks"])
                 result.append(s)
                 rest = OPEN_Q_RE.match(raw[cut].strip()).group(1)
                 q_lines = ([rest] if rest else []) + raw[cut + 1:]
-                result.append({"name": "Open questions", "id": "questions", "blocks": parse_blocks(q_lines)})
+                q_blocks = parse_blocks(q_lines)
+                result.append({"name": "Open questions", "id": "questions", "blocks": q_blocks, "empty": is_empty(q_blocks)})
                 continue
         s["blocks"] = parse_blocks(raw)
+        s["empty"] = is_empty(s["blocks"])
         result.append(s)
 
     return {"path": str(plan_path), "title": title, "status": status, "sections": result}

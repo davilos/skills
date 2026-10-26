@@ -61,7 +61,12 @@ def main() -> int:
     # Fingerprint of the validated text: the build compares against it to show "changed since".
     val_fp = dict(pg.get("review_fingerprints") or {})
     changed_after = []
+    empty = {s["id"] for s in plan["sections"] if s.get("empty")}
     for key, row in rows.items():
+        if key in empty:
+            print(f"  WARN  review/{key}: the section is empty in the plan, so there is nothing to validate; ignored", file=sys.stderr)
+            review.pop(key, None)
+            continue
         if key not in fp:
             print(f"  WARN  review/{key}: not a section, slice or door of the current plan; ignored", file=sys.stderr)
             continue
@@ -84,7 +89,7 @@ def main() -> int:
     if not args.dry_run:
         pg_path.write_text(json.dumps(pg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    names = {s["id"]: s["name"] for s in plan["sections"]}
+    names = {s["id"]: s["name"] for s in plan["sections"] if not s.get("empty")}
     slices = [s["id"] for x in plan["sections"] if x["id"] == "criteria" for s in x["criteria"]["slices"]]
     ok_secs = [f"`{names[k]}`" for k in names if review.get(k)]
     pending = [f"`{names[k]}`" for k in names if not review.get(k)]
@@ -97,6 +102,9 @@ def main() -> int:
           + (f"; slices {', '.join(ok_slices)}" if ok_slices else "")
           + (f"; doors {', '.join(str(d) for d in sorted(doors))} confirmed" if doors else ""))
     print(f"  pending: {', '.join(pending) or 'nothing'}")
+    if empty:
+        na = [f"`{s['name']}`" for s in plan["sections"] if s["id"] in empty]
+        print(f"  nothing to validate (empty in the plan): {', '.join(na)}")
     return 0
 
 

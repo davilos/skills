@@ -97,12 +97,13 @@ nav.toc a[aria-current="true"] { background: var(--accent-soft); color: var(--ac
 nav.toc .sub { margin: 2px 0 4px 17px; padding-left: 8px; border-left: 1px solid var(--line); }
 nav.toc .sub a { font-size: 13px; padding: 3px 10px; }
 .toc-progress { margin: 16px 10px 0; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; display: none; }
-/* State icon: validated (check), not reviewed (empty circle), changed since (triangle). */
+/* State icon: validated (check), not reviewed (empty circle), changed since (triangle), nothing to validate (dash). */
 .st { width: 14px; height: 14px; flex-shrink: 0; display: inline-flex; color: var(--line-strong); }
 .st svg { width: 14px; height: 14px; }
 .st[data-state="ok"] { color: var(--ok); }
 .st[data-state="pend"] { color: var(--pend); }
 .st[data-state="chg"] { color: var(--chg); }
+.st[data-state="na"] { color: var(--muted); }
 
 /* review panel */
 aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--top)); overflow-y: auto; padding: 28px 0 40px; display: grid; gap: 22px; align-content: start; font-size: 13px; }
@@ -115,6 +116,7 @@ aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--t
 .cells a[data-state="ok"] { background: var(--ok); }
 .cells a[data-state="pend"] { background: var(--pend-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pend) 45%, transparent); }
 .cells a[data-state="chg"] { background: var(--chg); }
+.cells a[data-state="na"] { background: var(--line); opacity: .5; }
 .rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .rail li a { display: flex; align-items: center; gap: 8px; color: var(--fg-2); text-decoration: none; padding: 3px 0; }
 .rail li a:hover { color: var(--accent); }
@@ -161,6 +163,7 @@ pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; li
 .badge.ok { background: var(--ok-soft); color: var(--ok); }
 .badge.pend { background: var(--pend-soft); color: var(--pend); }
 .badge.stale { background: var(--chg-soft); color: var(--chg); }
+.badge.na { background: var(--bg-hover); color: var(--muted); }
 .rv-btn { font: inherit; font-size: 13px; font-weight: 550; line-height: 1; padding: 7px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); box-shadow: 0 1px 1px rgba(17, 20, 26, .04); transition: background-color .15s, border-color .15s; }
 .rv-btn:hover { background: var(--bg-hover); border-color: var(--muted); }
 .rv-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -495,6 +498,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     ok: svg('<circle cx="8" cy="8" r="6.25"/><path d="M5.3 8.2l1.8 1.8 3.6-3.8"/>'),
     pend: svg('<circle cx="8" cy="8" r="6.25" stroke-dasharray="2.4 2.2"/>'),
     chg: svg('<path d="M8 2.2l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.6v.1"/>'),
+    na: svg('<path d="M5 8h6"/>'),
     copy: svg('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>'),
     check: svg('<path d="M3.5 8.5l3 3 6-7"/>')
   };
@@ -529,6 +533,8 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     return '<span class="rv" data-rk="' + esc(key) + '" data-ok="' + esc(okText) + '"><span class="badge"></span>' +
       '<button type="button" class="rv-btn" data-rk-btn="' + esc(key) + '" hidden></button></span>';
   }
+  /* Empty section (no content, or only `None - <why>`): shown, but there is nothing to validate. */
+  var NA_BADGE = '<span class="badge na" title="The plan says this section does not apply">nothing to validate</span>';
   function nameOf(key) {
     var s = SECTIONS.filter(function (x) { return x.id === key; })[0];
     return s ? s.name : key;
@@ -554,14 +560,14 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       el.title = label;
       if (el.classList.contains("st")) el.innerHTML = IC[st];
     });
-    var done = SECTIONS.filter(function (s) { return stateOf(s.id) === "ok"; }).length;
-    var txt = done + " of " + SECTIONS.length + " sections validated";
+    var done = TO_REVIEW.filter(function (s) { return stateOf(s.id) === "ok"; }).length;
+    var txt = done + " of " + TO_REVIEW.length + " sections validated";
     var pr = document.getElementById("progress"); if (pr) pr.textContent = txt;
-    var tp = document.getElementById("top-progress"); if (tp) tp.textContent = done + "/" + SECTIONS.length + " validated";
-    var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = done + " <span>of " + SECTIONS.length + " sections validated</span>";
+    var tp = document.getElementById("top-progress"); if (tp) tp.textContent = done + "/" + TO_REVIEW.length + " validated";
+    var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = done + " <span>of " + TO_REVIEW.length + " sections validated</span>";
     /* Panel: what is left and what changed, sections and slices in plan order. */
     var keys = [];
-    SECTIONS.forEach(function (s) { keys.push([s.id, s.name, "#" + s.id]); if (s.criteria) s.criteria.slices.forEach(function (x) { keys.push([x.id, x.id, "#slice-" + x.id]); }); });
+    TO_REVIEW.forEach(function (s) { keys.push([s.id, s.name, "#" + s.id]); if (s.criteria) s.criteria.slices.forEach(function (x) { keys.push([x.id, x.id, "#slice-" + x.id]); }); });
     function items(st) {
       return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) {
         return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>";
@@ -646,6 +652,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   var main = document.getElementById("main");
   var SECTIONS = PLAN.sections;
   SECTIONS.forEach(function (s, i) { s.i = i + 1; });
+  var TO_REVIEW = SECTIONS.filter(function (s) { return !s.empty; });
 
   var TAB_NOTE = { visual: "A reading of the code by whoever generated the page. The Plan text is what binds.", text: "The literal text of plan.md." };
   function section(s, inner, planText) {
@@ -662,7 +669,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       body = '<div class="view" role="tabpanel" id="v-' + s.id + '-visual" aria-labelledby="tab-' + s.id + '-visual" data-v="visual"' + (mode === "visual" ? "" : " hidden") + ">" + inner + "</div>" +
         '<div class="view" role="tabpanel" id="v-' + s.id + '-text" aria-labelledby="tab-' + s.id + '-text" data-v="text"' + (mode === "text" ? "" : " hidden") + ">" + planText + "</div>";
     }
-    el.innerHTML = '<div class="sec-head"><h2 id="h-' + s.id + '">' + esc(s.name) + "</h2>" + reviewSlot(s.id, "validated") + "</div>" + tabs + body;
+    el.innerHTML = '<div class="sec-head"><h2 id="h-' + s.id + '">' + esc(s.name) + "</h2>" + (s.empty ? NA_BADGE : reviewSlot(s.id, "validated")) + "</div>" + tabs + body;
     main.appendChild(el);
     if (planText) {
       var tl = el.querySelector(".tabs");
@@ -1018,12 +1025,13 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   main.appendChild(foot);
 
   document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
-    var li = '<li><a href="#' + esc(s.id) + '" data-sec="' + esc(s.id) + '"><span class="st" data-rk-dot="' + esc(s.id) + '"></span><span>' + esc(s.name) + "</span></a>";
+    var dot = s.empty ? '<span class="st" data-state="na" title="nothing to validate">' + IC.na + "</span>" : '<span class="st" data-rk-dot="' + esc(s.id) + '"></span>';
+    var li = '<li><a href="#' + esc(s.id) + '" data-sec="' + esc(s.id) + '">' + dot + "<span>" + esc(s.name) + "</span></a>";
     if (s.criteria) li += '<ol class="sub">' + s.criteria.slices.map(function (x) { return '<li><a href="#slice-' + esc(x.id) + '"><span class="st" data-rk-dot="' + esc(x.id) + '"></span><span>' + esc(x.id) + "</span></a></li>"; }).join("") + "</ol>";
     return li + "</li>";
   }).join("");
   document.getElementById("rail-cells").innerHTML = SECTIONS.map(function (s) {
-    return '<a href="#' + esc(s.id) + '" data-rk-dot="' + esc(s.id) + '"></a>';
+    return '<a href="#' + esc(s.id) + '" ' + (s.empty ? 'data-state="na" title="' + esc(s.name) + ': nothing to validate"' : 'data-rk-dot="' + esc(s.id) + '"') + "></a>";
   }).join("");
   document.getElementById("rail-meta").innerHTML =
     (PLAN.hash ? '<dt>plan.md</dt><dd class="mono">' + esc(PLAN.hash) + "</dd>" : "") +
@@ -1108,7 +1116,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   /* Review order: sections in plan order, with the doors inside Landing and the slices inside Criteria. */
   function reviewOrder() {
     var out = [];
-    SECTIONS.forEach(function (s) {
+    TO_REVIEW.forEach(function (s) {
       out.push([s.id, s.name, "#" + s.id]);
       if (s.id === "landing") Object.keys(FP).filter(function (k) { return k.indexOf("door:") === 0; })
         .sort(function (a, b) { return Number(a.slice(5)) - Number(b.slice(5)); })
