@@ -97,13 +97,14 @@ nav.toc a[aria-current="true"] { background: var(--accent-soft); color: var(--ac
 nav.toc .sub { margin: 2px 0 4px 17px; padding-left: 8px; border-left: 1px solid var(--line); }
 nav.toc .sub a { font-size: 13px; padding: 3px 10px; }
 .toc-progress { margin: 16px 10px 0; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; display: none; }
-/* State icon: validated (check), not reviewed (empty circle), changed since (triangle), nothing to validate (dash). */
+/* State icon: validated (check), not reviewed (empty circle), changed since (triangle), rejected (cross), nothing to validate (dash). */
 .st { width: 14px; height: 14px; flex-shrink: 0; display: inline-flex; color: var(--line-strong); }
 .st svg { width: 14px; height: 14px; }
 .st[data-state="ok"] { color: var(--ok); }
 .st[data-state="pend"] { color: var(--pend); }
 .st[data-state="chg"] { color: var(--chg); }
 .st[data-state="na"] { color: var(--muted); }
+.st[data-state="rej"] { color: var(--chg); }
 
 /* review panel */
 aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--top)); overflow-y: auto; padding: 28px 0 40px; display: grid; gap: 22px; align-content: start; font-size: 13px; }
@@ -117,6 +118,7 @@ aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--t
 .cells a[data-state="pend"] { background: var(--pend-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pend) 45%, transparent); }
 .cells a[data-state="chg"] { background: var(--chg); }
 .cells a[data-state="na"] { background: var(--line); opacity: .5; }
+.cells a[data-state="rej"] { background: repeating-linear-gradient(135deg, var(--chg) 0 3px, var(--chg-soft) 3px 5px); }
 .rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .rail li a { display: flex; align-items: center; gap: 8px; color: var(--fg-2); text-decoration: none; padding: 3px 0; }
 .rail li a:hover { color: var(--accent); }
@@ -164,6 +166,7 @@ pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; li
 .badge.pend { background: var(--pend-soft); color: var(--pend); }
 .badge.stale { background: var(--chg-soft); color: var(--chg); }
 .badge.na { background: var(--bg-hover); color: var(--muted); }
+.badge.rej { background: var(--chg-soft); color: var(--chg); }
 .rv-btn { font: inherit; font-size: 13px; font-weight: 550; line-height: 1; padding: 7px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); box-shadow: 0 1px 1px rgba(17, 20, 26, .04); transition: background-color .15s, border-color .15s; }
 .rv-btn:hover { background: var(--bg-hover); border-color: var(--muted); }
 .rv-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -171,6 +174,16 @@ pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; li
 :root[data-theme="dark"] .rv-btn.primary { color: #0e1013; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rv-btn.primary { color: #0e1013; } }
 .rv-btn:disabled { opacity: .55; cursor: progress; }
+/* Row review (table row, door): Confirm and Reject toggle; pressing the lit one again undoes it. */
+.rv-row { display: inline-grid; gap: 6px; justify-items: start; }
+.rv-row .rv-acts { display: inline-flex; gap: 4px; }
+/* With the buttons on screen, the lit one already says the state: the badge only shows what they cannot (changed since). */
+.rv-row.has-acts .badge:not(.stale) { display: none; }
+.rv-mini { font: inherit; font-size: 12px; font-weight: 550; line-height: 1; padding: 5px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg-2); transition: background-color .15s, border-color .15s, color .15s; }
+.rv-mini:hover { background: var(--bg-hover); border-color: var(--muted); }
+.rv-mini.yes[aria-pressed="true"] { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.rv-mini.no[aria-pressed="true"] { background: var(--chg-soft); border-color: var(--chg); color: var(--chg); }
+.rv-mini:disabled { opacity: .55; cursor: progress; }
 .stale-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 550; color: var(--chg); background: var(--chg-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; vertical-align: 1px; }
 
 /* plan lists */
@@ -201,6 +214,14 @@ th.narrow, td.narrow { width: 1%; white-space: nowrap; }
 .conf .ic { width: 14px; height: 14px; }
 .conf.yes { background: var(--ok-soft); color: var(--ok); }
 .conf.no { background: var(--pend-soft); color: var(--pend); }
+/* Row number: a click copies "Section #N" to cite the row in the conversation. */
+.rn { all: unset; cursor: pointer; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding: 1px 5px; border-radius: 4px; }
+.rn:hover { color: var(--accent); background: var(--accent-soft); }
+.rn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+tr.row-t { scroll-margin-top: calc(var(--top) + 56px); }
+tr.row-t:target td { background: var(--accent-soft); }
+tr[data-rs="rej"] td { background: color-mix(in srgb, var(--chg-soft) 70%, transparent); }
+tr[data-rs="ok"] td.rn-cell { box-shadow: inset 3px 0 0 var(--ok); }
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* clickable cards (symptom, impact) */
@@ -314,6 +335,10 @@ a.door-mark.xref { color: var(--accent); }
 .risk b { color: var(--fg); }
 .imp-detail { display: grid; gap: 12px; }
 .imp .detail { padding: 0 16px 14px; }
+.imp-n { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+.imp-what .st { vertical-align: -2px; margin-right: 6px; }
+.imp-rv { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.imp-rv .lbl { font-size: 13px; color: var(--muted); }
 .plan-text { font-size: 13.5px; color: var(--fg-2); background: var(--bg-subtle); border-radius: 6px; padding: 10px 12px; }
 .plan-text b.lead { display: block; color: var(--muted); font-size: 12.5px; font-weight: 500; margin-bottom: 2px; }
 .trees { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
@@ -442,6 +467,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   .tbl td { border: 0; padding: 2px 0; white-space: normal; }
   .tbl td::before { content: attr(data-label); display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
   .tbl td:empty { display: none; }
+  /* Row number inline ("#2"), and the row state on the whole block. */
+  .tbl td.rn-cell::before { content: "#"; display: inline; font-weight: 600; color: var(--muted); }
+  .tbl td.rn-cell .rn { padding-left: 1px; }
+  .tbl tr[data-rs="ok"] td.rn-cell { box-shadow: none; }
+  .tbl tr[data-rs="ok"] { box-shadow: inset 3px 0 0 var(--ok); }
+  .tbl tr[data-rs="rej"] { background: color-mix(in srgb, var(--chg-soft) 70%, transparent); }
+  .tbl tr[data-rs="rej"] td { background: none; }
   /* On phones the Flow chain is vertical, with the arrow pointing down. */
   .chain { flex-direction: column; align-items: stretch; }
   .chain .unit { flex-direction: column; align-items: stretch; }
@@ -476,6 +508,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <div><h2>Review</h2><div class="rail-count" id="rail-count"></div><div class="cells" id="rail-cells"></div></div>
     <div><h2>Not reviewed</h2><ul id="rail-todo"></ul></div>
     <div id="rail-chg-box" hidden><h2>Changed since validated</h2><ul id="rail-chg"></ul></div>
+    <div id="rail-rej-box" hidden><h2>Rejected rows</h2><ul id="rail-rej"></ul></div>
     <div><h2>This page</h2><dl id="rail-meta"></dl></div>
   </aside>
 </div>
@@ -499,6 +532,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     pend: svg('<circle cx="8" cy="8" r="6.25" stroke-dasharray="2.4 2.2"/>'),
     chg: svg('<path d="M8 2.2l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.6v.1"/>'),
     na: svg('<path d="M5 8h6"/>'),
+    rej: svg('<circle cx="8" cy="8" r="6.25"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/>'),
     copy: svg('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>'),
     check: svg('<path d="M3.5 8.5l3 3 6-7"/>')
   };
@@ -518,20 +552,63 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     set: function (k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
   };
   /* Review state: comes from the artifact db (review/<key>) when it exists; otherwise from review-page.json.
-     Each validation stores the fingerprint of the validated text (fp): if the plan changes, it becomes "changed since". */
+     Each mark stores the fingerprint of the text the user saw (fp): if the plan changes, it becomes "changed since".
+     Keys: a section or slice id; `door:N` for a One-way door; `row:<section>:<n>` for a table row (PLAN.rows).
+     States: ok (validated / confirmed), rej (rejected: the user wants to discuss it), pend. */
   var FP = PLAN.fingerprints || {};
   var DBREV = null, CAN_WRITE = false, ME = null, DB = null;
-  function jsonOk(key) { return key.indexOf("door:") === 0 ? (EN.doors_confirmed || []).indexOf(Number(key.slice(5))) !== -1 : !!REVIEW[key]; }
-  function reviewOf(key) {
+  var REJ = EN.rejected || [];
+  var ROWS = PLAN.rows || {}, ROW_OF = {};
+  Object.keys(ROWS).forEach(function (sid) { ROWS[sid].forEach(function (x) { ROW_OF[x.key] = { sid: sid, n: x.n, b: x.b, r: x.r }; }); });
+  function secRows(sid) { return (ROWS[sid] || []).map(function (x) { return x.key; }); }
+  function isDoor(key) { return key.indexOf("door:") === 0; }
+  /* What was marked on this key itself, or null. */
+  function ownOf(key) {
     var d = DBREV && DBREV[key];
-    if (d) { var ok = d.state === "validated"; return { ok: ok, changed: ok && d.fp !== FP[key], src: "page", at: d.at }; }
-    var ok2 = jsonOk(key);
-    return { ok: ok2, changed: ok2 && !!STALE.sections[key], src: "json" };
+    if (d) {
+      var st = d.state === "validated" ? "ok" : d.state === "rejected" ? "rej" : "pend";
+      return { st: st, changed: st !== "pend" && d.fp !== FP[key], src: "page", at: d.at };
+    }
+    if (REJ.indexOf(key) !== -1) return { st: "rej", changed: !!STALE.sections[key], src: "json" };
+    var ok = isDoor(key) ? (EN.doors_confirmed || []).indexOf(Number(key.slice(5))) !== -1 : !!REVIEW[key];
+    if (ok) return { st: "ok", changed: !!STALE.sections[key], src: "json" };
+    return isDoor(key) || key in REVIEW ? { st: "pend", changed: false, src: "json" } : null;
   }
-  function stateOf(key) { var r = reviewOf(key); return r.ok ? (r.changed ? "chg" : "ok") : "pend"; }
+  /* A table row with no state of its own takes its section's: validating the section confirms its rows. Doors do not inherit. */
+  function reviewOf(key) {
+    var own = ownOf(key), row = ROW_OF[key];
+    if (!own && row && !isDoor(key)) {
+      var sec = ownOf(row.sid);
+      if (sec && sec.st === "ok") return { st: "ok", changed: sec.src === "json" ? !!STALE.sections[key] : sec.changed, src: sec.src, at: sec.at };
+    }
+    return own || { st: "pend", changed: false, src: "json" };
+  }
+  /* A section with rows is validated only when the section and every row are; one rejected row makes it rejected. */
+  function fullOf(key) {
+    var keys = secRows(key), own = reviewOf(key);
+    if (!keys.length) return own;
+    var rows = keys.map(reviewOf);
+    var nOk = rows.filter(function (r) { return r.st === "ok"; }).length;
+    var nRej = rows.filter(function (r) { return r.st === "rej" && !r.changed; }).length;
+    var out = { n: keys.length, nOk: nOk, nRej: nRej, src: own.src, at: own.at };
+    if (nRej) { out.st = "rej"; out.changed = false; }
+    else if (own.st === "ok" && nOk === keys.length) { out.st = "ok"; out.changed = own.changed || rows.some(function (r) { return r.changed; }); }
+    else { out.st = "pend"; out.changed = false; }
+    return out;
+  }
+  function stateOf(key) { var r = fullOf(key); return r.changed && r.st !== "pend" ? "chg" : r.st; }
+  function rowNoun(sid, n) { return (sid === "landing" ? "door" : "row") + (n === 1 ? "" : "s"); }
+  function rowLabel(key) { var x = ROW_OF[key]; return isDoor(key) ? "One-way door " + key.slice(5) : nameOf(x.sid) + " #" + x.n; }
+  function rowHref(key) { var x = ROW_OF[key]; return isDoor(key) ? "#door-" + key.slice(5) : "#row-" + x.sid + "-" + x.n; }
   function reviewSlot(key, okText) {
     return '<span class="rv" data-rk="' + esc(key) + '" data-ok="' + esc(okText) + '"><span class="badge"></span>' +
       '<button type="button" class="rv-btn" data-rk-btn="' + esc(key) + '" hidden></button></span>';
+  }
+  /* Review of one table row or door: a badge and the Confirm / Reject toggles. */
+  function rowSlot(key) {
+    return '<span class="rv-row" data-rk-row="' + esc(key) + '"><span class="badge"></span><span class="rv-acts" hidden>' +
+      '<button type="button" class="rv-mini yes" data-rk-row-btn="' + esc(key) + '" data-act="yes" aria-pressed="false">Confirm</button>' +
+      '<button type="button" class="rv-mini no" data-rk-row-btn="' + esc(key) + '" data-act="no" aria-pressed="false">Reject</button></span></span>';
   }
   /* Empty section (no content, or only `None - <why>`): shown, but there is nothing to validate. */
   var NA_BADGE = '<span class="badge na" title="The plan says this section does not apply">nothing to validate</span>';
@@ -539,23 +616,42 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var s = SECTIONS.filter(function (x) { return x.id === key; })[0];
     return s ? s.name : key;
   }
+  var STATE_LABEL = { ok: "validated", chg: "changed since validated", rej: "has rejected rows", pend: "not reviewed" };
   function paintReview() {
     document.querySelectorAll("[data-rk]").forEach(function (el) {
-      var key = el.getAttribute("data-rk"), okText = el.getAttribute("data-ok"), r = reviewOf(key), door = key.indexOf("door:") === 0;
+      var key = el.getAttribute("data-rk"), okText = el.getAttribute("data-ok"), r = fullOf(key), st = stateOf(key);
       var b = el.querySelector(".badge");
-      b.className = "badge " + (r.ok ? (r.changed ? "stale" : "ok") : "pend");
-      b.textContent = r.ok ? okText + (r.changed ? " · changed since" : "") : (door ? "not confirmed" : "not reviewed");
+      b.className = "badge " + (st === "chg" ? "stale" : st);
+      b.textContent = r.st === "ok" ? okText + (r.changed ? " · changed since" : "")
+        : r.st === "rej" ? r.nRej + " " + rowNoun(key, r.nRej) + " rejected"
+        : r.nOk ? r.nOk + " of " + r.n + " " + rowNoun(key, r.n) + " confirmed" : "not reviewed";
       b.title = r.changed ? "The text changed after it was validated" : (r.src === "page" && r.at ? "Marked on this page at " + String(r.at).slice(0, 16).replace("T", " ") : "");
       var btn = el.querySelector(".rv-btn");
       btn.hidden = !CAN_WRITE;
-      btn.textContent = !r.ok ? (door ? "Confirm" : "Validate") : (r.changed ? (door ? "Confirm again" : "Validate again") : "Undo");
-      btn.classList.toggle("primary", !r.ok || r.changed);
+      btn.textContent = r.st !== "ok" ? "Validate" : (r.changed ? "Validate again" : "Undo");
+      btn.title = r.n ? (r.st === "ok" && !r.changed ? "Back to not reviewed, with its " + r.n + " " + rowNoun(key, r.n) : "Validates the section and confirms its " + r.n + " " + rowNoun(key, r.n)) : "";
+      btn.classList.toggle("primary", r.st !== "ok" || r.changed);
+    });
+    document.querySelectorAll("[data-rk-row]").forEach(function (el) {
+      var key = el.getAttribute("data-rk-row"), r = reviewOf(key), st = stateOf(key);
+      var b = el.querySelector(".badge");
+      b.className = "badge " + (st === "chg" ? "stale" : st);
+      b.textContent = (r.st === "ok" ? "confirmed" : r.st === "rej" ? "rejected" : "not confirmed") + (r.changed ? " · changed since" : "");
+      b.title = r.changed ? "The text changed after it was marked" : (r.src === "page" && r.at ? "Marked on this page at " + String(r.at).slice(0, 16).replace("T", " ") : "");
+      el.querySelector(".rv-acts").hidden = !CAN_WRITE;
+      el.classList.toggle("has-acts", CAN_WRITE);
+      el.querySelectorAll(".rv-mini").forEach(function (m) {
+        var on = !r.changed && r.st === (m.getAttribute("data-act") === "yes" ? "ok" : "rej");
+        m.setAttribute("aria-pressed", String(on));
+        m.title = on ? "Click again to undo" : "";
+      });
+      var tr = el.closest("tr"); if (tr) tr.setAttribute("data-rs", st);
     });
     document.querySelectorAll("[data-rk-dot]").forEach(function (el) {
       var st = stateOf(el.getAttribute("data-rk-dot"));
       if (el.getAttribute("data-state") === st) return;
       el.setAttribute("data-state", st);
-      var label = st === "ok" ? "validated" : st === "chg" ? "changed since validated" : "not reviewed";
+      var label = ROW_OF[el.getAttribute("data-rk-dot")] ? { ok: "confirmed", chg: "changed since marked", rej: "rejected", pend: "not confirmed" }[st] : STATE_LABEL[st];
       el.setAttribute("aria-label", label);
       el.title = label;
       if (el.classList.contains("st")) el.innerHTML = IC[st];
@@ -565,18 +661,25 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var pr = document.getElementById("progress"); if (pr) pr.textContent = txt;
     var tp = document.getElementById("top-progress"); if (tp) tp.textContent = done + "/" + TO_REVIEW.length + " validated";
     var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = done + " <span>of " + TO_REVIEW.length + " sections validated</span>";
-    /* Panel: what is left and what changed, sections and slices in plan order. */
+    /* Panel: what is left, what changed and what was rejected, in plan order. */
     var keys = [];
     TO_REVIEW.forEach(function (s) { keys.push([s.id, s.name, "#" + s.id]); if (s.criteria) s.criteria.slices.forEach(function (x) { keys.push([x.id, x.id, "#slice-" + x.id]); }); });
+    function li(k, st) { return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>"; }
     function items(st) {
-      return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) {
-        return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>";
-      }).join("");
+      return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) { return li(k, st); }).join("");
     }
     var todo = document.getElementById("rail-todo");
-    if (todo) { var t = items("pend"); todo.innerHTML = t || '<li class="empty">Nothing left: everything is validated.</li>'; }
+    if (todo) {
+      var t = items("pend");
+      todo.innerHTML = t || '<li class="empty">' + (keys.some(function (k) { return stateOf(k[0]) === "ok"; }) && keys.every(function (k) { return stateOf(k[0]) === "ok"; }) ? "Nothing left: everything is validated." : "Nothing left to review.") + "</li>";
+    }
     var chg = document.getElementById("rail-chg");
     if (chg) { var c = items("chg"); chg.innerHTML = c; document.getElementById("rail-chg-box").hidden = !c; }
+    var rej = document.getElementById("rail-rej");
+    if (rej) {
+      var rr = Object.keys(ROW_OF).filter(function (k) { return stateOf(k) === "rej"; }).map(function (k) { return li([k, rowLabel(k), rowHref(k)], "rej"); }).join("");
+      rej.innerHTML = rr; document.getElementById("rail-rej-box").hidden = !rr;
+    }
   }
   /* Door mark without a link: for use inside buttons, where <a> is not allowed. */
   function doorMark(n) { return n ? ' · <span class="door-mark">door ' + esc(n) + "</span>" : ""; }
@@ -611,7 +714,12 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   }
 
   /* ---------- plan blocks ---------- */
-  function table(b) {
+  /* `rows` (from PLAN.rows): the key and number of each row, when the user reviews this table row by row.
+     The table then gets a "#" column (a click copies "Section #N" to cite the row) and a Review column.
+     A table whose first column already is "#" with the same numbers keeps it as the number. `withId`: the
+     row carries the row-<section>-<n> anchor (only one copy of a table on the page does). */
+  function table(b, rows, withId) {
+    var reuse = !!rows && String(b.header[0] || "").trim() === "#" && b.rows.every(function (r, i) { return String(r[0] || "").trim() === String(rows[i].n); });
     var confirmCol = b.header.map(function (h) { return h.toLowerCase(); }).indexOf("confirmed?");
     var narrow = b.header.map(function (h, i) { return b.rows.every(function (r) { return String(r[i] || "").length <= 12; }) ? ' class="narrow"' : ""; });
     /* Text columns share the width by the root mean square of their cell lengths (minimum 18%):
@@ -623,24 +731,40 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       return Math.sqrt(sq / Math.max(b.rows.length, 1));
     });
     var total = avg.reduce(function (n, x) { return n + x; }, 0);
-    var cols = total ? "<colgroup>" + avg.map(function (x, i) {
+    var cols = total ? "<colgroup>" + (rows && !reuse ? "<col>" : "") + avg.map(function (x, i) {
       return narrow[i] ? "<col>" : '<col style="width:' + Math.max(18, Math.round(x / total * 100)) + '%">';
-    }).join("") + "</colgroup>" : "";
-    return '<div class="tbl"><table>' + cols + '<thead><tr>' + b.header.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + "</tr></thead><tbody>" +
-      b.rows.map(function (r) {
-        return "<tr>" + r.map(function (c, i) {
+    }).join("") + (rows ? "<col>" : "") + "</colgroup>" : "";
+    var sid = rows && ROW_OF[rows[0].key] ? ROW_OF[rows[0].key].sid : "";
+    function num(x) {
+      var ref = nameOf(sid) + " #" + x.n;
+      return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="Copy &quot;' + esc(ref) + '&quot; to cite this row" aria-label="Row ' + esc(x.n) + ": copy " + esc(ref) + '">' + esc(x.n) + "</button>";
+    }
+    return '<div class="tbl"><table>' + cols + '<thead><tr>' + (rows && !reuse ? '<th class="narrow">#</th>' : "") +
+      b.header.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + (rows ? '<th class="narrow">Review</th>' : "") + "</tr></thead><tbody>" +
+      b.rows.map(function (r, ri) {
+        var x = rows ? rows[ri] : null;
+        return "<tr" + (x ? ' class="row-t"' + (withId ? ' id="row-' + esc(sid) + "-" + esc(x.n) + '"' : "") : "") + ">" +
+          (x && !reuse ? '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>" : "") + r.map(function (c, i) {
           var td = "<td" + narrow[i] + ' data-label="' + esc(b.header[i] || "") + '">';
+          if (x && reuse && i === 0) return '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>";
           if (i === confirmCol) return td + (c === "y" ? '<span class="conf yes">' + IC.ok + "confirmed</span>" : '<span class="conf no">' + IC.pend + "not confirmed</span>") + '<span class="sr"> (plan.md: ' + esc(c) + ")</span></td>";
           return td + md(c) + "</td>";
-        }).join("") + "</tr>";
+        }).join("") + (x ? '<td class="narrow rv-cell" data-label="Review">' + rowSlot(x.key) + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
-  function blocks(list) {
+  /* The rows of the table at block index `bi` of section `sec`, in row order, or null. */
+  function rowsAt(sec, bi) {
+    var list = (ROWS[sec.id] || []).filter(function (x) { return x.b === bi; });
+    if (!list.length) return null;
+    return list.slice().sort(function (p, q) { return p.r - q.r; }).map(function (x) { return { key: x.key, n: x.n }; });
+  }
+  /* `sec`: the section the blocks come from (its tables are reviewed row by row); `noIds`: a second copy on the page. */
+  function blocks(list, sec, noIds) {
     return linkDoors('<div class="blocks">' + (list || []).map(function (b) {
       if (b.type === "p") return "<p>" + md(b.text) + "</p>";
       if (b.type === "ul") return '<ul class="notes">' + b.items.map(function (it) { return "<li>" + md(it.text) + "</li>"; }).join("") + "</ul>";
       if (b.type === "ol") return '<ol class="steps">' + b.items.map(function (it) { return '<li><span class="n">' + it.n + "</span><span>" + md(it.text) + "</span></li>"; }).join("") + "</ol>";
-      if (b.type === "table") return table(b);
+      if (b.type === "table") return table(b, sec ? rowsAt(sec, sec.blocks.indexOf(b)) : null, !noIds);
       if (b.type === "code" && b.lang === "mermaid") return '<pre class="mermaid">' + esc(b.text) + "</pre>";
       if (b.type === "code") return '<pre class="code">' + esc(b.text) + "</pre>";
       return "";
@@ -732,7 +856,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   /* Problem: clickable symptoms (Where / Today / Fixed in) and "who pays" as a filter */
   function renderProblem(s) {
     var v = EN.problem_visual;
-    if (!v) return section(s, blocks(s.blocks));
+    if (!v) return section(s, blocks(s.blocks, s));
     var syms = v.symptoms || [], pays = v.pays || [];
     var st = { pay: null, open: {} };
     var html = staleTag("problem-visual") + (pays.length ? '<h3>Who pays</h3><div class="pay-filter">' + pays.map(function (p, i) {
@@ -742,7 +866,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       (pays.length ? '<p class="hint">Click who pays to see what hits them; click a symptom to see where it is and what fixes it.</p>' : "") +
       (v.why_now ? '<div class="callout"><b>Why now:</b> ' + md(v.why_now) + "</div>" : "") +
       (v.outcome ? '<div class="callout"><b>Once shipped:</b> ' + md(v.outcome) + "</div>" : "");
-    var el = section(s, html, blocks(s.blocks));
+    var el = section(s, html, blocks(s.blocks, s));
     var box = el.querySelector(".syms");
     function fixHtml(f) {
       if (!f) return "";
@@ -779,7 +903,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   /* Flow: clickable paths */
   function renderFlow(s) {
     var v = EN.flow_visual;
-    if (!v) return section(s, blocks(s.blocks));
+    if (!v) return section(s, blocks(s.blocks, s));
     var intro = (s.blocks || []).filter(function (b) { return b.type === "p"; })[0];
     var st = { sel: null };
     // Where each changing node appears: its card opens in one place, and the other occurrences light up with it.
@@ -797,7 +921,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       '<div class="toolbar"><button type="button" class="switch flow-focus" aria-pressed="false"><span class="track"></span>Highlight only what changes</button>' +
       '<span class="legend"><span><i class="add"></i>changes: click to see where, why and proof</span><span>struck through = the name today</span>' +
       (repeats ? '<span><i class="same"></i>the same node in another path</span>' : "") + '</span></div><div class="paths"></div>';
-    var el = section(s, html, blocks(s.blocks));
+    var el = section(s, html, blocks(s.blocks, s));
     var box = el.querySelector(".paths");
     function selNode() {
       if (!st.sel) return null;
@@ -845,14 +969,16 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   /* Impact: cards by group, "who feels it" filter */
   function renderImpact(s) {
     var v = EN.impact_visual;
-    if (!v) return section(s, blocks(s.blocks));
+    if (!v) return section(s, blocks(s.blocks, s));
     var rows = (firstTable(s) || { rows: [] }).rows;
+    /* Each card is a reading of one Impact row: it shows the row number and its review, so it can be confirmed from the Visual tab. */
+    var rowKeys = rowsAt(s, s.blocks.indexOf(firstTable(s))) || [];
     var st = { aud: null, open: {} };
     var auds = v.audiences || [];
     var html = (auds.length ? '<div class="aud"><span class="lbl">Who feels it</span><button type="button" class="chip" data-a="" aria-pressed="true">All</button>' +
       auds.map(function (a) { return '<button type="button" class="chip" data-a="' + esc(a) + '" aria-pressed="false">' + esc(a) + "</button>"; }).join("") + "</div>" : "") +
       '<div class="groups"></div><p class="hint">Click a card to see where, why, proof and the plan text for that row.</p>';
-    var el = section(s, html, blocks(s.blocks));
+    var el = section(s, html, blocks(s.blocks, s));
     var box = el.querySelector(".groups");
     function card(c, i) {
       var open = !!st.open[i];
@@ -866,12 +992,14 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
             '</span><span class="why">' + codeText(k[1]) + "</span></li>";
         }).join("") + "</ul>";
         if (c.tree && v.tree) detail += '<div class="trees"><div class="tree"><h3>Before</h3><div class="tree-lines">' + treeHtml(v.tree.before) + '</div></div><div class="tree"><h3>After</h3><div class="tree-lines">' + treeHtml(v.tree.after) + "</div></div></div>";
-        var r = rows[c.row];
+        var r = rows[c.row], rk = rowKeys[c.row];
         if (r) detail += '<div class="plan-text"><b class="lead">Plan text · ' + esc(r[0]) + "</b>" + md(r.slice(1).join(" · ")) + "</div>";
+        if (rk) detail += '<div class="imp-rv"><span class="lbl">' + esc(s.name) + " #" + esc(rk.n) + "</span>" + rowSlot(rk.key) + "</div>";
         detail += "</div>";
       }
       return '<article class="imp ' + esc(c.g) + (open ? " open" : "") + (dim ? " dim" : "") + '"><button type="button" class="imp-btn card-btn" data-i="' + i + '" aria-expanded="' + open + '">' +
-        '<span class="imp-what">' + esc(c.title) + staleTag("impact:" + i) + "</span>" + '<span class="imp-mid">' +
+        '<span class="imp-what">' + (rowKeys[c.row] ? '<span class="st" data-rk-dot="' + esc(rowKeys[c.row].key) + '"></span><span class="imp-n">#' + esc(rowKeys[c.row].n) + "</span>" : "") +
+        esc(c.title) + staleTag("impact:" + i) + "</span>" + '<span class="imp-mid">' +
         (c.before || c.after ? '<span class="ba">' + (c.before ? '<span class="name old' + pr(c.before) + '">' + esc(c.before) + "</span>" : "") + '<span class="ba-new">' + (c.before ? '<span class="arrow">' + IC.arrow + "</span>" : "") + newName(c.after, c.tbd, "name new") + "</span></span>" : "") +
         (c.risk ? '<span class="risk"><b>Risk:</b> ' + esc(c.risk) + "</span>" : "") + "</span>" +
         '<span class="who">' + (c.who || []).map(function (w) { return "<span>" + esc(w) + "</span>"; }).join("") + "</span>" + IC.chev + "</button>" + detail + "</article>";
@@ -883,6 +1011,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
         return '<div class="group"><div class="group-head ' + esc(g[0]) + '"><i></i><h3>' + esc(g[1]) + '</h3><span class="gcount">' + cs.length + "</span></div>" +
           '<div class="imps">' + cs.map(function (p) { return card(p[0], p[1]); }).join("") + "</div></div>";
       }).join("");
+      paintReview();
     }
     render();
     var audBox = el.querySelector(".aud");
@@ -904,7 +1033,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
      "Confirm" button and the door-N id); the plan table stays in the "Plan text" tab. */
   function renderLanding(s) {
     var t = firstTable(s);
-    if (!t || !/one-way door/i.test(t.header[0] || "")) return section(s, blocks(s.blocks));
+    if (!t || !/one-way door/i.test(t.header[0] || "")) return section(s, blocks(s.blocks, s));
     var lv = EN.landing_visual, byN = {};
     ((lv && lv.doors) || []).forEach(function (d) { byN[String(d.n)] = d; });
     var rest = s.blocks.filter(function (b) { return b !== t; });
@@ -914,25 +1043,25 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     function planCard(r, i, live) {
       var h = head(r, i), n = h.n;
       return '<article class="door"' + (live && n ? ' id="door-' + esc(n) + '"' : "") + '><div class="door-head"><h3><span class="n">One-way door ' + esc(n) + "</span> · " + md(h.title) + "</h3>" +
-        (live && n ? reviewSlot("door:" + n, "confirmed") : "") + "</div>" +
+        (live && n ? rowSlot("door:" + n) : "") + "</div>" +
         '<div class="field"><h4>' + esc(t.header[1] || "Literal shape") + '</h4><div class="shape">' + md(r[1] || "") + "</div></div>" +
         '<div class="field"><h4>' + esc(t.header[2] || "Alternative rejected") + "</h4><p>" + md(r[2] || "") + "</p></div></article>";
     }
-    if (!lv) return section(s, t.rows.map(function (r, i) { return planCard(r, i, true); }).join("") + blocks(rest));
+    if (!lv) return section(s, t.rows.map(function (r, i) { return planCard(r, i, true); }).join("") + blocks(rest, s));
     function field(label, html) { return '<div class="field"><h4>' + esc(label) + "</h4>" + html + "</div>"; }
     function para(x) { return "<p>" + codeText(x) + "</p>"; }
     var visual = (lv.intro ? '<div class="callout">' + md(lv.intro) + "</div>" : "") + t.rows.map(function (r, i) {
       var h = head(r, i), n = h.n, d = byN[n] || {};
       return '<article class="door door-v" id="door-' + esc(n) + '"><div class="door-head"><h3><span class="n">One-way door ' + esc(n) + "</span> · " + esc(d.title || h.title) + "</h3>" +
-        staleTag("landing:" + n) + reviewSlot("door:" + n, "confirmed") + "</div>" +
+        staleTag("landing:" + n) + rowSlot("door:" + n) + "</div>" +
         (d.decide ? field("What is decided", para(d.decide)) : "") +
         (d.choice ? field("What we chose", para(d.choice) + (d.names ? '<div class="keep-names">' + d.names.map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("") + "</div>" : "")) : "") +
         (d.hard ? field("Why it is hard to undo", para(d.hard)) : "") +
         (d.risk ? field("On deploy", para(d.risk)) : "") +
         (d.alternatives ? field("What was rejected", '<ul class="alts">' + d.alternatives.map(function (a) { return "<li><b>" + codeText(a[0]) + "</b><span>" + codeText(a[1]) + "</span></li>"; }).join("") + "</ul>") : "") +
         (d.proof ? field("Proof", "<p>" + proof(d.proof) + "</p>") : "") + "</article>";
-    }).join("") + blocks(rest);
-    return section(s, visual, t.rows.map(function (r, i) { return planCard(r, i, false); }).join("") + blocks(rest));
+    }).join("") + blocks(rest, s, true);
+    return section(s, visual, t.rows.map(function (r, i) { return planCard(r, i, false); }).join("") + blocks(rest, s));
   }
 
   /* Criteria: slices, criteria and each slice's changes */
@@ -1016,7 +1145,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     if (s.id === "impact") return renderImpact(s);
     if (s.id === "landing") return renderLanding(s);
     if (s.id === "criteria") return renderCriteria(s);
-    section(s, blocks(s.blocks));
+    section(s, blocks(s.blocks, s));
   });
 
   var foot = document.createElement("footer");
@@ -1167,15 +1296,50 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       setTimeout(function () { c.classList.remove("done"); c.innerHTML = IC.copy; c.setAttribute("aria-label", "Copy " + text); }, 1500);
     }, function () { toast("<span>Could not copy. Select the text and copy it by hand.</span>"); });
   });
+  function mark(keys, state) {
+    var at = new Date().toISOString();
+    return Promise.all(keys.map(function (k) { return DB.doc("review/" + k).set({ state: state, fp: FP[k] || null, plan: PLAN.hash || null, by: ME, at: at }); }));
+  }
+  function failed(err) { say("Could not save (" + ((err && err.code) || "error") + "). Try again."); }
+  /* Section or slice: Validate also confirms every row of the section (rejected ones included); Undo takes them all back to pending. */
   document.addEventListener("click", function (e) {
     var b = e.target.closest(".rv-btn");
     if (!b || !DB || !CAN_WRITE) return;
-    var key = b.getAttribute("data-rk-btn"), r = reviewOf(key);
-    var next = r.ok && !r.changed ? "pending" : "validated";
+    var key = b.getAttribute("data-rk-btn"), r = fullOf(key);
+    var next = r.st === "ok" && !r.changed ? "pending" : "validated";
     b.disabled = true;
-    DB.doc("review/" + key).set({ state: next, fp: FP[key] || null, plan: PLAN.hash || null, by: ME, at: new Date().toISOString() })
+    mark([key].concat(secRows(key)), next)
       .then(function () { b.disabled = false; say(""); if (next === "validated") nextToast(key); })
-      .catch(function (err) { b.disabled = false; say("Could not save (" + ((err && err.code) || "error") + "). Try again."); });
+      .catch(function (err) { b.disabled = false; failed(err); });
   });
+  /* Table row or door: Confirm / Reject; pressing the one already lit takes it back to pending. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".rv-mini");
+    if (!b || !DB || !CAN_WRITE) return;
+    var key = b.getAttribute("data-rk-row-btn"), yes = b.getAttribute("data-act") === "yes", r = reviewOf(key);
+    var next = !r.changed && r.st === (yes ? "ok" : "rej") ? "pending" : yes ? "validated" : "rejected";
+    b.disabled = true;
+    mark([key], next)
+      .then(function () {
+        b.disabled = false; say("");
+        if (next === "rejected") toast("<span>" + esc(rowLabel(key)) + " rejected.</span><span>Cite <b>" + esc(rowLabel(key)) + "</b> in the conversation to say what is wrong.</span>");
+        else if (next === "validated" && isDoor(key)) nextToast(key);
+      })
+      .catch(function (err) { b.disabled = false; failed(err); });
+  });
+  /* Row number: copies "Section #N", to cite the row in the conversation. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".rn"); if (!b) return;
+    var ref = b.getAttribute("data-ref");
+    copyText(ref).then(function () { toast("<span>Copied <b>" + esc(ref) + "</b>: paste it in the conversation to discuss this row.</span>"); },
+      function () { toast("<span>Cite this row as <b>" + esc(ref) + "</b>.</span>"); });
+  });
+  /* A link to a row inside a hidden "Plan text" tab (Impact) opens that tab first, so the jump has a target on screen. */
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest("a[href^='#row-']"); if (!a) return;
+    var t = document.getElementById(a.getAttribute("href").slice(1)), view = t && t.closest(".view[hidden]");
+    if (!view) return;
+    var tab = document.getElementById(view.getAttribute("aria-labelledby")); if (tab) tab.click();
+  }, true);
 })();
 </script>

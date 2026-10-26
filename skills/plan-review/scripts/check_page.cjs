@@ -85,6 +85,17 @@ if (data) {
       fail.push('Landing: the plan table repeats the door-N id of the Visual tab')
     expected.doorsExplained = nDoors
   }
+  // Table rows reviewed one by one: each has its number (a button that copies "Section #N") and exactly one anchor.
+  const rowList = Object.entries(P.rows || {}).flatMap(([sid, rs]) => rs.map((x) => ({ sid, ...x })))
+  const plainRows = rowList.filter((x) => x.key.startsWith('row:'))
+  const refs = new Set([...d.querySelectorAll('.rn')].map((b) => b.getAttribute('data-ref')))
+  const names = Object.fromEntries(P.sections.map((s) => [s.id, s.name]))
+  for (const x of plainRows) {
+    if (!refs.has(`${names[x.sid]} #${x.n}`)) fail.push(`row ${x.key}: no "#${x.n}" number on the page`)
+    if (d.querySelectorAll(`[id="row-${x.sid}-${x.n}"]`).length !== 1) fail.push(`row ${x.key}: expected one #row-${x.sid}-${x.n} anchor`)
+  }
+  if (refs.size !== plainRows.length) fail.push(`row numbers: expected ${plainRows.length}, the page shows ${refs.size}`)
+  if (rowList.length) expected.reviewRows = rowList.length
   // Every name with `tbd` (Flow node, change, Impact card) shows as "not defined", and only those.
   const tbdWant =
     (G.flow_visual ? G.flow_visual.paths.reduce((c, p) => c + p.nodes.filter((x) => x.tbd).length, 0) : 0) +
@@ -211,6 +222,9 @@ async function checkReviewFlow() {
   // Exercise one section with content (starting as pending on the page, whatever review-page.json says) and another for "changed since".
   const [key, other] = toReview.map((s) => s.id)
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+  // A section with table rows, also starting as pending (a row with no state of its own takes its section's).
+  const rsid = Object.keys(data.PLAN.rows || {}).find((sid) => data.PLAN.rows[sid].some((x) => x.key.startsWith('row:')))
+  if (rsid) store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   let listener = null
   const snap = () => ({ docs: Object.keys(store).map((id) => ({ id, exists: true, data: () => store[id] })) })
   const fakeDb = {
@@ -247,11 +261,14 @@ async function checkReviewFlow() {
   await tick()
   const out = []
   const slots = d2.querySelectorAll('[data-rk]').length
-  const want =
-    toReview.length +
-    (P2.sections.find((s) => s.id === 'criteria')?.criteria.slices.length || 0) +
-    Object.keys(P2.fingerprints || {}).filter((k) => k.startsWith('door:')).length
-  if (slots !== want) out.push(`review: ${slots} review badges, expected ${want} (sections with content + slices + doors)`)
+  const want = toReview.length + (P2.sections.find((s) => s.id === 'criteria')?.criteria.slices.length || 0)
+  if (slots !== want) out.push(`review: ${slots} review badges, expected ${want} (sections with content + slices)`)
+  // Every table row and door has its Confirm / Reject (Impact rows: in the Plan text table).
+  const rowKeys = Object.values(P2.rows || {}).flatMap((rs) => rs.map((x) => x.key))
+  const rowSlots = new Set([...d2.querySelectorAll('[data-rk-row]')].map((e) => e.getAttribute('data-rk-row')))
+  const noSlot = rowKeys.filter((k) => !rowSlots.has(k))
+  if (noSlot.length) out.push(`review: rows without Confirm / Reject: ${noSlot.slice(0, 5).join(', ')}`)
+  if (rowSlots.size !== rowKeys.length) out.push(`review: ${rowSlots.size} row reviews, expected ${rowKeys.length}`)
   for (const s of P2.sections.filter((x) => x.empty)) {
     if (d2.querySelector(`[data-rk="${s.id}"]`)) out.push(`review: the empty section ${s.id} has a validate button`)
     if (!d2.querySelector(`section#${s.id} .badge.na`)) out.push(`review: the empty section ${s.id} does not say "nothing to validate"`)
@@ -286,6 +303,54 @@ async function checkReviewFlow() {
   await tick()
   if (!/changed since/.test(badgeOf(other)))
     out.push(`review: a validation of an old text shows as "${badgeOf(other)}"`)
+  // Rows: Confirm, Reject, Reject again (undo), then the section's Validate confirms them all and Undo clears them.
+  if (rsid) {
+    const keys = P2.rows[rsid].map((x) => x.key)
+    const rk = keys.find((k) => k.startsWith('row:'))
+    const rowBadge = (k) => d2.querySelector(`[data-rk-row="${k}"] .badge`).textContent
+    const press = async (k, act) => {
+      d2.querySelector(`.rv-mini.${act}[data-rk-row-btn="${k}"]`).click()
+      await tick()
+    }
+    const last = () => writes[writes.length - 1] || {}
+    await press(rk, 'yes')
+    if (last().path !== `review/${rk}` || last().data.state !== 'validated') out.push(`review: Confirm did not write review/${rk} as validated`)
+    else if (last().data.fp !== P2.fingerprints[rk]) out.push(`review: the fingerprint stored for ${rk} is not the one of the current row`)
+    if (rowBadge(rk) !== 'confirmed') out.push(`review: after Confirm, the row says "${rowBadge(rk)}"`)
+    await press(rk, 'no')
+    if (last().data.state !== 'rejected') out.push('review: Reject did not write rejected')
+    if (rowBadge(rk) !== 'rejected') out.push(`review: after Reject, the row says "${rowBadge(rk)}"`)
+    if (!/rejected/.test(badgeOf(rsid))) out.push(`review: a section with a rejected row says "${badgeOf(rsid)}"`)
+    if (!d2.querySelector('#rail-rej a')) out.push('review: the rejected row is not listed in the panel')
+    const tr = d2.querySelector(`[data-rk-row="${rk}"]`).closest('tr')
+    if (tr && tr.getAttribute('data-rs') !== 'rej') out.push('review: the rejected row is not marked in the table')
+    await press(rk, 'no')
+    if (last().data.state !== 'pending' || rowBadge(rk) !== 'not confirmed') out.push('review: pressing Reject again did not undo it')
+    await press(rk, 'no')
+    const before = writes.length
+    d2.querySelector(`.rv-btn[data-rk-btn="${rsid}"]`).click()
+    await tick()
+    const wrote = writes.slice(before)
+    const missed = [rsid, ...keys].filter((k) => !wrote.some((w) => w.path === `review/${k}` && w.data.state === 'validated'))
+    if (missed.length) out.push(`review: the section's Validate did not confirm ${missed.slice(0, 5).join(', ')}`)
+    if (badgeOf(rsid) !== 'validated') out.push(`review: after validating the section, it says "${badgeOf(rsid)}"`)
+    const notOk = keys.filter((k) => rowBadge(k) !== 'confirmed')
+    if (notOk.length) out.push(`review: after validating the section, rows not confirmed: ${notOk.slice(0, 5).join(', ')}`)
+    d2.querySelector(`.rv-btn[data-rk-btn="${rsid}"]`).click()
+    await tick()
+    if (badgeOf(rsid) !== 'not reviewed' || keys.some((k) => rowBadge(k) !== 'not confirmed'))
+      out.push(`review: the section's Undo left "${badgeOf(rsid)}" and rows ${keys.map(rowBadge).join(' / ')}`)
+  }
+  // A door is a Landing row: Confirm writes door:N as validated.
+  const door = rowKeys.find((k) => k.startsWith('door:'))
+  if (door) {
+    const b = d2.querySelector(`.rv-mini.yes[data-rk-row-btn="${door}"]`)
+    const was = b.getAttribute('aria-pressed') === 'true'
+    b.click()
+    await tick()
+    const w = writes[writes.length - 1] || {}
+    if (w.path !== `review/${door}` || w.data.state !== (was ? 'pending' : 'validated')) out.push(`review: Confirm on ${door} did not write it`)
+  }
   return { out, errs, writes: writes.length }
 }
 

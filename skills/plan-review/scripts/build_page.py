@@ -48,11 +48,38 @@ def door_table(section: dict | None) -> dict | None:
     return None
 
 
+def row_keys(plan: dict) -> dict[str, list[dict]]:
+    """Table rows the user confirms one by one, per section: `{sid: [{key, n, b, r}]}`.
+
+    `b` is the block index in the section and `r` the row index in that table. Rows are numbered
+    1, 2... per section, across its tables, so the user can cite "Assumptions #2". Landing door rows
+    keep their door key (`door:N`). Criteria (slices) and empty sections have no rows.
+    """
+    out: dict[str, list[dict]] = {}
+    for s in plan["sections"]:
+        if s.get("empty") or s["id"] == "criteria":
+            continue
+        doors = door_table(s) if s["id"] == "landing" else None
+        rows, n = [], 0
+        for bi, b in enumerate(s.get("blocks") or []):
+            if b["type"] != "table":
+                continue
+            for ri in range(len(b["rows"])):
+                if b is doors:
+                    rows.append({"key": f"door:{ri + 1}", "n": ri + 1, "b": bi, "r": ri})
+                else:
+                    n += 1
+                    rows.append({"key": f"row:{s['id']}:{n}", "n": n, "b": bi, "r": ri})
+        if rows:
+            out[s["id"]] = rows
+    return out
+
+
 def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
     """Fingerprint of every part of the plan something on the page depends on.
 
-    Sections, slices and doors: what the user validates (an empty section has nothing to
-    validate, so it has none). Derived items (Impact card, Flow path, change, symptom,
+    Sections, slices, doors and table rows: what the user validates (an empty section has
+    nothing to validate, so it has none). Derived items (Impact card, Flow path, change, symptom,
     Problem visual): the part of the plan they were drawn from. Recorded by
     --mark-published; on the next build, whatever differs becomes "changed since" /
     "re-check: the plan changed here" on the page.
@@ -70,8 +97,9 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
             acs[a["n"]] = a["text"]
     doors = door_table(secs.get("landing"))
     land_rows = doors["rows"] if doors else []
-    for k, row in enumerate(land_rows, 1):
-        fp[f"door:{k}"] = _h(row)
+    for sid, rows in row_keys(plan).items():
+        for x in rows:
+            fp[x["key"]] = _h(secs[sid]["blocks"][x["b"]]["rows"][x["r"]])
 
     def cited(text):
         return [acs.get(n) for n in cited_acs(text)]
@@ -99,10 +127,24 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
             fp[f"landing:{n}"] = _h([land_rows[n - 1], cited(d.get("proof"))])
     return fp
 
-def validated_keys(pg: dict) -> set[str]:
-    """Validated sections and slices and confirmed doors in review-page.json."""
-    keys = {k for k, ok in (pg.get("review") or {}).items() if ok}
-    return keys | {f"door:{n}" for n in pg.get("doors_confirmed", [])}
+def validated_keys(plan: dict, pg: dict) -> set[str]:
+    """Validated sections, slices and rows and confirmed doors in review-page.json.
+
+    A row with no state of its own takes its section's: validating a section confirms its rows
+    (doors excepted: each one is confirmed on its own).
+    """
+    review = pg.get("review") or {}
+    rejected = set(pg.get("rejected") or [])
+    keys = {k for k, ok in review.items() if ok} | {f"door:{n}" for n in pg.get("doors_confirmed", [])}
+    for sid, rows in row_keys(plan).items():
+        if review.get(sid):
+            keys |= {x["key"] for x in rows if x["key"].startswith("row:") and x["key"] not in review}
+    return keys - rejected
+
+
+def reviewed_keys(plan: dict, pg: dict) -> set[str]:
+    """What the user marked, either way: validated or rejected. Both keep the fingerprint of the text they saw."""
+    return validated_keys(plan, pg) | set(pg.get("rejected") or [])
 
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "template.html"
@@ -169,11 +211,23 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
             warns.append(f"plan has no {want} section")
 
     review = pg.get("review", {})
+    row_ids = {x["key"] for rows in row_keys(plan).values() for x in rows}
     for k in review:
-        if k not in sections and k not in slice_ids:
-            errors.append(f"review.{k}: not a section or slice of the plan")
+        if k.startswith("row:"):
+            if k not in row_ids:
+                warns.append(f"review.{k}: not a table row of the current plan; ignored")
+        elif k.startswith("door:"):
+            errors.append(f"review.{k}: doors go in doors_confirmed (or rejected), not in review")
+        elif k not in sections and k not in slice_ids:
+            errors.append(f"review.{k}: not a section, slice or table row of the plan")
         elif sections.get(k, {}).get("empty"):
             warns.append(f"review.{k}: the section is empty in the plan, so there is nothing to validate; ignored")
+    doors_ok = {f"door:{n}" for n in pg.get("doors_confirmed", [])}
+    for k in pg.get("rejected", []):
+        if k not in row_ids:
+            warns.append(f"rejected has {k!r}, which is not a table row or door of the current plan; ignored")
+        elif review.get(k) or k in doors_ok:
+            errors.append(f"{k} is both validated and rejected in review-page.json: keep one")
     for sid, sec in sections.items():
         if sid not in review and not sec.get("empty"):
             warns.append(f"review has no '{sid}': the section shows as 'not reviewed'")
@@ -446,7 +500,8 @@ def main() -> int:
     current = plan_hash(plan_path)
 
     if args.mark_published:
-        now = fingerprints(extract(plan_path), pg)
+        plan = extract(plan_path)
+        now = fingerprints(plan, pg)
         pg["published_plan_hash"] = current
         pg["published_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
         # A validated section's fingerprint is that of the text the user validated, not of this
@@ -454,7 +509,7 @@ def main() -> int:
         # without anyone validating again. Only items without a fingerprint get one.
         # Old file without the map: the best reference is the previous publish.
         kept = pg["review_fingerprints"] if "review_fingerprints" in pg else (pg.get("published_fingerprints") or {})
-        pg["review_fingerprints"] = {k: kept.get(k) or now[k] for k in sorted(validated_keys(pg)) if k in now}
+        pg["review_fingerprints"] = {k: kept.get(k) or now[k] for k in sorted(reviewed_keys(plan, pg)) if k in now}
         pg["published_fingerprints"] = now
         pg_path.write_text(json.dumps(pg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"build_page: {pg_path} marked as published (plan.md {current})")
@@ -488,7 +543,7 @@ def main() -> int:
     old = pg.get("published_fingerprints") or {}
     # Validated by hand with no fingerprint yet: the current text counts. Old file without the map: the previous publish.
     val_fp = pg["review_fingerprints"] if "review_fingerprints" in pg else old
-    validated = validated_keys(pg)
+    validated = reviewed_keys(plan, pg)
     now = fingerprints(plan, pg)
     for key, val in now.items():
         if key.startswith(DERIVED):
@@ -501,9 +556,11 @@ def main() -> int:
             continue
         stale["sections"][key] = True
         if key in validated:
-            print(f"  RECHECK {key}: was validated/confirmed, but the text changed since", file=sys.stderr)
+            print(f"  RECHECK {key}: was validated/confirmed/rejected, but the text changed since", file=sys.stderr)
     plan["stale"] = stale
-    # Current fingerprint of each section, slice and door: the page records the one of the text the
+    # Table rows the page numbers and lets the user confirm or reject one by one.
+    plan["rows"] = row_keys(plan)
+    # Current fingerprint of each section, slice, door and table row: the page records the one of the text the
     # user validated (db review/<key>.fp) and shows "changed since" when it stops matching.
     plan["fingerprints"] = {k: v for k, v in fingerprints(plan, pg).items() if not k.startswith(DERIVED)}
     for w in warns:
