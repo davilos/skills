@@ -35,13 +35,14 @@ Optional. A separate page with before/after mockups of the screens a front-end p
 | `screens`                | list, one per screen (or dialog), in the order a user meets them; its loading, error or empty versions are `states`, not screens   |
 | `published_*`            | written by `--mark-published`; do not edit by hand                                                                                  |
 
-Screen: `{id, name, route?, where, before?, after?, css?, width?, states?, marks}`.
+Screen: `{id, name, route?, summary?, where, before?, after?, css?, width?, states?, marks}`.
 
 | Field    | What it is                                                                                                                       |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `id`     | kebab-case, unique; becomes the anchor `#screen-{id}`                                                                            |
 | `name`   | what the user calls the screen ("Billing", "Cancel confirmation")                                                                |
 | `route`  | URL or how to reach it ("/settings/billing (dialog)")                                                                            |
+| `summary` | one or two sentences (md) on what changes on this screen as a whole, read before the mockups and the marks                      |
 | `where`  | files the Before was drawn from, same format as review-page.json: `file[:lines]` or `folder/`, separated by `·`, no prose         |
 | `before` | fragment file of the screen today; leave it out for a screen the plan creates                                                    |
 | `after`  | fragment file of the screen with the plan; leave it out for a screen the plan removes                                             |

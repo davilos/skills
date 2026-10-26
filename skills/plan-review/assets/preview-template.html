@@ -88,6 +88,7 @@ a.tag:hover { border-color: var(--accent); color: var(--accent); }
 .screen { display: grid; gap: 16px; scroll-margin-top: calc(var(--top) + 16px); min-width: 0; }
 .screen-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
 .route { font-family: var(--mono); font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.summary { color: var(--fg-2); max-width: 80ch; }
 .where { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 .where b { color: var(--fg-2); font-weight: 550; margin-right: 6px; }
 .controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 1px solid var(--line); }
@@ -266,6 +267,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     var marks = all.filter(function (m) { return m.n; }).sort(function (a, b) { return a.n - b.n; });
     var notes = all.filter(function (m) { return !m.n; });
     el.innerHTML = '<div class="screen-head"><h2>' + esc(sc.name) + "</h2>" + (sc.route ? '<span class="route">' + esc(sc.route) + "</span>" : "") + "</div>" +
+      (sc.summary ? '<p class="summary">' + md(sc.summary) + "</p>" : "") +
       (sc.where ? '<div class="where"><b>Drawn from</b>' + esc(sc.where) + "</div>" : "") +
       '<div class="controls"><div class="tabs" role="tablist" aria-label="View of ' + esc(sc.name) + '">' + views.map(function (v) {
         return '<button type="button" role="tab" data-view="' + v[0] + '" aria-selected="' + (mode === v[0]) + '" tabindex="' + (mode === v[0] ? 0 : -1) + '">' + v[1] + "</button>";

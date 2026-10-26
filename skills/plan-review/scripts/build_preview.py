@@ -117,6 +117,8 @@ def validate(plan: dict, pv: dict, frag_dir: Path) -> tuple[list[str], list[str]
         ids.add(sid)
         if not sc.get("name"):
             errors.append(f"{where} has no 'name'")
+        if sc.get("summary") is not None and not isinstance(sc["summary"], str):
+            errors.append(f"{where}.summary must be text: one or two sentences on what changes on the screen")
         states = sc.get("states")
         state_ids = []
         if states is not None and (not isinstance(states, list) or not states):
