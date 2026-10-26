@@ -38,7 +38,9 @@ VISIBLE = re.compile(
     r"\b(?:shows?|shown|displays?|displayed|renders?|rendered|visible|hidden|hides?|appears?|"
     r"button|link|label|copy|title|heading|text|message|page|screen|card|dialog|modal|menu|tab|form|field|input|"
     r"icon|colou?r|amber|red|green|layout|header|footer|banner|toast|tooltip|badge|bar|disabled|enabled|empty state|"
-    r"placeholder|highlight|mostra|exibe|aparece|botão|tela|página|texto|campo|cor|desabilitad[oa]|habilitad[oa])\b",
+    r"placeholder|highlight|hints?|says?|panel|switch|toggle|warning|indicator|selector|"
+    r"mostra|mostrar|exibe|exibir|aparece|aparecer|diz|dizer|botão|botões|tela|página|texto|campo|cor|títulos?|ícones?|"
+    r"rótulos?|cartão|cartões|avisos?|painel|indicador|seletor|desabilitad[oa]|habilitad[oa])\b",
     re.I)
 MARK = re.compile(r"""\bdata-mark\s*=\s*["']?(\d+)""")
 # What a fragment must not carry: it renders inside the page, offline and without code.
