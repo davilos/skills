@@ -1,10 +1,10 @@
 ---
 name: plan-review
-description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lean plan.md section by section, with visual Problem / Flow / Impact / Landing views, per-section validation, and scripts that prove nothing from the plan is missing. Publishes it as an Artifact when available, otherwise writes a local HTML file. Use right after a tlc-spec-lean plan passes validate_plan.py and on every new plan version, or when the user says "plan review page", "make a page for the plan", "show the plan as a page", "interactive plan", "plan-review", "update the plan page", or "sync what I validated on the page". Do NOT use for writing or changing the plan, or for checks, build or verify (use tlc-spec-lean), for cutting a PRD into tasks (use tlc-plan), or for generic diagrams (use mermaid-studio).'
+description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lean plan.md section by section, with visual Problem / Flow / Impact / Landing views, per-section validation, and scripts that prove nothing from the plan is missing; for a plan that changes the UI, optionally a second page with before/after mockups of the affected screens. Publishes them as Artifacts when available, otherwise as local HTML files. Use right after a tlc-spec-lean plan passes validate_plan.py and on every new plan version, or when the user says "plan review page", "make a page for the plan", "show the plan as a page", "interactive plan", "plan-review", "update the plan page", "sync what I validated on the page", "show how the screen will look", "before and after of the UI" or "UI preview of the plan". Do NOT use for writing or changing the plan, or for checks, build or verify (use tlc-spec-lean), for cutting a PRD into tasks (use tlc-plan), for generic diagrams (use mermaid-studio), or for screenshots of the running app (use run).'
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.1.0'
+  version: '1.3.0'
 ---
 
 # Tech Lead's Club - Plan Review
@@ -24,6 +24,9 @@ The page is a **mirror** of `plan.md` that makes it easier for people to review.
 | `scripts/coverage.py`                     | proves every piece of plan.md is on the page, in its section and in order                                                             | fixed                    |
 | `scripts/sync_review.py`                  | brings what the user validated on the page into review-page.json                                                                      | fixed                    |
 | artifact db, collection `review`          | validations made on the page                                                                                                          | the page's buttons       |
+| `.specs/features/{slug}/ui-preview.json` + `ui-preview/` | optional: before/after mockups of the screens the plan changes, each change tied to a slice and criteria                | you, only when the user asks for it |
+| `assets/preview-template.html`            | the UI preview template                                                                                                               | fixed                    |
+| `scripts/build_preview.py`                | detects a front-end plan; validates ui-preview.json against the plan and builds the preview                                           | fixed                    |
 
 Read [references/review-page-json.md](references/review-page-json.md) before writing or changing `review-page.json`: it has every field, the `where` format and a minimal example.
 
@@ -46,6 +49,20 @@ Run everything from the project root (where `.specs/` lives). `{skill-dir}` is t
    After publishing: `python3 {skill-dir}/scripts/build_page.py --root . {slug} --mark-published` records in review-page.json the hash of the plan.md that went live, so the next build knows when the page is stale.
 
 7. **Tell the user** what changed on the page, the check result (including coverage N/N) and the link or file path.
+8. **Offer the UI preview** when the plan changes the UI: see "UI preview (optional)" below. Skip it when the user already declined for this plan.
+
+## UI preview (optional)
+
+A second page, its own artifact, with before/after mockups of every screen the plan changes, a numbered highlight on each change and, next to it, the slice and criteria that require it. It helps people who review by looking. It is **opt-in** because it costs more: on a small React plan (two screens, 4 to 7 changes), building it after the review page added about 13k tokens (+21%) and doubled the time (1 to 2 minutes), measured over 2 runs each. It grows with the number and size of the screens drawn.
+
+1. **Detect.** `python3 {skill-dir}/scripts/build_preview.py --root . {slug} --detect` prints `ui: yes` when the plan cites front-end files (components, pages, templates, styles) **and** has criteria about what the user sees (text, position, state, a new screen), listing both; `ui: code-only` when it cites the files but no criterion changes the screen (a hook, a renamed CSS variable); `ui: no` otherwise. The criteria match on words, so read the ones listed: if none really changes the screen, treat it as `code-only`.
+2. **Offer once.** On `ui: yes`, if review-page.json has no `"ui_preview": false` and there is no `ui-preview.json` yet, ask in one line at the end of step 7, with the cost: "This plan changes {screens}. Want a before/after preview of them? It adds about 20% to the tokens of this review, more for many or large screens." Count the screens from the visible criteria (a dialog counts as one; its loading, error or empty versions are states of that screen, not more screens). **Above 3 screens, offer the main ones and name the rest**: "Want a preview of Billing and the cancel dialog, with its error state? The other 4 only change copy (Invoices, Plans...)"; the user may still ask for all. On no, write `"ui_preview": false` in review-page.json and do not ask again for this plan. Build it straight away when the user asked for it up front ("with a UI preview", "show how the screen will look"). On `ui: code-only` or `ui: no` say nothing, unless the user asks: there is nothing on screen to compare.
+3. **Draw.** Read [references/ui-preview.md](references/ui-preview.md) first: the fields, the fragment rules and how to keep the mockup faithful and cheap. Before comes from the code (real labels, real style values); After is Before plus only what the plan states; each screen opens with a `summary` of what changes on it; every change is a mark with its kind, slice and criteria; a criterion with nothing to draw is a `same` or `effect` mark; what the plan does not fix is `tbd`.
+4. **Build.** `python3 {skill-dir}/scripts/build_preview.py --root . {slug} --out {tmp}/{slug}-ui.html`. Exit 1 means a mark misstates the plan or the mockup (slice or criterion that does not exist, mark without an element in one of its states, highlight without a mark, state that does not exist, script or external URL in a fragment); fix ui-preview.json or the fragment.
+5. **Publish** like the review page, but without capabilities (the preview has no buttons): new artifact with `icon: "layout"`, store the link in `artifact_url`; republish to the same `url` afterwards. Then `build_preview.py --root . {slug} --mark-published`. Build and republish the review page too, so its "UI preview ↗" link appears. Without the `Artifact` tool, give the path of the HTML file.
+6. **Tell the user** the link, how many screens and marks, which marks are "not defined", and that the mockups are a reading of the code and the plan, not screenshots.
+
+When the plan changes later, rebuild the preview with the review page: `RECHECK mark:{screen}:{n}` means the slice or criteria behind that mark changed; redraw it before republishing.
 
 ## Validating on the page
 
@@ -89,6 +106,8 @@ Tell the user what is **not** plan: Where / Why / Proof, symptoms, cards and pat
 
 **The plan changed after review.** The user says: "I updated S2 in the plan, refresh the page". Actions: step 0 (pull the `review` collection, `sync_review.py`, update `**Status**:`) → build: it reports `RECHECK change:2` and an ERROR for the new criterion missing from a card → re-read the code, fix review-page.json → build, check, republish to the same `url`, `--mark-published`. Result: same link; S2 shows "validated · changed since" until the user validates it again.
 
+**Front-end plan, preview accepted.** After step 7, `--detect` printed `ui: yes` with `PlanCard.tsx`, `BillingPage.tsx` and the criteria about the meter, the header and the new card; the user answered "yes, show me" to the offer. Actions: read both components and `billing.css` → write `billing.before.html` from the code → write `billing.after.html` as the same markup with only the meter and the moved button changed → `ui-preview.json` with two marks (S1 / AC 1, 2 and S2 / AC 4) → `build_preview.py` → publish with `icon: "layout"` → `--mark-published` → rebuild and republish the review page. Result: "UI preview: {link}. 1 screen, 2 changes; the Danger zone text is not in the plan, marked not defined. The mockups are my reading of the code, not screenshots."
+
 **Agent without the Artifact tool.** Same steps 1 to 5, then: "Open /abs/path/to/dunning.html in a browser. The review buttons only exist on a claude.ai artifact; tell me which sections you validate and I will record them."
 
 ## Troubleshooting
@@ -98,4 +117,8 @@ Tell the user what is **not** plan: Where / Why / Proof, symptoms, cards and pat
 - **`ERROR coverage: plan.md:N did not reach the page data`**: `extract_plan.py` did not parse that line (often an unusual table or list shape). Report it with the line; do not work around it in review-page.json.
 - **check_page: `jsdom not found`**: install it outside the repository as in step 5 and pass the path.
 - **check_page: `internal links without a target`**: a Proof cites a door, slice or criterion that does not exist on the page; fix the Proof text.
+- **`ERROR ... no element in the mockup has data-mark="N"`**: the mark exists in ui-preview.json but no element carries it; put `data-mark="N"` on the element that changes (on a wrapper for `input` or `img`).
+- **`ERROR ... no element in the mockup of state 'x'`**: the mark holds in state `x` (it has no `states`, or lists `x`), but the fragments that state shows do not carry it; list only the states where it appears in `states`, or put the element in that state's fragment.
+- **`ERROR ... has a <script>` / `an external or javascript: URL`**: fragments are static and offline; draw the state instead of scripting it, and replace external images with a `.ph` block.
+- **`WARN ... has N KB`**: the fragment draws more than the change; turn unchanged parts into `.ph` placeholders.
 - **Validate buttons do not appear**: the artifact was published without the `db` and `user` capabilities, or the viewer cannot edit it. Republish with the capabilities from step 6.

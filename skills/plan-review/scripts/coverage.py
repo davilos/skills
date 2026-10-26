@@ -52,7 +52,7 @@ def plan_pieces(plan_path: Path) -> list[dict]:
         if s.startswith("```"):
             in_code = not in_code
             continue
-        if not s or SEPARATOR.fullmatch(s) or s == "**Acceptance Criteria**":
+        if not s or SEPARATOR.fullmatch(s) or s.lower() == "**acceptance criteria**":
             continue
 
         def add(text, kind="text"):
