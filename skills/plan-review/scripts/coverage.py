@@ -21,11 +21,13 @@ from pathlib import Path
 from extract_plan import OPEN_Q_RE, SLICE_RE, section_id, split_row
 
 LABELS = ("**Approved**:", "**Status**:", "**Independent test:**", "**Open questions:**")
+# A capture shown in the plan: `![name](captures/file.png)`. The page shows the image and its name.
+IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
 SEPARATOR = re.compile(r"\|?[\s:\-|]+\|?")
 
 # Markdown the template's md() does not render: the page shows the raw text.
 UNSUPPORTED = [
-    (re.compile(r"\[[^\]]+\]\([^)]+\)"), "link [text](url)"),
+    (re.compile(r"(?<!!)\[[^\]]+\]\([^)]+\)"), "link [text](url)"),
     (re.compile(r"~~"), "strikethrough ~~"),
     (re.compile(r"<[a-zA-Z/][^>]*>"), "HTML"),
     (re.compile(r"^\s{2,}(?:[-*]|\d+\.)\s"), "nested list"),
@@ -94,7 +96,7 @@ def missing_in_data(plan_path: Path, data: dict) -> list[tuple[int, str]]:
 
 def rendered_form(piece: str) -> str:
     """The text a piece becomes on the page: md() only strips backticks and bold."""
-    s = piece.replace("**", "").replace("`", "")
+    s = IMAGE.sub(r"\1", piece).replace("**", "").replace("`", "")
     s = re.sub(r"^\d+\.\s+", "", s)  # a door's "1. name" becomes "One-way door 1" + "name"
     return norm(s)
 

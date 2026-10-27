@@ -162,6 +162,9 @@ pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; li
 h3.part { margin: 8px 0 0; }
 ul.ex { margin: 6px 0 0; padding-left: 18px; color: var(--fg-2); font-size: 0.94em; }
 ul.ex li { margin: 2px 0; }
+.cap { display: inline-grid; gap: 4px; vertical-align: top; margin: 4px 0; }
+.cap img { display: block; max-width: min(100%, 520px); height: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-subtle); }
+.cap-name { font-size: 12.5px; color: var(--muted); }
 .conf-ref { font-size: 12.5px; color: var(--fg-2); }
 
 /* review badge and button */
@@ -544,8 +547,13 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   };
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  /* A capture the plan shows (`![name](captures/x.png)`): the image, loaded from beside the page
+     (build_page.py copies it there), and its name. */
   function md(s) {
     return esc(s)
+      .replace(/!\[([^\]]*)\]\(([\w.\/-]+)\)/g, function (all, alt, src) {
+        return '<span class="cap"><img src="' + src + '" alt="' + alt + '" loading="lazy"><span class="cap-name">' + alt + "</span></span>";
+      })
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
       .replace(/\(door (\d+)\)/g, '(<span class="door-mark">door $1</span>)');

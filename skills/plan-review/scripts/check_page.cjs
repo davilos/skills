@@ -76,6 +76,11 @@ if (data) {
   for (const k of Object.keys(expected)) {
     if (expected[k] !== got[k]) fail.push(`${k}: expected ${expected[k]}, the page shows ${got[k]}`)
   }
+  // Every capture the plan shows (`![name](captures/x.png)`) is an image on the page, loaded from beside it.
+  const imgs = new Set([...d.querySelectorAll('img')].map((i) => i.getAttribute('src')))
+  const noImg = (P.images || []).filter((src) => !imgs.has(src))
+  if (noImg.length) fail.push('captures the plan shows that are not images on the page: ' + noImg.join(', '))
+  if ((P.images || []).length) expected.captures = P.images.length
   // Landing in plain language: one explanation per door, and the "Confirm" button lives there (not in the plan table).
   if (G.landing_visual) {
     const nDoors = G.landing_visual.doors.length

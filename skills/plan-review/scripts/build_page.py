@@ -21,13 +21,14 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ in the skill folder: the registry would ship it
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from coverage import missing_in_data, rendered_pieces, unsupported_markdown  # noqa: E402
+from coverage import IMAGE, missing_in_data, rendered_pieces, unsupported_markdown  # noqa: E402
 from extract_plan import extract  # noqa: E402
 
 
@@ -487,6 +488,26 @@ def check_refs(plan_text: str, pg: dict) -> tuple[list[str], list[str]]:
     return errors, warns
 
 
+def plan_images(plan_path: Path) -> tuple[list[str], list[str]]:
+    """Captures the plan shows (`![name](captures/x.png)`), as paths relative to plan.md.
+
+    The page loads each one from the same relative path, so it is copied beside the HTML and
+    published with it. Anything else (a URL, a path leaving the feature folder, a missing file)
+    is a warning: the page would show a broken image.
+    """
+    images, warns = [], []
+    for i, line in enumerate(plan_path.read_text(encoding="utf-8").splitlines(), 1):
+        for m in IMAGE.finditer(re.sub(r"`[^`]*`", "", line)):
+            src = m[2]
+            if re.match(r"[a-z]+:|/", src, re.I) or ".." in Path(src).parts:
+                warns.append(f"plan.md:{i} shows {src}, outside the feature folder: the page cannot carry it")
+            elif not (plan_path.parent / src).is_file():
+                warns.append(f"plan.md:{i} shows {src}, which does not exist beside plan.md")
+            elif src not in images:
+                images.append(src)
+    return images, warns
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=".")
@@ -548,6 +569,9 @@ def main() -> int:
     plan["coverage"] = rendered_pieces(plan_path)
     for line, what in unsupported_markdown(plan_path):
         warns.append(f"plan.md:{line} uses {what}, which the page shows as raw text")
+    images, img_warns = plan_images(plan_path)
+    warns += img_warns
+    plan["images"] = images
 
     # What changed in the plan since the last publish.
     # Derived item: compared with the last publish. Validated section, slice and door: with the
@@ -590,6 +614,13 @@ def main() -> int:
                 .replace("__PLAN_JSON__", as_script_json(plan))
                 .replace("__PAGE_DATA_JSON__", as_script_json(pg)))
     Path(args.out).write_text(html, encoding="utf-8")
+    # The captures travel with the page, at the path plan.md uses for them.
+    out_dir = Path(args.out).resolve().parent
+    for src in images:
+        (out_dir / src).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(plan_path.parent / src, out_dir / src)
+    if images:
+        print(f"build_page: {len(images)} capture(s) copied beside the page; publish each with it (files): {', '.join(images)}")
     n_acs = sum(len(s["acs"]) for s in next((x["criteria"]["slices"] for x in plan["sections"] if x["id"] == "criteria"), []))
     print(f"build_page: {args.out} ({len(plan['sections'])} sections, {n_acs} criteria, {len(pg.get('changes', []))} changes, "
           f"{len(plan['coverage'])} plan pieces covered, plan.md {current}, {len(warns)} warning(s))")
