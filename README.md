@@ -4,7 +4,7 @@
 
 | Skill                                     | O que faz                                                                                                                                                           | Versão |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| [`plan-review`](skills/plan-review/SKILL.md) | Transforma um `plan.md` do tlc-spec-lean numa página HTML interativa de revisão, seção por seção, e prova com scripts que nada do plano ficou de fora da página. | 1.9.1  |
+| [`plan-review`](skills/plan-review/SKILL.md) | Transforma um `plan.md` do tlc-spec-lean numa página HTML interativa de revisão, seção por seção, e prova com scripts que nada do plano ficou de fora da página. | 1.9.3  |
 
 ## Instalação
 

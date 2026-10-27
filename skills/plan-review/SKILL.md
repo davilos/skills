@@ -4,7 +4,7 @@ description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lea
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.9.1'
+  version: '1.9.3'
 ---
 
 # Tech Lead's Club - Plan Review
@@ -79,7 +79,7 @@ Tell the user what is **not** plan: Where / Why / Proof, symptoms, cards and pat
 ## Page rules
 
 - **All of the plan, in plan order.** Each section carries the exact plan text; in visual sections it sits in the "Plan text" tab (the section opens on "Visual"). Shape's Visual tab shows "The drawing" (the `sequenceDiagram` or `flowchart`), "Changes underneath" (`impact_visual`), "The data" (`erDiagram`) and "States" (`stateDiagram-v2`). The cards of `flow_visual` open from the drawing; they show as a "The path" list only when the plan has no path drawing or it could not be drawn.
-- **Diagrams are drawn.** Every mermaid block, in any section and in both tabs, is drawn by Mermaid 11.17.2 loaded from `cdn.jsdelivr.net` (allowed in Artifacts), with the plan's source folded under it; the colours follow the light or dark theme. Offline, or when a block does not parse, the page keeps the source open and says why: the source is never hidden behind a failed drawing.
+- **Diagrams are drawn.** Every mermaid block, in any section and in both tabs, is drawn by Mermaid 11.17.2 loaded from `cdn.jsdelivr.net` (allowed in Artifacts), with the plan's source folded under it; the colours follow the light or dark theme. A sequence or flowchart keeps its natural size and scrolls sideways instead of shrinking into the column; Expand shows it whole. Offline, or when a block does not parse, the page keeps the source open and says why: the source is never hidden behind a failed drawing.
 - **Diagrams show what changes.** A block is green when the plan changes it, as in The path, and grey otherwise: a node with `o` or `note` in `flow_visual`, a module the path marks `(new)` or `(door N)`, what the `New:` line adds, and the term of each `domain` row of `Changes underneath`.
 - **Diagrams answer clicks with the plan.** A numbered step (`3. provider status`) shows that hop's line of the path and its `flow_visual` cards, whose changed nodes open their Where / Why / Proof; a name the path, the cards or `Changes underneath` use (`Webhooks::Ingest`, `WebhookDelivery`, a state) shows the hops it is on, its cards (its own node open), its `Changes underneath` rows; `door N` links to the door. A node opened in the panel lights its name in every drawing. Mermaid draws each sequence participant at the top and again at the bottom; only the top block is clickable, the bottom one is a copy that keeps its colour and lights with it. What can be clicked shows it: a dashed outline runs around the block or the label (still under reduced motion), holds solid on hover or selection, and the tooltip says what the click opens. "Expand" opens the drawing full screen (wheel, buttons or pinch to zoom, drag to move). Nothing in the panel is new: it is plan text and review-page.json, linked; a label the plan does not name stays plain. The build rejects a `Changes underneath` row without a card.
 - **Path: one card per node, each with its own Where.** The same node in several paths carries `change` only the first time (the build rejects repeats); copies open the same card. Different nodes share a `change` only when Where / Why / Proof really are the same; if each touches different lines or is proven by different criteria, each gets its own change.

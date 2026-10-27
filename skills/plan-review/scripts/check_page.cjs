@@ -412,6 +412,7 @@ async function checkDiagrams() {
   const notDrawn = good.filter((f) => !f.querySelector('.mmd-draw svg') || f.querySelector('.mmd-draw').hidden || f.querySelector('.mmd-src').open)
   if (notDrawn.length) out.push(`drawings: ${notDrawn.length} diagram(s) without their SVG, or with the source still open`)
   if (inits[0] && inits[0].securityLevel !== 'strict') out.push('drawings: Mermaid does not run with securityLevel strict')
+  if (inits[0] && !(inits[0].flowchart && inits[0].flowchart.useMaxWidth === false)) out.push('drawings: a flowchart is shrunk to the column (useMaxWidth), which packs its blocks together')
   // Interaction, on the first drawn figure.
   const P3 = dom3.window.__PLAN_PAGE__.PLAN
   const pathSec = P3.sections.find((s) => s.id === 'shape' || s.id === 'flow')
@@ -475,6 +476,7 @@ async function checkDiagrams() {
     const dlg = d3.querySelector('dialog.mmd-zoom')
     if (!dlg || !dlg.hasAttribute('open') || !dlg.querySelector('.mmd-stage svg')) out.push('drawings: Expand does not open the diagram full screen')
     else {
+      if (!d3.documentElement.classList.contains('mmd-locked')) out.push('drawings: the page behind the full-screen drawing still scrolls')
       const before = dlg.querySelector('.mmd-stage').style.transform
       click(dlg.querySelector('[data-z="in"]'))
       if (dlg.querySelector('.mmd-stage').style.transform === before) out.push('drawings: zoom in does not change the full-screen view')
@@ -486,6 +488,7 @@ async function checkDiagrams() {
       }
       click(dlg.querySelector('[data-z="close"]'))
       if (dlg.hasAttribute('open') || !fig.querySelector('.mmd-draw svg') || !fig.querySelector('.mmd-detail')) out.push('drawings: Close does not bring the diagram back to the page')
+      if (d3.documentElement.classList.contains('mmd-locked')) out.push('drawings: the page stays locked after Close')
     }
   }
   if (fig && !fig.querySelector('.mmd-copy[data-copy]')) out.push('drawings: no Copy source button')
