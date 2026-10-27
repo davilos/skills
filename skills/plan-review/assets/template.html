@@ -891,9 +891,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     return loadMermaid().then(function (m) {
       m.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
         theme: isDark() ? "dark" : "neutral", fontFamily: getComputedStyle(document.body).fontFamily,
-        // A sequence keeps its size and scrolls (shrunk to the column, its labels are unreadable), and draws
-        // each participant once: Mermaid repeats them at the bottom by default, which reads as two blocks.
-        sequence: { useMaxWidth: false, mirrorActors: false } });
+        sequence: { useMaxWidth: false } });  // a sequence keeps its size and scrolls: shrunk to the column, its labels are unreadable
       return figs.reduce(function (chain, fig, i) {
         return chain.then(function () {
           if (gen !== mmd.gen) return;  // the theme changed: a newer pass draws everything again
@@ -979,8 +977,11 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       var target = el.closest("g.node, g.edgeLabel") || (/\bactor\b/.test(cls) && el.parentNode !== svg ? el.parentNode : el);
       if (seen.indexOf(target) !== -1) return;
       seen.push(target);
-      target.setAttribute("data-mmd-key", key);
       if (key.indexOf("name:") === 0 && CHANGED[key.slice(5)]) target.classList.add("mmd-chg");
+      // Mermaid repeats each participant at the bottom of a sequence: only the top one is clickable,
+      // the copy keeps its colour and lights with it.
+      if (target.querySelector && target.querySelector(":scope > rect.actor-bottom")) { target.setAttribute("data-mmd-twin", key); return; }
+      target.setAttribute("data-mmd-key", key);
       target.setAttribute("tabindex", "0");
       target.setAttribute("role", "button");
       target.setAttribute("aria-label", key.indexOf("hop:") === 0 ? "Hop " + key.slice(4) + ": " + text : text);
@@ -999,7 +1000,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var on = Object.keys(LIT).map(function (k) { return LIT[k]; }).filter(Boolean);
     [].slice.call(document.querySelectorAll(".mmd-lit")).forEach(function (x) { x.classList.remove("mmd-lit"); });
     on.forEach(function (k) {
-      [].slice.call(document.querySelectorAll('[data-mmd-key="' + k + '"], [data-mmd-line="' + k + '"]')).forEach(function (x) { x.classList.add("mmd-lit"); });
+      [].slice.call(document.querySelectorAll('[data-mmd-key="' + k + '"], [data-mmd-line="' + k + '"], [data-mmd-twin="' + k + '"]')).forEach(function (x) { x.classList.add("mmd-lit"); });
     });
     [].slice.call(document.querySelectorAll(".mmd-draw")).forEach(function (box) { reveal(box, box.querySelector(".mmd-lit")); });
   }
@@ -1014,7 +1015,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   function markSel(fig, key) {
     var root = zoom && zoom.fig === fig ? zoom.stage : fig;
     [].slice.call(fig.querySelectorAll(".mmd-sel")).concat([].slice.call(root.querySelectorAll(".mmd-sel"))).forEach(function (x) { x.classList.remove("mmd-sel"); });
-    if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
+    if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"], [data-mmd-twin="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
     if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), fig.querySelector(".mmd-sel"));
   }
   /* A card of The path, as the panel shows it: the chain of nodes, the changed ones open their

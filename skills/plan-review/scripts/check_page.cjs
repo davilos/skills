@@ -381,7 +381,8 @@ async function checkDiagrams() {
   const hasDoor = !!d.getElementById('door-1')
   const fakeSvg = (id) =>
     `<svg id="${id}" viewBox="0 0 400 200" style="max-width: 400px;"><g><text class="messageText">1. enters</text><line class="messageLine0"></line>` +
-    (node ? `<g><rect class="actor actor-top"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` : '') +
+    (node ? `<g><rect class="actor actor-top"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` +
+      `<g><rect class="actor actor-bottom"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` : '') +
     (hasDoor ? '<text>unique, door 1</text>' : '') + '</g></svg>'
   const inits = [],
     renders = []
@@ -411,7 +412,6 @@ async function checkDiagrams() {
   const notDrawn = good.filter((f) => !f.querySelector('.mmd-draw svg') || f.querySelector('.mmd-draw').hidden || f.querySelector('.mmd-src').open)
   if (notDrawn.length) out.push(`drawings: ${notDrawn.length} diagram(s) without their SVG, or with the source still open`)
   if (inits[0] && inits[0].securityLevel !== 'strict') out.push('drawings: Mermaid does not run with securityLevel strict')
-  if (inits[0] && !(inits[0].sequence && inits[0].sequence.mirrorActors === false)) out.push('drawings: a sequence repeats its participants at the bottom (mirrorActors)')
   // Interaction, on the first drawn figure.
   const P3 = dom3.window.__PLAN_PAGE__.PLAN
   const pathSec = P3.sections.find((s) => s.id === 'shape' || s.id === 'flow')
@@ -454,6 +454,11 @@ async function checkDiagrams() {
       if (detail().hidden || !detail().textContent.includes(nm)) out.push(`drawings: clicking ${nm} does not show it`)
       if (node.change != null && !detail().querySelector('dl')) out.push(`drawings: clicking ${nm} does not show its Where / Why / Proof`)
       if ((node.o || node.note) && !hot.classList.contains('mmd-chg')) out.push(`drawings: ${nm} changes in the plan but is not green in the drawing`)
+      // Mermaid repeats a participant at the bottom: one block is clickable, the copy only lights with it.
+      if (fig.querySelectorAll(`[data-mmd-key="name:${nm}"]`).length !== 1) out.push(`drawings: ${nm} has ${fig.querySelectorAll(`[data-mmd-key="name:${nm}"]`).length} clickable blocks, expected 1`)
+      const twin = fig.querySelector(`[data-mmd-twin="name:${nm}"]`)
+      if (!twin) out.push(`drawings: the bottom copy of ${nm} is not kept as a copy`)
+      else if (twin.hasAttribute('tabindex') || !twin.classList.contains('mmd-sel')) out.push(`drawings: the bottom copy of ${nm} is clickable, or does not light with the selection`)
       click(hot)
     }
   }
