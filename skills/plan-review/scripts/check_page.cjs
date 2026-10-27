@@ -411,6 +411,7 @@ async function checkDiagrams() {
   const notDrawn = good.filter((f) => !f.querySelector('.mmd-draw svg') || f.querySelector('.mmd-draw').hidden || f.querySelector('.mmd-src').open)
   if (notDrawn.length) out.push(`drawings: ${notDrawn.length} diagram(s) without their SVG, or with the source still open`)
   if (inits[0] && inits[0].securityLevel !== 'strict') out.push('drawings: Mermaid does not run with securityLevel strict')
+  if (inits[0] && !(inits[0].sequence && inits[0].sequence.mirrorActors === false)) out.push('drawings: a sequence repeats its participants at the bottom (mirrorActors)')
   // Interaction, on the first drawn figure.
   const P3 = dom3.window.__PLAN_PAGE__.PLAN
   const pathSec = P3.sections.find((s) => s.id === 'shape' || s.id === 'flow')

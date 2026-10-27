@@ -891,7 +891,9 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     return loadMermaid().then(function (m) {
       m.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
         theme: isDark() ? "dark" : "neutral", fontFamily: getComputedStyle(document.body).fontFamily,
-        sequence: { useMaxWidth: false } });  // a sequence keeps its size and scrolls: shrunk to the column, its labels are unreadable
+        // A sequence keeps its size and scrolls (shrunk to the column, its labels are unreadable), and draws
+        // each participant once: Mermaid repeats them at the bottom by default, which reads as two blocks.
+        sequence: { useMaxWidth: false, mirrorActors: false } });
       return figs.reduce(function (chain, fig, i) {
         return chain.then(function () {
           if (gen !== mmd.gen) return;  // the theme changed: a newer pass draws everything again
