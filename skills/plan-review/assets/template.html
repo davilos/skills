@@ -902,10 +902,15 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     if (!figs.length) return Promise.resolve();
     var gen = ++mmd.gen;
     closeZoom();
-    return loadMermaid().then(function (m) {
+    // Mermaid sizes every label with the page font: drawing before it loads clips the labels.
+    var fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    return fontsReady.then(loadMermaid).then(function (m) {
       m.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
         theme: isDark() ? "dark" : "neutral", fontFamily: getComputedStyle(document.body).fontFamily,
-        sequence: { useMaxWidth: false } });  // a sequence keeps its size and scrolls: shrunk to the column, its labels are unreadable
+        // A sequence or a flowchart keeps its size and scrolls sideways: shrunk to fit the column, a wide one
+        // (a flowchart LR easily reaches 2000 px) packs its blocks together and its labels become unreadable.
+        // rankSpacing: room between columns for the step labels on the arrows (Mermaid's 50 lays them on the blocks).
+        sequence: { useMaxWidth: false }, flowchart: { useMaxWidth: false, rankSpacing: 90 } });
       return figs.reduce(function (chain, fig, i) {
         return chain.then(function () {
           if (gen !== mmd.gen) return;  // the theme changed: a newer pass draws everything again
