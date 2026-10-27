@@ -379,8 +379,11 @@ async function checkDiagrams() {
   const paths = (G.flow_visual && G.flow_visual.paths) || []
   const node = paths.flatMap((p) => p.nodes).find((x) => x.change != null && !x.tbd) || paths.flatMap((p) => p.nodes).find((x) => !x.tbd)
   const hasDoor = !!d.getElementById('door-1')
+  const pathSec0 = data.PLAN.sections.find((s) => s.id === 'shape' || s.id === 'flow')
+  const hasHop2 = !!(pathSec0 && (pathSec0.blocks || []).some((b) => b.type === 'ol' && b.items.some((it) => it.n === 2)))
   const fakeSvg = (id) =>
     `<svg id="${id}" viewBox="0 0 400 200" style="max-width: 400px;"><g><text class="messageText">1. enters</text><line class="messageLine0"></line>` +
+    (hasHop2 ? '<text class="messageText">2. goes on</text><line class="messageLine0"></line>' : '') +
     (node ? `<g><rect class="actor actor-top"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` +
       `<g><rect class="actor actor-bottom"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` : '') +
     (hasDoor ? '<text>unique, door 1</text>' : '') + '</g></svg>'
@@ -418,7 +421,7 @@ async function checkDiagrams() {
   const pathSec = P3.sections.find((s) => s.id === 'shape' || s.id === 'flow')
   const hop1 = pathSec && (pathSec.blocks || []).filter((b) => b.type === 'ol').flatMap((b) => b.items).find((it) => it.n === 1)
   const fig = good[0]
-  const click = (el) => el.dispatchEvent(new dom3.window.MouseEvent('click', { bubbles: true }))
+  const click = (el) => el && el.dispatchEvent(new dom3.window.MouseEvent('click', { bubbles: true }))
   const detail = () => fig.querySelector('.mmd-detail')
   if (fig && hop1) {
     const hot = fig.querySelector('[data-mmd-key="hop:1"]')
@@ -469,8 +472,28 @@ async function checkDiagrams() {
   if (noTip.length) out.push(`drawings: ${noTip.length} clickable block(s) without a tooltip of what the click opens`)
   if (good.some((f) => [...f.querySelectorAll('[data-mmd-twin]')].some((x) => x.querySelector(':scope > title'))))
     out.push('drawings: the bottom copy of a participant carries a click tooltip')
-  // Full screen: the SVG moves into the dialog, the zoom buttons move it, Close brings it back.
-  const exp = fig && fig.querySelector('.mmd-expand')
+  // Step by step: with two steps or more, Next opens step 1, then step 2, Previous goes back; the buttons say which is on.
+  const steps = fig && fig.querySelector('.mmd-bar .mmd-steps')
+  if (fig && hasHop2) {
+    if (!steps || steps.hidden) out.push('drawings: a drawing with steps 1 and 2 has no step by step')
+    else {
+      const sel = () => (fig.querySelector('.mmd-step[aria-pressed="true"]') || {}).textContent
+      click(steps.querySelector('[data-step="next"]'))
+      if (sel() !== '1' || detail().hidden) out.push('drawings: Next does not open step 1')
+      if (!steps.querySelector('[data-step="prev"]').disabled) out.push('drawings: Previous is not disabled on the first step')
+      click(steps.querySelector('[data-step="next"]'))
+      if (sel() !== '2' || !fig.querySelector('[data-mmd-key="hop:2"].mmd-sel')) out.push('drawings: Next does not move to step 2')
+      if (!fig.querySelector('.mmd-draw svg.mmd-stepping')) out.push('drawings: the other steps do not fade while a step is on')
+      click(steps.querySelector('[data-step="prev"]'))
+      if (sel() !== '1') out.push('drawings: Previous does not go back to step 1')
+      click(fig.querySelector('.mmd-x'))
+      if (sel() || fig.querySelector('.mmd-draw svg.mmd-stepping')) out.push('drawings: closing the detail leaves a step on')
+    }
+  }
+  // Full screen: the expand icon sits in the drawing's box (not in the bar); the SVG moves into the dialog,
+  // the zoom buttons move it, Close brings it back.
+  const exp = fig && fig.querySelector('.mmd-frame > .mmd-expand')
+  if (fig && (!exp || fig.querySelector('.mmd-bar .mmd-expand'))) out.push('drawings: the Expand icon is not inside the drawing box, or is still in the bar')
   if (exp) {
     click(exp)
     const dlg = d3.querySelector('dialog.mmd-zoom')
@@ -480,6 +503,18 @@ async function checkDiagrams() {
       const before = dlg.querySelector('.mmd-stage').style.transform
       click(dlg.querySelector('[data-z="in"]'))
       if (dlg.querySelector('.mmd-stage').style.transform === before) out.push('drawings: zoom in does not change the full-screen view')
+      const zsteps = dlg.querySelector('.mmd-steps')
+      if (hasHop2) {
+        if (!zsteps || zsteps.hidden) out.push('drawings: full screen has no step by step')
+        else {
+          click(zsteps.querySelector('[data-step="next"]'))
+          if ((zsteps.querySelector('.mmd-step[aria-pressed="true"]') || {}).textContent !== '1' || dlg.querySelector('.mmd-detail').hidden)
+            out.push('drawings: Next full screen does not open step 1 there')
+          dlg.dispatchEvent(new dom3.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+          if ((zsteps.querySelector('.mmd-step[aria-pressed="true"]') || {}).textContent !== '2') out.push('drawings: the right arrow full screen does not move to step 2')
+          click(dlg.querySelector('.mmd-x'))
+        }
+      }
       const inZoom = dlg.querySelector('.mmd-stage [data-mmd-key]')
       if (inZoom) {
         click(inZoom)
@@ -503,7 +538,7 @@ async function checkDiagrams() {
   if (data) {
     const dg = await checkDiagrams()
     for (const m of dg.out) fail.push(m)
-    if (dg.drawn != null) expected.drawingFlow = dg.out.length ? 'failed' : `ok (fake Mermaid: ${dg.drawn} drawn, 1 parse error shown with its source; steps, names, The path link and zoom exercised)`
+    if (dg.drawn != null) expected.drawingFlow = dg.out.length ? 'failed' : `ok (fake Mermaid: ${dg.drawn} drawn, 1 parse error shown with its source; steps, step by step, names, The path link and zoom exercised)`
     const r = await checkReviewFlow()
     for (const m of r.out) fail.push(m)
     for (const e of r.errs) fail.push('runtime error (with fake db): ' + e)
