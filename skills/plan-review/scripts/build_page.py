@@ -623,11 +623,19 @@ def main() -> int:
                 .replace("__PLAN_JSON__", as_script_json(plan))
                 .replace("__PAGE_DATA_JSON__", as_script_json(pg)))
     Path(args.out).write_text(html, encoding="utf-8")
-    # The captures travel with the page, at the path plan.md uses for them.
+    # The captures travel with the page, at the path plan.md uses for them. Resolved first: a capture
+    # (a symlink included) is read only from inside the feature folder and written only inside the
+    # page's folder.
     out_dir = Path(args.out).resolve().parent
-    for src in images:
-        (out_dir / src).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(plan_path.parent / src, out_dir / src)
+    feat_dir = plan_path.parent.resolve()
+    for src in list(images):
+        origin, target = (feat_dir / src).resolve(), (out_dir / src).resolve()
+        if not origin.is_relative_to(feat_dir) or not target.is_relative_to(out_dir):
+            print(f"  WARN  {src} resolves outside the feature or the page folder; not copied", file=sys.stderr)
+            images.remove(src)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(origin, target)
     if images:
         print(f"build_page: {len(images)} capture(s) copied beside the page; publish each with it (files): {', '.join(images)}")
     n_acs = sum(len(s["acs"]) for s in next((x["criteria"]["slices"] for x in plan["sections"] if x["id"] == "criteria"), []))
