@@ -157,6 +157,12 @@ section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20p
 .view { display: grid; gap: 20px; min-width: 0; }
 .blocks { display: grid; gap: 14px; color: var(--fg-2); }
 .blocks > p { color: var(--fg-2); }
+figure.mmd { margin: 0; display: grid; gap: 8px; }
+.mmd-draw { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; text-align: center; }
+.mmd-draw svg { max-height: 560px; }
+.mmd-note { margin: 0; font-size: 13px; color: var(--pend); }
+.mmd-src summary { cursor: pointer; font-size: 12.5px; color: var(--muted); width: max-content; }
+.mmd-src[open] summary { margin-bottom: 6px; }
 pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
 .lead-in { color: var(--fg); }
 h3.part { margin: 8px 0 0; }
@@ -784,7 +790,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       if (b.type === "ul") return '<ul class="notes">' + b.items.map(function (it) { return "<li>" + md(it.text) + "</li>"; }).join("") + "</ul>";
       if (b.type === "ol") return '<ol class="steps">' + b.items.map(function (it) { return '<li><span class="n">' + it.n + "</span><span>" + md(it.text) + examples(it) + "</span></li>"; }).join("") + "</ol>";
       if (b.type === "table") return table(b, sec ? rowsAt(sec, sec.blocks.indexOf(b)) : null, !noIds);
-      if (b.type === "code" && b.lang === "mermaid") return '<pre class="mermaid">' + esc(b.text) + "</pre>";
+      if (b.type === "code" && b.lang === "mermaid") return diagram(b.text);
       if (b.type === "code") return '<pre class="code">' + esc(b.text) + "</pre>";
       return "";
     }).join("") + "</div>");
@@ -792,6 +798,72 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   /* The examples under a numbered item (a criterion's `- <example> → <result>` lines). */
   function examples(it) {
     return it.examples ? '<ul class="ex">' + it.examples.map(function (x) { return "<li>" + md(x) + "</li>"; }).join("") + "</ul>" : "";
+  }
+  /* ---------- mermaid drawings ----------
+     Each mermaid block is drawn by Mermaid, loaded from the CDN, with its source under it. The source
+     stays open until the drawing exists: offline, or when the plan's diagram does not parse, the page
+     shows the source and says why. Drawn again when the theme changes. */
+  var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js";
+  var mmd = { loading: null, gen: 0 };
+  function diagram(text) {
+    return '<figure class="mmd"><div class="mmd-draw" hidden></div><p class="mmd-note" hidden></p>' +
+      '<details class="mmd-src" open><summary>Mermaid source</summary><pre class="mermaid">' + esc(text) + "</pre></details></figure>";
+  }
+  function diagramKind(text) { return (/^\s*([\w-]+)/.exec(text) || [])[1] || ""; }
+  function isDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t) return t === "dark";
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function loadMermaid() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (!mmd.loading) mmd.loading = new Promise(function (ok, no) {
+      var sc = document.createElement("script");
+      sc.src = MERMAID_SRC; sc.async = true;
+      sc.onload = function () { if (window.mermaid) ok(window.mermaid); else no(new Error("Mermaid did not start")); };
+      sc.onerror = function () { no(new Error("could not load " + MERMAID_SRC)); };
+      document.head.appendChild(sc);
+    });
+    return mmd.loading;
+  }
+  function diagramNote(fig, msg) {
+    var n = fig.querySelector(".mmd-note");
+    n.textContent = msg; n.hidden = !msg;
+  }
+  function diagramFailed(fig, msg) {
+    fig.classList.remove("drawn"); fig.classList.add("failed");
+    fig.querySelector(".mmd-draw").hidden = true;
+    fig.querySelector(".mmd-src").open = true;
+    diagramNote(fig, msg);
+  }
+  function drawDiagrams() {
+    var figs = [].slice.call(document.querySelectorAll("figure.mmd"));
+    if (!figs.length) return Promise.resolve();
+    var gen = ++mmd.gen;
+    return loadMermaid().then(function (m) {
+      m.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
+        theme: isDark() ? "dark" : "neutral", fontFamily: getComputedStyle(document.body).fontFamily,
+        sequence: { useMaxWidth: false } });  // a sequence keeps its size and scrolls: shrunk to the column, its labels are unreadable
+      return figs.reduce(function (chain, fig, i) {
+        return chain.then(function () {
+          if (gen !== mmd.gen) return;  // the theme changed: a newer pass draws everything again
+          var id = "mmd-" + gen + "-" + i;
+          return Promise.resolve().then(function () { return m.render(id, fig.querySelector("pre.mermaid").textContent); }).then(function (r) {
+            var box = fig.querySelector(".mmd-draw");
+            box.innerHTML = r.svg; box.hidden = false;
+            if (r.bindFunctions) r.bindFunctions(box);
+            fig.classList.remove("failed"); fig.classList.add("drawn");
+            fig.querySelector(".mmd-src").open = false;
+            diagramNote(fig, "");
+          }, function (e) {
+            var left = document.getElementById("d" + id); if (left) left.remove();
+            diagramFailed(fig, "This diagram did not render, so the plan's source is shown: " + String((e && e.message) || e).split("\n")[0]);
+          });
+        });
+      }, Promise.resolve());
+    }, function (e) {
+      figs.forEach(function (f) { diagramFailed(f, "The drawings need Mermaid, which did not load (" + e.message + "); the source is shown."); });
+    });
   }
   function firstTable(sec) { return (sec.blocks || []).filter(function (b) { return b.type === "table"; })[0]; }
 
@@ -928,7 +1000,6 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   function flowPart(s) {
     var v = EN.flow_visual;
     if (!v) return null;
-    var intro = (s.blocks || []).filter(function (b) { return b.type === "p"; })[0];
     var st = { sel: null };
     // Where each changing node appears: its card opens in one place, and the other occurrences light up with it.
     // Every copy opens the same card: `change` comes from the occurrence that carries it in the data.
@@ -941,7 +1012,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     });
     function cardIdx(x) { return x.change != null ? x.change : cardOf[x.n]; }
     var repeats = Object.keys(seen).some(function (n) { return seen[n].length > 1; });
-    var html = (intro ? '<p class="lead-in">' + md(intro.text) + "</p>" : "") +
+    var html =
       '<div class="toolbar"><button type="button" class="switch flow-focus" aria-pressed="false"><span class="track"></span>Highlight only what changes</button>' +
       '<span class="legend"><span><i class="add"></i>changes: click to see where, why and proof</span><span>struck through = the name today</span>' +
       (repeats ? '<span><i class="same"></i>the same node in another path</span>' : "") + '</span></div><div class="paths"></div>';
@@ -1063,15 +1134,25 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     } };
   }
 
-  /* A section built from parts: without any, only the plan text. Flow and Impact (older plans)
-     carry one part each; Shape carries the path, then the changes underneath. */
-  function renderParts(s, parts) {
-    var heads = parts.length > 1 ? ["The path", "Changes underneath"] : [];
-    var live = parts.map(function (p, i) { return p && { p: p, head: heads[i] }; }).filter(Boolean);
-    if (!live.length) return section(s, blocks(s.blocks, s));
-    var el = section(s, live.map(function (x) { return (x.head ? '<h3 class="part">' + x.head + "</h3>" : "") + x.p.html; }).join(""), blocks(s.blocks, s));
+  /* The section's mermaid drawings whose kind (first word) matches `rx`, as a part of the Visual tab. */
+  function drawingsPart(s, rx) {
+    var ds = (s.blocks || []).filter(function (b) { return b.type === "code" && b.lang === "mermaid" && rx.test(diagramKind(b.text)); });
+    return ds.length ? { html: ds.map(function (b) { return diagram(b.text); }).join(""), bind: function () {} } : null;
+  }
+  /* A section built from parts `[{head, p, data}]`: a Visual tab only when a part reads
+     review-page.json (`data`), otherwise the plan text alone, drawings included. The first paragraph
+     leads in when `lead`. Shape: the drawing, the path, the changes underneath, the data, the states. */
+  function renderParts(s, parts, lead) {
+    var live = parts.filter(function (x) { return x.p; });
+    if (!live.some(function (x) { return x.data; })) return section(s, blocks(s.blocks, s));
+    var intro = lead ? (s.blocks || []).filter(function (b) { return b.type === "p"; })[0] : null;
+    var html = (intro ? '<p class="lead-in">' + md(intro.text) + "</p>" : "") + live.map(function (x) {
+      return (live.length > 1 ? '<h3 class="part">' + x.head + "</h3>" : "") + x.p.html;
+    }).join("");
+    var el = section(s, html, blocks(s.blocks, s));
     live.forEach(function (x) { x.p.bind(el); });
   }
+  var PATH_DRAWING = /^(sequenceDiagram|flowchart|graph)$/;
 
   /* Landing: one card per one-way door.
      With `landing_visual`, the Visual tab explains each door in plain language (it holds the
@@ -1191,9 +1272,14 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
 
   SECTIONS.forEach(function (s) {
     if (s.id === "problem") return renderProblem(s);
-    if (s.id === "shape") return renderParts(s, [flowPart(s), impactPart(s)]);
-    if (s.id === "flow") return renderParts(s, [flowPart(s)]);
-    if (s.id === "impact") return renderParts(s, [impactPart(s)]);
+    if (s.id === "shape") return renderParts(s, [
+      { head: "The drawing", p: drawingsPart(s, PATH_DRAWING) },
+      { head: "The path", p: flowPart(s), data: true },
+      { head: "Changes underneath", p: impactPart(s), data: true },
+      { head: "The data", p: drawingsPart(s, /^erDiagram$/) },
+      { head: "States", p: drawingsPart(s, /^stateDiagram/) }], true);
+    if (s.id === "flow") return renderParts(s, [{ head: "The drawing", p: drawingsPart(s, PATH_DRAWING) }, { head: "The path", p: flowPart(s), data: true }], true);
+    if (s.id === "impact") return renderParts(s, [{ p: impactPart(s), data: true }]);
     if (s.id === "landing") return renderLanding(s);
     if (s.id === "criteria") return renderCriteria(s);
     section(s, blocks(s.blocks, s));
@@ -1203,6 +1289,12 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   foot.innerHTML = "Mirror of <code>" + esc(planPath) + "</code>" + (PLAN.hash ? " (hash " + esc(PLAN.hash) + ")" : "") + (PLAN.generated ? ", generated " + esc(PLAN.generated) : "") +
     ". Section text comes from the plan; Where, Why and Proof come from reading the code" + (EN.code_ref ? " at " + esc(EN.code_ref) : "") + ".";
   main.appendChild(foot);
+  drawDiagrams();
+  if (window.matchMedia) {
+    var darkMq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (darkMq.addEventListener) darkMq.addEventListener("change", drawDiagrams);
+  }
+  if (window.MutationObserver) new MutationObserver(drawDiagrams).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
     var dot = s.empty ? '<span class="st" data-state="na" title="nothing to validate">' + IC.na + "</span>" : '<span class="st" data-rk-dot="' + esc(s.id) + '"></span>';

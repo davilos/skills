@@ -81,6 +81,14 @@ if (data) {
   const noImg = (P.images || []).filter((src) => !imgs.has(src))
   if (noImg.length) fail.push('captures the plan shows that are not images on the page: ' + noImg.join(', '))
   if ((P.images || []).length) expected.captures = P.images.length
+  // Every mermaid block of the plan is a drawing with its source (the drawing itself needs the CDN; see checkDiagrams).
+  const blocksOf = (s) => (s.blocks || []).concat(s.criteria ? [s.criteria.intro, ...s.criteria.slices.flatMap((x) => [x.desc, x.extra])].flat() : [])
+  const mermaidSrc = P.sections.flatMap(blocksOf).filter((b) => b.type === 'code' && b.lang === 'mermaid').map((b) => b.text)
+  const figSrc = [...d.querySelectorAll('figure.mmd pre.mermaid')].map((x) => x.textContent)
+  const noFig = mermaidSrc.filter((t) => !figSrc.includes(t))
+  if (noFig.length) fail.push(`${noFig.length} mermaid block(s) of the plan are not a drawing on the page`)
+  if (q('pre.mermaid') !== q('figure.mmd pre.mermaid')) fail.push('a mermaid source on the page is outside a drawing')
+  if (mermaidSrc.length) expected.diagrams = `${mermaidSrc.length} in the plan, ${q('figure.mmd')} on the page`
   // Landing in plain language: one explanation per door, and the "Confirm" button lives there (not in the plan table).
   if (G.landing_visual) {
     const nDoors = G.landing_visual.doors.length
@@ -359,8 +367,48 @@ async function checkReviewFlow() {
   return { out, errs, writes: writes.length }
 }
 
+// Drawings: runs again with a fake Mermaid. Every figure gets its SVG and closes its source; a diagram
+// that does not parse keeps the source open with a note; a theme change draws again with the dark theme.
+async function checkDiagrams() {
+  const out = []
+  if (!data || !d.querySelector('figure.mmd')) return { out }
+  const inits = [],
+    renders = []
+  const dom3 = new jsdom.JSDOM('<!doctype html><html><body>' + html + '</body></html>', {
+    runScripts: 'dangerously',
+    beforeParse(win) {
+      win.mermaid = {
+        initialize: (c) => inits.push(c),
+        render: async (id, text) => {
+          renders.push(id)
+          if (renders.length === 1) throw new Error('Parse error on line 1')
+          return { svg: `<svg data-fake="${id}"><text>${text.length}</text></svg>` }
+        },
+      }
+    },
+  })
+  const d3 = dom3.window.document
+  const tick = () => new Promise((r) => setTimeout(r, 20))
+  await tick()
+  const figs = [...d3.querySelectorAll('figure.mmd')]
+  if (renders.length !== figs.length) out.push(`drawings: Mermaid drew ${renders.length} of ${figs.length} diagrams`)
+  const [bad, ...good] = figs
+  if (!bad.classList.contains('failed') || !bad.querySelector('.mmd-src').open || bad.querySelector('.mmd-note').hidden)
+    out.push('drawings: a diagram that does not parse does not keep its source open with a note')
+  const notDrawn = good.filter((f) => !f.querySelector('.mmd-draw svg') || f.querySelector('.mmd-draw').hidden || f.querySelector('.mmd-src').open)
+  if (notDrawn.length) out.push(`drawings: ${notDrawn.length} diagram(s) without their SVG, or with the source still open`)
+  if (inits[0] && inits[0].securityLevel !== 'strict') out.push('drawings: Mermaid does not run with securityLevel strict')
+  d3.documentElement.setAttribute('data-theme', 'dark')
+  await tick()
+  if (!inits.some((c) => c.theme === 'dark')) out.push('drawings: switching to the dark theme did not draw again in dark')
+  return { out, drawn: good.length }
+}
+
 ;(async () => {
   if (data) {
+    const dg = await checkDiagrams()
+    for (const m of dg.out) fail.push(m)
+    if (dg.drawn != null) expected.drawingFlow = dg.out.length ? 'failed' : `ok (fake Mermaid: ${dg.drawn} drawn, 1 parse error shown with its source)`
     const r = await checkReviewFlow()
     for (const m of r.out) fail.push(m)
     for (const e of r.errs) fail.push('runtime error (with fake db): ' + e)
