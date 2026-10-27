@@ -167,12 +167,21 @@ figure.mmd { margin: 0; display: grid; gap: 8px; }
 .mmd-btn { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; line-height: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: var(--bg); }
 .mmd-btn:hover { border-color: var(--line-strong); color: var(--fg); }
 .mmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mmd-btn:disabled { opacity: .4; cursor: default; }
 /* Expand sits inside the drawing's box, in its top right corner; it stays put while a wide drawing scrolls. */
 .mmd-frame { position: relative; min-width: 0; }
 .mmd-expand { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; top: 8px; right: 8px; z-index: 1; display: inline-flex; padding: 6px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: color-mix(in srgb, var(--bg) 90%, transparent); }
 .mmd-expand:hover { color: var(--accent); border-color: var(--line-strong); }
 .mmd-expand:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .mmd-draw[hidden] + .mmd-expand { display: none; }
+/* Step by step: previous, one button per numbered step of the drawing, next. */
+.mmd-steps { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mmd-steps .lbl { font-size: 12.5px; color: var(--muted); margin-right: 2px; }
+.mmd-step { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+.mmd-step[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+/* While a step is on, the other steps' labels and arrows fade, so the current one stands out. */
+svg.mmd-stepping g.edgeLabel:not(.mmd-sel), svg.mmd-stepping path.flowchart-link:not(.mmd-sel), svg.mmd-stepping text.messageText:not(.mmd-sel),
+svg.mmd-stepping [class^="messageLine"]:not(.mmd-sel), svg.mmd-stepping rect.mmd-ring[data-mmd-cue^="hop:"]:not(.mmd-sel) { opacity: .25; transition: opacity .2s; }
 /* What a click opens: a dashed outline runs around every clickable block or label (never the bottom
    copy of a participant, nor a label the plan does not name); on hover or selection it holds still. */
 [data-mmd-key] { cursor: pointer; outline: none; }
@@ -214,6 +223,8 @@ dialog.mmd-zoom::backdrop { background: rgba(10, 12, 16, .55); }
 .mmd-viewport:active { cursor: grabbing; }
 .mmd-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .mmd-stage svg { display: block; }
+.mmd-stage.mmd-glide { transition: transform .35s cubic-bezier(.2, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { .mmd-stage.mmd-glide { transition: none; } }
 /* The footer's purple top line sits on the scroll container, so it stays put while the detail scrolls. */
 .mmd-zdetail { max-height: 34vh; overflow: auto; overscroll-behavior: contain; }
 .mmd-zdetail:has(.mmd-detail:not([hidden])) { border-top: 2px solid var(--accent); }
@@ -868,7 +879,8 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js";
   var mmd = { loading: null, gen: 0 };
   function diagram(text, cls) {
-    return '<figure class="mmd' + (cls ? " " + cls : "") + '"><div class="mmd-bar" hidden><span class="mmd-legend" hidden><i></i>changes in this plan</span>' +
+    return '<figure class="mmd' + (cls ? " " + cls : "") + '"><div class="mmd-bar" hidden><span class="mmd-steps" role="group" aria-label="Step by step" hidden></span>' +
+      '<span class="mmd-legend" hidden><i></i>changes in this plan</span>' +
       '<span class="mmd-hint"><i class="mmd-ring"></i>Steps and names with a moving outline open what the plan says.</span><span class="mmd-actions">' +
       '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">Copy source</button></span></div>' +
       '<div class="mmd-frame"><div class="mmd-draw" hidden></div><button type="button" class="mmd-expand" aria-label="Open the diagram full screen, with zoom" title="Expand">' + IC.expand + "</button></div>" +
@@ -1019,11 +1031,72 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       // A message's arrow is the line drawn right after its text: it lights with it.
       var ln = el.nextElementSibling;
       if (/messageLine/.test((ln && ln.getAttribute("class")) || "")) ln.setAttribute("data-mmd-line", key);
+      // A flowchart's arrow is the path whose data-id its label names.
+      var lid = target.querySelector && target.querySelector(":scope > g.label[data-id]");
+      if (lid) {
+        var edge = svg.querySelector('path[data-id="' + lid.getAttribute("data-id") + '"]');
+        if (edge) edge.setAttribute("data-mmd-line", key);
+      }
       cue(target, key);
     });
     fig.querySelector(".mmd-legend").hidden = !svg.querySelector(".mmd-chg");
+    var steps = [];
+    [].slice.call(svg.querySelectorAll('[data-mmd-key^="hop:"]')).forEach(function (x) { var n = +x.getAttribute("data-mmd-key").slice(4); if (steps.indexOf(n) === -1) steps.push(n); });
+    fig.__steps = steps.sort(function (a, b) { return a - b; });
+    fillSteps(fig.querySelector(".mmd-steps"), fig);
     if (fig.__sel) markSel(fig, fig.__sel);
     paintLit();
+  }
+  /* Step by step: the numbered steps of a drawing, in order. Previous / Next and the step buttons open
+     each step as a click on its label does; full screen, the view moves to the step. Two steps at least. */
+  function fillSteps(bar, fig) {
+    var steps = fig.__steps || [];
+    bar.hidden = steps.length < 2;
+    bar.innerHTML = bar.hidden ? "" : '<span class="lbl">Step by step</span><button type="button" class="mmd-btn" data-step="prev">← Previous</button>' +
+      steps.map(function (n) { return '<button type="button" class="mmd-btn mmd-step" data-step="' + n + '" aria-pressed="false" aria-label="Step ' + n + '" title="' + esc(plainName(HOPS[n])) + '">' + n + "</button>"; }).join("") +
+      '<button type="button" class="mmd-btn" data-step="next">Next →</button>';
+    syncSteps(fig);
+  }
+  function syncSteps(fig) {
+    var steps = fig.__steps || [], m = /^hop:(\d+)$/.exec(fig.__sel || ""), i = m ? steps.indexOf(+m[1]) : -1;
+    var bars = [fig.querySelector(".mmd-steps")];
+    if (zoom && zoom.fig === fig) bars.push(zoom.dlg.querySelector(".mmd-steps"));
+    bars.forEach(function (bar) {
+      if (!bar || bar.hidden) return;
+      [].slice.call(bar.querySelectorAll(".mmd-step")).forEach(function (b) { b.setAttribute("aria-pressed", String(m != null && b.getAttribute("data-step") === m[1])); });
+      bar.querySelector('[data-step="prev"]').disabled = i <= 0;
+      bar.querySelector('[data-step="next"]').disabled = i === steps.length - 1;
+    });
+  }
+  function stepTo(fig, a) {
+    var steps = fig.__steps || [], m = /^hop:(\d+)$/.exec(fig.__sel || ""), i = m ? steps.indexOf(+m[1]) : -1;
+    var n = a === "next" ? steps[i + 1] : a === "prev" ? (i > 0 ? steps[i - 1] : null) : +a;
+    if (n == null || steps.indexOf(n) === -1) return;
+    if (fig.__sel !== "hop:" + n) selectKey(fig, "hop:" + n);
+    if (zoom && zoom.fig === fig) zoom.show(selRect(zoom.stage), true);
+  }
+  /* The box around what is selected in a drawing, in screen coordinates; the bottom copy of a participant does not count. */
+  function selRect(root) {
+    var box = null, els = [].slice.call(root.querySelectorAll(".mmd-sel")).filter(function (x) { return !x.hasAttribute("data-mmd-twin") && x.getBoundingClientRect; });
+    // A flowchart arrow takes along the blocks at its two ends, so a step shows where it starts and lands.
+    els.filter(function (x) { return x.tagName.toLowerCase() === "path" && typeof x.getTotalLength === "function"; }).forEach(function (p) {
+      var len, m; try { len = p.getTotalLength(); m = p.getScreenCTM(); } catch (e) { return; }
+      if (!m) return;
+      [0, len].forEach(function (at) {
+        var q = p.getPointAtLength(at), sx = m.a * q.x + m.c * q.y + m.e, sy = m.b * q.x + m.d * q.y + m.f;
+        [].slice.call(root.querySelectorAll("g.node")).forEach(function (n) {
+          var r = n.getBoundingClientRect();
+          if (els.indexOf(n) === -1 && sx >= r.left - 8 && sx <= r.right + 8 && sy >= r.top - 8 && sy <= r.bottom + 8) els.push(n);
+        });
+      });
+    });
+    els.forEach(function (x) {
+      var r = x.getBoundingClientRect(); if (!r.width && !r.height) return;
+      box = box ? { left: Math.min(box.left, r.left), top: Math.min(box.top, r.top), right: Math.max(box.right, r.right), bottom: Math.max(box.bottom, r.bottom) } :
+        { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    });
+    if (box) { box.width = box.right - box.left; box.height = box.bottom - box.top; }
+    return box;
   }
   /* A dashed outline runs around what can be clicked: the block of a participant, entity or state,
      or the label of a step. Drawn in the drawing's own coordinates, under the label so it never takes
@@ -1060,12 +1133,12 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     on.forEach(function (k) {
       [].slice.call(document.querySelectorAll('[data-mmd-key="' + k + '"], [data-mmd-line="' + k + '"], [data-mmd-twin="' + k + '"], [data-mmd-cue="' + k + '"]')).forEach(function (x) { x.classList.add("mmd-lit"); });
     });
-    [].slice.call(document.querySelectorAll(".mmd-draw")).forEach(function (box) { reveal(box, box.querySelector(".mmd-lit")); });
+    [].slice.call(document.querySelectorAll(".mmd-draw")).forEach(function (box) { var el = box.querySelector(".mmd-lit"); reveal(box, el && el.getBoundingClientRect && el.getBoundingClientRect()); });
   }
-  /* A wide drawing scrolls sideways inside its box: bring what lit up into view, without moving the page. */
-  function reveal(box, el) {
-    if (!box || !el || !el.getBoundingClientRect || box.scrollWidth <= box.clientWidth) return;
-    var b = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+  /* A wide drawing scrolls sideways inside its box: bring what lit up (its box on screen) into view, without moving the page. */
+  function reveal(box, r) {
+    if (!box || !r || box.scrollWidth <= box.clientWidth) return;
+    var b = box.getBoundingClientRect();
     if (r.left >= b.left && r.right <= b.right) return;
     var to = box.scrollLeft + (r.left + r.width / 2) - (b.left + b.width / 2);
     if (box.scrollTo) box.scrollTo({ left: to, behavior: "smooth" }); else box.scrollLeft = to;
@@ -1074,7 +1147,9 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var root = zoom && zoom.fig === fig ? zoom.stage : fig;
     [].slice.call(fig.querySelectorAll(".mmd-sel")).concat([].slice.call(root.querySelectorAll(".mmd-sel"))).forEach(function (x) { x.classList.remove("mmd-sel"); });
     if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"], [data-mmd-twin="' + key + '"], [data-mmd-cue="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
-    if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), fig.querySelector(".mmd-sel"));
+    var svg = root.querySelector("svg"); if (svg) svg.classList.toggle("mmd-stepping", !!key && key.indexOf("hop:") === 0);
+    if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), selRect(fig));
+    if (key && zoom && zoom.fig === fig) zoom.show(selRect(zoom.stage), false);
   }
   /* A card of The path, as the panel shows it: the chain of nodes, the changed ones open their
      Where / Why / Proof. `open` is the node key ("pi-ni") whose card is open. */
@@ -1139,10 +1214,11 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var box = detailOf(fig);
     fig.__open = undefined;
     lightKey("panel", null);
-    if (!key || fig.__sel === key) { fig.__sel = null; box.hidden = true; box.innerHTML = ""; markSel(fig, null); return; }
+    if (!key || fig.__sel === key) { fig.__sel = null; box.hidden = true; box.innerHTML = ""; markSel(fig, null); syncSteps(fig); return; }
     fig.__sel = key;
     box.innerHTML = detailHtml(key); box.hidden = false;
     markSel(fig, key);
+    syncSteps(fig);
   }
   /* A node of a card in the panel: opens or closes its Where / Why / Proof, and lights its name in the drawings. */
   function pickNode(fig, nodeKey) {
@@ -1166,12 +1242,20 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var np = t.closest("[data-node-pick]");
     if (np) return pickNode(fig, np.getAttribute("data-node-pick"));
     if (t.closest(".mmd-x")) return selectKey(fig, null);
+    var st = t.closest("[data-step]");
+    if (st) return stepTo(fig, st.getAttribute("data-step"));
     if (t.closest(".mmd-expand")) return openZoom(fig);
     var cp = t.closest(".mmd-copy");
     if (cp) copyText(cp.getAttribute("data-copy")).then(function () { cp.textContent = "Copied"; setTimeout(function () { cp.textContent = "Copy source"; }, 1500); },
       function () { toast("<span>Could not copy. Open the Mermaid source and copy it by hand.</span>"); });
   });
   document.addEventListener("keydown", function (e) {
+    // ← → on a step button of a drawing on the page walk the steps; full screen, anywhere in the dialog.
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && e.target.closest && (e.target.closest(".mmd-steps") || (zoom && zoom.fig && zoom.dlg.contains(e.target)))) {
+      var sf = figOf(e.target);
+      if (sf && (sf.__steps || []).length > 1) { e.preventDefault(); stepTo(sf, e.key === "ArrowRight" ? "next" : "prev"); }
+      return;
+    }
     if (e.key !== "Enter" && e.key !== " ") return;
     var hot = e.target.closest && e.target.closest("[data-mmd-key]"); if (!hot) return;
     e.preventDefault(); hot.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -1184,6 +1268,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     dlg.className = "mmd-zoom"; dlg.setAttribute("aria-label", "Diagram, full screen");
     dlg.innerHTML = '<div class="mmd-zbar"><button type="button" class="mmd-btn" data-z="out" aria-label="Zoom out">−</button><span class="mmd-zpct"></span>' +
       '<button type="button" class="mmd-btn" data-z="in" aria-label="Zoom in">+</button><button type="button" class="mmd-btn" data-z="fit">Fit</button>' +
+      '<span class="mmd-steps" role="group" aria-label="Step by step" hidden></span>' +
       '<span class="mmd-hint">Wheel or pinch to zoom, drag to move; click a step or a name for what the plan says.</span><button type="button" class="mmd-btn" data-z="close">Close</button></div>' +
       '<div class="mmd-viewport"><div class="mmd-stage"></div></div><div class="mmd-zdetail"></div>';
     document.body.appendChild(dlg);
@@ -1194,10 +1279,27 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       z.x = px - (px - z.x) * (ns / z.s); z.y = py - (py - z.y) * (ns / z.s); z.s = ns; z.apply();
     };
     z.center = function (f) { var r = z.view.getBoundingClientRect(); z.at(f, r.width / 2, r.height / 2); };
+    z.fitScale = function () { var r = z.view.getBoundingClientRect(); return Math.min(8, Math.max(0.1, Math.min((r.width - 32) / (z.w || 1), (r.height - 32) / (z.h || 1)))) || 1; };
     z.fit = function () {
-      var r = z.view.getBoundingClientRect(), w = z.w || 1, h = z.h || 1;
-      z.s = Math.min(8, Math.max(0.1, Math.min((r.width - 32) / w, (r.height - 32) / h))) || 1;
-      z.x = (r.width - w * z.s) / 2; z.y = (r.height - h * z.s) / 2; z.apply();
+      var r = z.view.getBoundingClientRect();
+      z.s = z.fitScale();
+      z.x = (r.width - (z.w || 1) * z.s) / 2; z.y = (r.height - (z.h || 1) * z.s) / 2; z.apply();
+    };
+    /* Bring a box of the drawing (screen coordinates) to the middle of the view. `frame`: also zoom so it
+       fills the view, readable but no closer than 125% and no farther than the whole drawing (a step);
+       otherwise only move, and only when part of it is out of view (a click). */
+    z.show = function (b, frame) {
+      var v = z.view.getBoundingClientRect();
+      if (!b || !v.width || !v.height) return;
+      if (!frame && b.left >= v.left && b.right <= v.right && b.top >= v.top && b.bottom <= v.bottom) return;
+      // In the drawing's own units, read from where the stage is on screen now: mid-glide, that is not yet z.x, z.y, z.s.
+      var st = z.stage.getBoundingClientRect(), k = st.width / (z.w || 1) || z.s;
+      var x = (b.left - st.left) / k, y = (b.top - st.top) / k, w = b.width / k, h = b.height / k;
+      if (frame) z.s = Math.max(z.fitScale(), Math.min(1.25, (v.width - 96) / (w || 1), (v.height - 96) / (h || 1)));
+      z.x = v.width / 2 - (x + w / 2) * z.s; z.y = v.height / 2 - (y + h / 2) * z.s;
+      z.stage.classList.add("mmd-glide"); clearTimeout(z.glide);
+      z.glide = setTimeout(function () { z.stage.classList.remove("mmd-glide"); }, 400);
+      z.apply();
     };
     dlg.querySelector(".mmd-zbar").addEventListener("click", function (e) {
       var b = e.target.closest("[data-z]"); if (!b) return;
@@ -1249,6 +1351,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     svg.style.maxWidth = "none"; svg.style.maxHeight = "none";
     zoom.stage.appendChild(svg);
     zoom.dlg.querySelector(".mmd-zdetail").appendChild(fig.querySelector(".mmd-detail"));
+    fillSteps(zoom.dlg.querySelector(".mmd-steps"), fig);
     document.documentElement.classList.add("mmd-locked");
     if (zoom.dlg.showModal) zoom.dlg.showModal(); else zoom.dlg.setAttribute("open", "");
     zoom.fit();
