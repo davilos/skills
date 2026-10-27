@@ -65,6 +65,7 @@ h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02e
 h2 { font-size: 23px; line-height: 1.25; font-weight: 650; letter-spacing: -0.015em; }
 h3 { font-size: 15.5px; line-height: 1.35; font-weight: 600; letter-spacing: -0.005em; }
 p { margin: 0; max-width: 72ch; }
+code, pre { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 code { font-family: var(--mono); font-size: 0.84em; background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg); padding: 0 4px; border-radius: 4px; overflow-wrap: anywhere; }
 b { font-weight: 600; }
 .ic { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: -3px; }
@@ -168,9 +169,10 @@ pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; li
 h3.part { margin: 8px 0 0; }
 ul.ex { margin: 6px 0 0; padding-left: 18px; color: var(--fg-2); font-size: 0.94em; }
 ul.ex li { margin: 2px 0; }
-.cap { display: inline-grid; gap: 4px; vertical-align: top; margin: 4px 0; }
+/* A capture takes its own line; its name and the rest of the plan's line follow under it. */
+.cap { display: block; margin: 4px 0 6px; }
 .cap img { display: block; max-width: min(100%, 520px); height: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-subtle); }
-.cap-name { font-size: 12.5px; color: var(--muted); }
+.cap-name { font-weight: 550; color: var(--fg); }
 .conf-ref { font-size: 12.5px; color: var(--fg-2); }
 
 /* review badge and button */
@@ -255,8 +257,8 @@ tr[data-rs="ok"] td.rn-cell { box-shadow: inset 3px 0 0 var(--ok); }
 a.xref { font-weight: 600; text-decoration: none; border-radius: 3px; }
 a.xref:hover { text-decoration: underline; }
 a.door-mark.xref { color: var(--accent); }
-.acs li, .door, .slice { scroll-margin-top: calc(var(--top) + 20px); }
-.acs li:target { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: 2px; }
+.acs > li, .door, .slice { scroll-margin-top: calc(var(--top) + 20px); }
+.acs > li:target { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: 2px; }
 .door:target, .slice:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* Problem */
@@ -400,7 +402,7 @@ a.door-mark.xref { color: var(--accent); }
 .slice-body { padding: 16px 18px; display: grid; gap: 14px; }
 .slice-body > h4, .renames-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg); }
 .acs { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.acs li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; font-size: 14.5px; color: var(--fg-2); }
+.acs > li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; font-size: 14.5px; color: var(--fg-2); }
 .acs .n { font-weight: 600; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .indep { font-size: 14px; color: var(--fg-2); background: var(--bg-subtle); border-radius: 6px; padding: 10px 12px; }
 .renames { border-top: 1px solid var(--line); }
@@ -558,7 +560,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   function md(s) {
     return esc(s)
       .replace(/!\[([^\]]*)\]\(([\w.\/-]+)\)/g, function (all, alt, src) {
-        return '<span class="cap"><img src="' + src + '" alt="' + alt + '" loading="lazy"><span class="cap-name">' + alt + "</span></span>";
+        return '<span class="cap"><img src="' + src + '" alt="' + alt + '" loading="lazy"></span><span class="cap-name">' + alt + "</span>";
       })
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")

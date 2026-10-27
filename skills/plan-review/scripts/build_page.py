@@ -438,6 +438,15 @@ def check_refs(plan_text: str, pg: dict) -> tuple[list[str], list[str]]:
         if absent:
             errors.append(f"{label} = {name!r}: {', '.join(absent)} is not in the plan; a name the plan does not fix takes tbd: true (never invented)")
 
+    # Names render as code already: backticks in them show up literally on the page.
+    names = [(f"changes[{i}].{k}", c.get(k)) for i, c in enumerate(pg.get("changes", [])) for k in ("neu", "old")]
+    names += [(f"impact_visual.cards[{i}].{k}", c.get(k)) for i, c in enumerate((pg.get("impact_visual") or {}).get("cards", [])) for k in ("before", "after")]
+    names += [(f"flow_visual.paths[{pi}].nodes[{ni}].{k}", x.get(k)) for pi, p in enumerate((pg.get("flow_visual") or {}).get("paths", []))
+              for ni, x in enumerate(p.get("nodes", [])) for k in ("n", "o")]
+    for label, name in names:
+        if name and "`" in name:
+            warns.append(f"{label} = {name!r} has backticks, which the page shows literally: the name is already shown as code")
+
     # 2 to 4. Where.
     plan_refs = [(m[1], _ranges(m[2])) for m in FILE_REF.finditer(plan_text) if m[2]]
     items = [(f"changes[{i}]", c) for i, c in enumerate(pg.get("changes", []))]

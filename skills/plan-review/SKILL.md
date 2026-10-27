@@ -4,7 +4,7 @@ description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lea
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.5.0'
+  version: '1.5.1'
 ---
 
 # Tech Lead's Club - Plan Review
@@ -100,6 +100,7 @@ Tell the user what is **not** plan: Where / Why / Proof, symptoms, cards and pat
 ## Troubleshooting
 
 - **`ERROR ... is not in the plan; a name the plan does not fix takes tbd: true`**: you used a name the plan does not have. Use the plan's name, or mark the item `tbd: true` and describe it.
+- **`WARN ... has backticks, which the page shows literally`**: a name field (`neu`, `old`, `n`, `o`, `before`, `after`) already renders as code; write the name without backticks.
 - **`ERROR ... where has prose`**: Where takes only `file[:lines]` or `folder/`, separated by `·`; move the explanation to `why`.
 - **`ERROR coverage: plan.md:N did not reach the page data`**: `extract_plan.py` did not parse that line (often an unusual table or list shape). Report it with the line; do not work around it in review-page.json.
 - **`ERROR door N is cited, but the Landing has 0 door(s)`**: the plan or review-page.json cites `door N`, but the Landing table's first header is not `One-way door`, so the page has no doors. Fix the header in the plan (tlc-spec-lean's form), or drop the door citations.

@@ -42,7 +42,7 @@ Doors are the rows of the first `## Landing` table whose first header is `One-wa
 | Field   | Required | What it is                                                                                                                           |
 | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `s`     | yes      | slice id (`S1`...)                                                                                                                   |
-| `neu`   | yes      | the new name or state                                                                                                                |
+| `neu`   | yes      | the new name or state, without backticks: the page already shows it as code                                                          |
 | `old`   | no       | today's name (shown struck through); without it the row shows only `neu`                                                             |
 | `k`     | no       | kind, free text (e.g. `internal`, `contract`); becomes a filter                                                                      |
 | `where` | yes      | Where: files and lines you checked                                                                                                   |
@@ -120,8 +120,8 @@ For a plan with one slice, one Shape path line, one `Changes underneath` row and
   "changes": [
     {
       "s": "S1",
-      "old": "`Active` = has a row",
-      "neu": "`Suspended` in `subscriptions.status`",
+      "old": "Active = has a row",
+      "neu": "Suspended in subscriptions.status",
       "k": "contract",
       "where": "app/models/subscription.rb",
       "why": "New enum value read by `AccessPolicy#grant?`.",
