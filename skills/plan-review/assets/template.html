@@ -208,8 +208,12 @@ dialog.mmd-zoom::backdrop { background: rgba(10, 12, 16, .55); }
 .mmd-viewport:active { cursor: grabbing; }
 .mmd-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .mmd-stage svg { display: block; }
-.mmd-zdetail { max-height: 34vh; overflow: auto; }
-.mmd-zdetail .mmd-detail { border-width: 1px 0 0; border-radius: 0; }
+/* The footer's purple top line sits on the scroll container, so it stays put while the detail scrolls. */
+.mmd-zdetail { max-height: 34vh; overflow: auto; overscroll-behavior: contain; }
+.mmd-zdetail:has(.mmd-detail:not([hidden])) { border-top: 2px solid var(--accent); }
+.mmd-zdetail .mmd-detail { border: 0; border-radius: 0; }
+/* While the drawing is full screen, the page behind it does not scroll. */
+html.mmd-locked, html.mmd-locked body { overflow: hidden; }
 .mmd-note { margin: 0; font-size: 13px; color: var(--pend); }
 .mmd-src summary { cursor: pointer; font-size: 12.5px; color: var(--muted); width: max-content; }
 .mmd-src[open] summary { margin-bottom: 6px; }
@@ -1233,6 +1237,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     svg.style.maxWidth = "none"; svg.style.maxHeight = "none";
     zoom.stage.appendChild(svg);
     zoom.dlg.querySelector(".mmd-zdetail").appendChild(fig.querySelector(".mmd-detail"));
+    document.documentElement.classList.add("mmd-locked");
     if (zoom.dlg.showModal) zoom.dlg.showModal(); else zoom.dlg.setAttribute("open", "");
     zoom.fit();
   }
@@ -1243,6 +1248,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     ["style", "width", "height"].forEach(function (a) { if (zoom.saved[a] == null) svg.removeAttribute(a); else svg.setAttribute(a, zoom.saved[a]); });
     box.appendChild(svg);
     var det = zoom.dlg.querySelector(".mmd-detail"); if (det) box.parentNode.insertBefore(det, box.nextSibling);
+    document.documentElement.classList.remove("mmd-locked");
     if (zoom.dlg.open && zoom.dlg.close) zoom.dlg.close(); else zoom.dlg.removeAttribute("open");
   }
   function firstTable(sec) { return (sec.blocks || []).filter(function (b) { return b.type === "table"; })[0]; }
