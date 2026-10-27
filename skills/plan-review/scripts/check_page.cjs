@@ -469,8 +469,10 @@ async function checkDiagrams() {
   if (noTip.length) out.push(`drawings: ${noTip.length} clickable block(s) without a tooltip of what the click opens`)
   if (good.some((f) => [...f.querySelectorAll('[data-mmd-twin]')].some((x) => x.querySelector(':scope > title'))))
     out.push('drawings: the bottom copy of a participant carries a click tooltip')
-  // Full screen: the SVG moves into the dialog, the zoom buttons move it, Close brings it back.
-  const exp = fig && fig.querySelector('.mmd-expand')
+  // Full screen: the expand icon sits in the drawing's box (not in the bar); the SVG moves into the dialog,
+  // the zoom buttons move it, Close brings it back.
+  const exp = fig && fig.querySelector('.mmd-frame > .mmd-expand')
+  if (fig && (!exp || fig.querySelector('.mmd-bar .mmd-expand'))) out.push('drawings: the Expand icon is not inside the drawing box, or is still in the bar')
   if (exp) {
     click(exp)
     const dlg = d3.querySelector('dialog.mmd-zoom')

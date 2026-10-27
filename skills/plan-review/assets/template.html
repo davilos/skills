@@ -167,6 +167,12 @@ figure.mmd { margin: 0; display: grid; gap: 8px; }
 .mmd-btn { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; line-height: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: var(--bg); }
 .mmd-btn:hover { border-color: var(--line-strong); color: var(--fg); }
 .mmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Expand sits inside the drawing's box, in its top right corner; it stays put while a wide drawing scrolls. */
+.mmd-frame { position: relative; min-width: 0; }
+.mmd-expand { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; top: 8px; right: 8px; z-index: 1; display: inline-flex; padding: 6px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: color-mix(in srgb, var(--bg) 90%, transparent); }
+.mmd-expand:hover { color: var(--accent); border-color: var(--line-strong); }
+.mmd-expand:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mmd-draw[hidden] + .mmd-expand { display: none; }
 /* What a click opens: a dashed outline runs around every clickable block or label (never the bottom
    copy of a participant, nor a label the plan does not name); on hover or selection it holds still. */
 [data-mmd-key] { cursor: pointer; outline: none; }
@@ -604,7 +610,8 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     na: svg('<path d="M5 8h6"/>'),
     rej: svg('<circle cx="8" cy="8" r="6.25"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/>'),
     copy: svg('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>'),
-    check: svg('<path d="M3.5 8.5l3 3 6-7"/>')
+    check: svg('<path d="M3.5 8.5l3 3 6-7"/>'),
+    expand: svg('<path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5L9 7M2.5 13.5L7 9"/>')
   };
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -863,9 +870,9 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   function diagram(text, cls) {
     return '<figure class="mmd' + (cls ? " " + cls : "") + '"><div class="mmd-bar" hidden><span class="mmd-legend" hidden><i></i>changes in this plan</span>' +
       '<span class="mmd-hint"><i class="mmd-ring"></i>Steps and names with a moving outline open what the plan says.</span><span class="mmd-actions">' +
-      '<button type="button" class="mmd-btn mmd-expand" aria-label="Open the diagram full screen, with zoom">Expand</button>' +
       '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">Copy source</button></span></div>' +
-      '<div class="mmd-draw" hidden></div><div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
+      '<div class="mmd-frame"><div class="mmd-draw" hidden></div><button type="button" class="mmd-expand" aria-label="Open the diagram full screen, with zoom" title="Expand">' + IC.expand + "</button></div>" +
+      '<div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
       '<details class="mmd-src" open><summary>Mermaid source</summary><pre class="mermaid">' + esc(text) + "</pre></details></figure>";
   }
   function diagramKind(text) { return (/^\s*([\w-]+)/.exec(text) || [])[1] || ""; }
@@ -1252,7 +1259,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     zoom.fig = null; zoom.svg = null;
     ["style", "width", "height"].forEach(function (a) { if (zoom.saved[a] == null) svg.removeAttribute(a); else svg.setAttribute(a, zoom.saved[a]); });
     box.appendChild(svg);
-    var det = zoom.dlg.querySelector(".mmd-detail"); if (det) box.parentNode.insertBefore(det, box.nextSibling);
+    var frame = box.parentNode, det = zoom.dlg.querySelector(".mmd-detail"); if (det) frame.parentNode.insertBefore(det, frame.nextSibling);
     document.documentElement.classList.remove("mmd-locked");
     if (zoom.dlg.open && zoom.dlg.close) zoom.dlg.close(); else zoom.dlg.removeAttribute("open");
   }
