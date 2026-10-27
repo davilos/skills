@@ -163,6 +163,7 @@ figure.mmd { margin: 0; display: grid; gap: 8px; }
 .mmd-draw svg { max-height: 560px; }
 .mmd-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .mmd-hint { font-size: 12.5px; color: var(--muted); margin-right: auto; }
+.mmd-actions { display: inline-flex; gap: 6px; }
 .mmd-btn { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; line-height: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: var(--bg); }
 .mmd-btn:hover { border-color: var(--line-strong); color: var(--fg); }
 .mmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -173,6 +174,11 @@ text.mmd-lit, text.mmd-sel, .mmd-lit text, .mmd-sel text { fill: var(--accent) !
 .mmd-lit .nodeLabel, .mmd-sel .nodeLabel, foreignObject.mmd-lit, foreignObject.mmd-sel { color: var(--accent) !important; font-weight: 600; }
 .mmd-lit > rect, .mmd-sel > rect, .mmd-lit > polygon, .mmd-sel > polygon, .mmd-lit > path, .mmd-sel > path, .mmd-lit .label-container, .mmd-sel .label-container { stroke: var(--accent) !important; stroke-width: 2px !important; }
 line.mmd-lit, line.mmd-sel, path.mmd-lit, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
+.mmd-chg > rect, .mmd-chg > polygon, .mmd-chg > circle, .mmd-chg > .label-container, .mmd-chg > path.label-container { fill: var(--add-soft) !important; stroke: color-mix(in srgb, var(--add) 70%, transparent) !important; }
+.mmd-chg.mmd-lit > rect, .mmd-chg.mmd-sel > rect, .mmd-chg.mmd-lit > .label-container, .mmd-chg.mmd-sel > .label-container { stroke: var(--accent) !important; }
+.mmd-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.mmd-legend i { width: 12px; height: 12px; border-radius: 3px; background: var(--add-soft); border: 1px solid var(--add); }
+.mmd-path { padding: 10px 12px; }
 .mmd-detail { border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; position: relative; background: var(--bg); font-size: 14px; }
 .mmd-detail p { margin: 0; }
 .mmd-dh { font-weight: 600; padding-right: 28px; }
@@ -840,10 +846,11 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
      shows the source and says why. Drawn again when the theme changes. */
   var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js";
   var mmd = { loading: null, gen: 0 };
-  function diagram(text) {
-    return '<figure class="mmd"><div class="mmd-bar" hidden><span class="mmd-hint">Click a numbered step or a name to see what the plan says about it.</span>' +
+  function diagram(text, cls) {
+    return '<figure class="mmd' + (cls ? " " + cls : "") + '"><div class="mmd-bar" hidden><span class="mmd-legend" hidden><i></i>changes in this plan</span>' +
+      '<span class="mmd-hint">Click a step or a name for what the plan says.</span><span class="mmd-actions">' +
       '<button type="button" class="mmd-btn mmd-expand" aria-label="Open the diagram full screen, with zoom">Expand</button>' +
-      '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">Copy source</button></div>' +
+      '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">Copy source</button></span></div>' +
       '<div class="mmd-draw" hidden></div><div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
       '<details class="mmd-src" open><summary>Mermaid source</summary><pre class="mermaid">' + esc(text) + "</pre></details></figure>";
   }
@@ -903,9 +910,16 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
             diagramFailed(fig, "This diagram did not render, so the plan's source is shown: " + String((e && e.message) || e).split("\n")[0]);
           });
         });
-      }, Promise.resolve());
+      }, Promise.resolve()).then(function () { if (gen === mmd.gen) syncPathList(); });
     }, function (e) {
       figs.forEach(function (f) { diagramFailed(f, "The drawings need Mermaid, which did not load (" + e.message + "); the source is shown."); });
+      syncPathList();
+    });
+  }
+  function syncPathList() {
+    [].slice.call(document.querySelectorAll(".part-path")).forEach(function (part) {
+      var view = part.parentNode, drawings = view.querySelectorAll("figure.mmd.path-drawing");
+      part.hidden = !!drawings.length && !!view.querySelector("figure.mmd.path-drawing.drawn");
     });
   }
   /* ---------- what a drawing means in the plan ----------
@@ -918,7 +932,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   }
   function ticked(t) { var out = [], m, rx = /`([^`]+)`/g; while ((m = rx.exec(t || ""))) out.push(plainName(m[1])); return out; }
   /* Built once the sections exist (drawDiagrams runs after the page is assembled). */
-  var PATH_SEC = null, HOPS = {}, FV_PATHS = [], UNDER = null, NAMES = {};
+  var PATH_SEC = null, HOPS = {}, FV_PATHS = [], UNDER = null, NAMES = {}, CHANGED = {};
   function indexPlan() {
     if (PATH_SEC !== null) return;
     PATH_SEC = PLAN.sections.filter(function (x) { return x.id === "shape" || x.id === "flow"; })[0] || false;
@@ -928,6 +942,19 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     Object.keys(HOPS).forEach(function (n) { ticked(HOPS[n]).forEach(function (x) { NAMES[x] = 1; }); });
     FV_PATHS.forEach(function (p) { p.nodes.forEach(function (x) { if (!x.tbd) NAMES[plainName(x.n)] = 1; }); });
     ((UNDER && UNDER.rows) || []).forEach(function (r) { r.forEach(function (c) { ticked(c).forEach(function (x) { NAMES[x] = 1; }); }); });
+    /* What this plan changes, painted green in the drawings as in The path: a node that changes there,
+       a module the path creates ("(new)", "(door N)"), what the `New:` line adds (before "link", "relation"
+       or "to"), and the term of each domain row of Changes underneath. */
+    FV_PATHS.forEach(function (p) { p.nodes.forEach(function (x) { if (!x.tbd && (x.o || x.note)) CHANGED[plainName(x.n)] = 1; }); });
+    Object.keys(HOPS).forEach(function (n) {
+      var m, rx = /`([^`]+)`\s*\((?:new|door \d+)/g;
+      while ((m = rx.exec(HOPS[n]))) CHANGED[plainName(m[1])] = 1;
+    });
+    ((PATH_SEC && PATH_SEC.blocks) || []).forEach(function (b) {
+      var m = b.type === "p" && /^New:\s*([^.]*)/.exec(b.text);
+      if (m) ticked(m[1].split(/\b(?:link|links|relation|relations|to)\b/)[0]).forEach(function (x) { CHANGED[x] = 1; NAMES[x] = 1; });
+    });
+    ((UNDER && UNDER.rows) || []).forEach(function (r) { if (/^domain/i.test(plainName(r[0]))) ticked(r.slice(1).join(" ")).slice(0, 1).forEach(function (x) { CHANGED[x] = 1; }); });
   }
   function diagramKey(text) {
     var m = /^\s*(\d+)\.\s/.exec(text);
@@ -951,6 +978,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       if (seen.indexOf(target) !== -1) return;
       seen.push(target);
       target.setAttribute("data-mmd-key", key);
+      if (key.indexOf("name:") === 0 && CHANGED[key.slice(5)]) target.classList.add("mmd-chg");
       target.setAttribute("tabindex", "0");
       target.setAttribute("role", "button");
       target.setAttribute("aria-label", key.indexOf("hop:") === 0 ? "Hop " + key.slice(4) + ": " + text : text);
@@ -958,6 +986,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       var ln = el.nextElementSibling;
       if (/messageLine/.test((ln && ln.getAttribute("class")) || "")) ln.setAttribute("data-mmd-line", key);
     });
+    fig.querySelector(".mmd-legend").hidden = !svg.querySelector(".mmd-chg");
     if (fig.__sel) markSel(fig, fig.__sel);
     paintLit();
   }
@@ -986,24 +1015,53 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
     if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), fig.querySelector(".mmd-sel"));
   }
+  /* A card of The path, as the panel shows it: the chain of nodes, the changed ones open their
+     Where / Why / Proof. `open` is the node key ("pi-ni") whose card is open. */
+  var CARD_OF = null;
+  function cardOfNode(x) {
+    if (x.change != null) return x.change;
+    if (!CARD_OF) { CARD_OF = {}; FV_PATHS.forEach(function (p) { p.nodes.forEach(function (y) { if (y.change != null && !(y.n in CARD_OF)) CARD_OF[y.n] = y.change; }); }); }
+    return CARD_OF[x.n];
+  }
+  function pathCard(pi, open) {
+    var p = FV_PATHS[pi], sel = null;
+    var chain = p.nodes.map(function (x, ni) {
+      var key = pi + "-" + ni, changed = !!(x.o || x.note), idx = cardOfNode(x);
+      if (open === key) sel = x;
+      var inner = '<span class="nk">' + esc(x.k) + doorMark(x.d) + "</span>" + (x.o ? '<span class="no' + pr(x.o) + '">' + esc(x.o) + "</span>" : "") +
+        newName(x.n, x.tbd, "nn") + (x.note ? '<span class="nnote">' + esc(x.note) + "</span>" : "");
+      var n = !changed ? '<div class="node">' + inner + "</div>" : idx == null ? '<div class="node changed">' + inner + "</div>" :
+        '<button type="button" class="node changed node-btn node-pick" data-node-pick="' + key + '" aria-expanded="' + (open === key) + '">' + inner + "</button>";
+      return ni === 0 ? n : '<span class="unit"><span class="sep">' + IC.arrow + "</span>" + n + "</span>";
+    }).join("");
+    var detail = sel ? changeDetail(CHANGES[cardOfNode(sel)], [["Before", "<code>" + esc(sel.o || sel.n) + "</code>"], ["After", newNameText(sel.n, sel.tbd) + (sel.note ? " · " + esc(sel.note) : "")]]) : "";
+    return '<div class="path mmd-path"><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") +
+      (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + detail + "</div>";
+  }
   function hopChip(n) { return '<button type="button" class="chip" data-mmd-pick="hop:' + n + '">hop ' + n + "</button>"; }
-  function detailHtml(key) {
+  function detailHtml(key, open) {
     var kind = key.slice(0, key.indexOf(":")), val = key.slice(key.indexOf(":") + 1), h = "";
     if (kind === "hop") {
       var paths = FV_PATHS.map(function (p, i) { return [p, i]; }).filter(function (x) { return String(x[0].hop) === val; });
       var names = ticked(HOPS[val]).filter(function (x) { return NAMES[x]; });
       h = '<div class="mmd-dh"><span class="mmd-tag">Hop ' + esc(val) + "</span> of the path in the plan</div><p>" + linkDoors(md(HOPS[val])) + "</p>" +
         (names.length ? '<div class="mmd-row"><span class="lbl">Names on this hop</span>' + names.map(function (x) { return '<button type="button" class="chip" data-mmd-pick="name:' + esc(x) + '"><code>' + esc(x) + "</code></button>"; }).join("") + "</div>" : "") +
-        (paths.length ? '<div class="mmd-row"><span class="lbl">In The path</span>' + paths.map(function (x) { return '<button type="button" class="chip" data-goto-path="' + x[1] + '">' + esc(x[0].title) + "</button>"; }).join("") + "</div>" : "");
+        paths.map(function (x) { return pathCard(x[1], open); }).join("");
     } else if (kind === "name") {
       var hops = Object.keys(HOPS).filter(function (n) { return ticked(HOPS[n]).indexOf(val) !== -1 || plainName(HOPS[n]).indexOf(val) !== -1; });
-      var node = null, at = null;
-      FV_PATHS.forEach(function (p, pi) { p.nodes.forEach(function (x) { if (plainName(x.n) === val && (!node || (node.change == null && x.change != null))) { node = x; at = pi; } }); });
-      var ch = node && node.change != null ? CHANGES[node.change] : CHANGES.filter(function (c) { return !c.tbd && plainName(c.neu).split(" ")[0] === val; })[0];
+      var node = null, at = [], first = null;
+      FV_PATHS.forEach(function (p, pi) { p.nodes.forEach(function (x, ni) {
+        if (plainName(x.n) !== val) return;
+        if (at.indexOf(pi) === -1) at.push(pi);
+        if (!node || (cardOfNode(node) == null && cardOfNode(x) != null)) { node = x; first = cardOfNode(x) != null ? pi + "-" + ni : null; }
+      }); });
+      // The node's card opens on its own the first time; the panel then follows the clicks.
+      var openKey = open === undefined ? first : open;
+      var ch = node ? null : CHANGES.filter(function (c) { return !c.tbd && plainName(c.neu).split(" ")[0] === val; })[0];
       var under = ((UNDER && UNDER.rows) || []).map(function (r, i) { return [r, i]; }).filter(function (x) { return x[0].join(" ").indexOf(val) !== -1; });
       h = '<div class="mmd-dh"><code>' + esc(val) + "</code>" + (node && node.d ? " " + doorLink(node.d) : "") + "</div>" +
         (hops.length ? '<div class="mmd-row"><span class="lbl">On the path</span>' + hops.map(hopChip).join("") + "</div>" : "") +
-        (node && at != null ? '<div class="mmd-row"><span class="lbl">In The path</span><button type="button" class="chip" data-goto-path="' + at + '">' + esc(FV_PATHS[at].title) + "</button></div>" : "") +
+        at.map(function (pi) { return pathCard(pi, openKey); }).join("") +
         (under.length ? '<div class="mmd-row mmd-under"><span class="lbl">Changes underneath</span>' + under.map(function (x) { return "<p><b>#" + (x[1] + 1) + " " + md(x[0][0]) + ":</b> " + md(x[0].slice(1).join(" · ")) + "</p>"; }).join("") + "</div>" : "") +
         (ch ? changeDetail(ch) : "");
     } else if (kind === "door") {
@@ -1018,19 +1076,21 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   function detailOf(fig) { return zoom && zoom.fig === fig ? zoom.dlg.querySelector(".mmd-detail") : fig.querySelector(".mmd-detail"); }
   function selectKey(fig, key) {
     var box = detailOf(fig);
+    fig.__open = undefined;
+    lightKey("panel", null);
     if (!key || fig.__sel === key) { fig.__sel = null; box.hidden = true; box.innerHTML = ""; markSel(fig, null); return; }
     fig.__sel = key;
     box.innerHTML = detailHtml(key); box.hidden = false;
     markSel(fig, key);
   }
-  function gotoPath(pi) {
-    closeZoom();
-    var sec = PATH_SEC && document.getElementById(PATH_SEC.id); if (!sec) return;
-    var tab = sec.querySelector('[role=tab][data-view="visual"]');
-    if (tab && tab.getAttribute("aria-selected") !== "true") tab.click();
-    var p = sec.querySelector('.path[data-pi="' + pi + '"]'); if (!p) return;
-    if (p.scrollIntoView) p.scrollIntoView({ behavior: "smooth", block: "center" });
-    p.classList.add("flash"); setTimeout(function () { p.classList.remove("flash"); }, 1600);
+  /* A node of a card in the panel: opens or closes its Where / Why / Proof, and lights its name in the drawings. */
+  function pickNode(fig, nodeKey) {
+    var box = detailOf(fig), cur = box.querySelector('[data-node-pick][aria-expanded="true"]');
+    fig.__open = cur && cur.getAttribute("data-node-pick") === nodeKey ? null : nodeKey;
+    box.innerHTML = detailHtml(fig.__sel, fig.__open);
+    var at = fig.__open ? fig.__open.split("-") : null, x = at ? FV_PATHS[+at[0]].nodes[+at[1]] : null;
+    lightKey("panel", x ? "name:" + plainName(x.n) : null);
+    var again = box.querySelector('[data-node-pick="' + nodeKey + '"]'); if (again) again.focus();
   }
   function figOf(el) { return el.closest("figure.mmd") || (zoom && zoom.dlg.contains(el) ? zoom.fig : null); }
   document.addEventListener("click", function (e) {
@@ -1042,8 +1102,8 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     if (hot) return selectKey(fig, hot.getAttribute("data-mmd-key"));
     var pick = t.closest("[data-mmd-pick]");
     if (pick) { fig.__sel = null; return selectKey(fig, pick.getAttribute("data-mmd-pick")); }
-    var go = t.closest("[data-goto-path]");
-    if (go) return gotoPath(go.getAttribute("data-goto-path"));
+    var np = t.closest("[data-node-pick]");
+    if (np) return pickNode(fig, np.getAttribute("data-node-pick"));
     if (t.closest(".mmd-x")) return selectKey(fig, null);
     if (t.closest(".mmd-expand")) return openZoom(fig);
     var cp = t.closest(".mmd-copy");
@@ -1416,7 +1476,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   /* The section's mermaid drawings whose kind (first word) matches `rx`, as a part of the Visual tab. */
   function drawingsPart(s, rx) {
     var ds = (s.blocks || []).filter(function (b) { return b.type === "code" && b.lang === "mermaid" && rx.test(diagramKind(b.text)); });
-    return ds.length ? { html: ds.map(function (b) { return diagram(b.text); }).join(""), bind: function () {} } : null;
+    return ds.length ? { html: ds.map(function (b) { return diagram(b.text, rx === PATH_DRAWING ? "path-drawing" : ""); }).join(""), bind: function () {} } : null;
   }
   /* A section built from parts `[{head, p, data}]`: a Visual tab only when a part reads
      review-page.json (`data`), otherwise the plan text alone, drawings included. The first paragraph
@@ -1425,8 +1485,10 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var live = parts.filter(function (x) { return x.p; });
     if (!live.some(function (x) { return x.data; })) return section(s, blocks(s.blocks, s));
     var intro = lead ? (s.blocks || []).filter(function (b) { return b.type === "p"; })[0] : null;
+    var drawsPath = live.some(function (x) { return x.drawsPath; });
     var html = (intro ? '<p class="lead-in">' + md(intro.text) + "</p>" : "") + live.map(function (x) {
-      return (live.length > 1 ? '<h3 class="part">' + x.head + "</h3>" : "") + x.p.html;
+      var hide = x.cls === "part-path" && drawsPath;
+      return '<div class="part-box' + (x.cls ? " " + x.cls : "") + '"' + (hide ? " hidden" : "") + ">" + (live.length > 1 ? '<h3 class="part">' + x.head + "</h3>" : "") + x.p.html + "</div>";
     }).join("");
     var el = section(s, html, blocks(s.blocks, s));
     live.forEach(function (x) { x.p.bind(el); });
@@ -1551,13 +1613,15 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
 
   SECTIONS.forEach(function (s) {
     if (s.id === "problem") return renderProblem(s);
+    /* The path's cards open from the drawing (a click on a step or a module); the list only shows
+       when there is no drawing of the path, or it could not be drawn. */
     if (s.id === "shape") return renderParts(s, [
-      { head: "The drawing", p: drawingsPart(s, PATH_DRAWING) },
-      { head: "The path", p: flowPart(s), data: true },
+      { head: "The drawing", p: drawingsPart(s, PATH_DRAWING), drawsPath: true },
+      { head: "The path", p: flowPart(s), data: true, cls: "part-path" },
       { head: "Changes underneath", p: impactPart(s), data: true },
       { head: "The data", p: drawingsPart(s, /^erDiagram$/) },
       { head: "States", p: drawingsPart(s, /^stateDiagram/) }], true);
-    if (s.id === "flow") return renderParts(s, [{ head: "The drawing", p: drawingsPart(s, PATH_DRAWING) }, { head: "The path", p: flowPart(s), data: true }], true);
+    if (s.id === "flow") return renderParts(s, [{ head: "The drawing", p: drawingsPart(s, PATH_DRAWING), drawsPath: true }, { head: "The path", p: flowPart(s), data: true, cls: "part-path" }], true);
     if (s.id === "impact") return renderParts(s, [{ p: impactPart(s), data: true }]);
     if (s.id === "landing") return renderLanding(s);
     if (s.id === "criteria") return renderCriteria(s);

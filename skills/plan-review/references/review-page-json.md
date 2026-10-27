@@ -69,7 +69,7 @@ Doors are the rows of the first `## Landing` table whose first header is `One-wa
 
 ## flow_visual
 
-`paths`: `[{title, when, hop, nodes}]`. `hop` = the number of the Shape path line the path represents (the `## Flow` item in older plans) (every hop in the plan needs at least one path; two paths may share a hop).
+`paths`: `[{title, when, hop, nodes}]`. When Shape draws the path (a `sequenceDiagram` or `flowchart`), these cards open from the drawing: a click on step N shows the paths of hop N, a click on a module the paths it is on; they only show as a list without a drawing. A node with `o` or `note` also paints its block green in the drawings. `hop` = the number of the Shape path line the path represents (the `## Flow` item in older plans) (every hop in the plan needs at least one path; two paths may share a hop).
 
 Each node: `{k, n, o?, d?, note?, change?, tbd?, shared?}`: `k` = kind (job, task, module, client, config, metric, webhook, output), `n` = new name, `o` = today's name, `d` = door, `note` = what changes when the name does not, `change` = index into `changes` whose Where / Why / Proof the click opens. `tbd: true` = the plan does not fix the name yet: `n` carries a description, and the node shows "not defined". `shared: true` = this node deliberately opens the same change as another, different node (same Where / Why / Proof); without it, the build warns. A node with `o` or `note` is green; without `change` it is not clickable (the build warns).
 

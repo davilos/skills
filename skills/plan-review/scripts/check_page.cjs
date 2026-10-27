@@ -70,7 +70,7 @@ if (data) {
     slices: q('.slice'),
     changes: q('.row-btn'),
     impactCards: q('.imp'),
-    paths: q('.path'),
+    paths: q('.paths > .path'),
     symptoms: q('.sym'),
   }
   for (const k of Object.keys(expected)) {
@@ -429,12 +429,20 @@ async function checkDiagrams() {
       click(hot)
       if (!detail().hidden) out.push('drawings: clicking step 1 again does not close its detail')
     }
-    const card = d3.querySelector('.path[data-hop="1"]')
-    if (card) {
-      card.dispatchEvent(new dom3.window.MouseEvent('mouseover', { bubbles: true }))
-      if (!fig.querySelector('[data-mmd-key="hop:1"].mmd-lit')) out.push('drawings: pointing at a hop 1 card in The path does not light step 1')
-      card.closest('.paths').dispatchEvent(new dom3.window.MouseEvent('mouseleave'))
+    // The cards of The path live in the drawing's panel now: step 1 shows each path of hop 1, and a
+    // changed node there opens its Where / Why / Proof. The list itself hides once the path is drawn.
+    const hop1Paths = paths.filter((p) => p.hop === 1).length
+    click(hot)
+    if (detail().querySelectorAll('.mmd-path').length !== hop1Paths)
+      out.push(`drawings: step 1 shows ${detail().querySelectorAll('.mmd-path').length} card(s) of The path, expected ${hop1Paths}`)
+    const pick = detail().querySelector('[data-node-pick]')
+    if (pick) {
+      click(pick)
+      if (!detail().querySelector('.mmd-path dl')) out.push('drawings: a changed node in the panel does not open its Where / Why / Proof')
     }
+    click(fig.querySelector('[data-mmd-key="hop:1"]'))
+    const list = d3.querySelector('.part-path')
+    if (list && fig.classList.contains('path-drawing') && !list.hidden) out.push('drawings: The path list still shows although the path is drawn')
   }
   if (fig && node) {
     const nm = String(node.n).replace(/[`"*]/g, '').trim()
@@ -444,8 +452,8 @@ async function checkDiagrams() {
       click(hot)
       if (detail().hidden || !detail().textContent.includes(nm)) out.push(`drawings: clicking ${nm} does not show it`)
       if (node.change != null && !detail().querySelector('dl')) out.push(`drawings: clicking ${nm} does not show its Where / Why / Proof`)
-      const go = detail().querySelector('[data-goto-path]')
-      if (go) click(go)
+      if ((node.o || node.note) && !hot.classList.contains('mmd-chg')) out.push(`drawings: ${nm} changes in the plan but is not green in the drawing`)
+      click(hot)
     }
   }
   if (fig && hasDoor && !fig.querySelector('[data-mmd-key="door:1"]')) out.push('drawings: "door 1" in a drawing is not clickable')
