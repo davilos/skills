@@ -21,13 +21,14 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ in the skill folder: the registry would ship it
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from coverage import missing_in_data, rendered_pieces, unsupported_markdown  # noqa: E402
+from coverage import IMAGE, missing_in_data, rendered_pieces, unsupported_markdown  # noqa: E402
 from extract_plan import extract  # noqa: E402
 
 
@@ -39,11 +40,61 @@ def _h(obj) -> str:
     return hashlib.sha256(json.dumps(obj, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:12]
 
 
+def path_section(secs: dict) -> dict:
+    """Where the numbered path lives: `## Shape`, or `## Flow` in older tlc-spec-lean plans."""
+    return secs.get("shape") or secs.get("flow") or {}
+
+
+def underneath_table(secs: dict) -> dict | None:
+    """The table each Impact card reads: Shape's `Changes underneath` (the table whose first header
+    is `Front`), or the first `## Impact` table in older plans. The page uses the same rule."""
+    sec = secs.get("shape") or secs.get("impact") or {}
+    tables = [b for b in sec.get("blocks", []) if b["type"] == "table"]
+    front = [t for t in tables if t["header"] and t["header"][0].strip().lower() == "front"]
+    return (front or tables or [None])[0]
+
+
+def door_table(section: dict | None) -> dict | None:
+    """The Landing table that holds the one-way doors: the first table, when its first header
+    is `One-way door` (the tlc-spec-lean form). The page uses the same rule (renderLanding)."""
+    tables = [b for b in (section or {}).get("blocks", []) if b["type"] == "table"]
+    if tables and re.search(r"one-way door", tables[0]["header"][0] if tables[0]["header"] else "", re.I):
+        return tables[0]
+    return None
+
+
+def row_keys(plan: dict) -> dict[str, list[dict]]:
+    """Table rows the user confirms one by one, per section: `{sid: [{key, n, b, r}]}`.
+
+    `b` is the block index in the section and `r` the row index in that table. Rows are numbered
+    1, 2... per section, across its tables, so the user can cite "Assumptions #2". Landing door rows
+    keep their door key (`door:N`). Criteria (slices) and empty sections have no rows.
+    """
+    out: dict[str, list[dict]] = {}
+    for s in plan["sections"]:
+        if s.get("empty") or s["id"] == "criteria":
+            continue
+        doors = door_table(s) if s["id"] == "landing" else None
+        rows, n = [], 0
+        for bi, b in enumerate(s.get("blocks") or []):
+            if b["type"] != "table":
+                continue
+            for ri in range(len(b["rows"])):
+                if b is doors:
+                    rows.append({"key": f"door:{ri + 1}", "n": ri + 1, "b": bi, "r": ri})
+                else:
+                    n += 1
+                    rows.append({"key": f"row:{s['id']}:{n}", "n": n, "b": bi, "r": ri})
+        if rows:
+            out[s["id"]] = rows
+    return out
+
+
 def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
     """Fingerprint of every part of the plan something on the page depends on.
 
-    Sections, slices and doors: what the user validates (an empty section has nothing to
-    validate, so it has none). Derived items (Impact card, Flow path, change, symptom,
+    Sections, slices, doors and table rows: what the user validates (an empty section has
+    nothing to validate, so it has none). Derived items (Impact card, Flow path, change, symptom,
     Problem visual): the part of the plan they were drawn from. Recorded by
     --mark-published; on the next build, whatever differs becomes "changed since" /
     "re-check: the plan changed here" on the page.
@@ -59,9 +110,11 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
         fp[sl["id"]] = _h(sl)
         for a in sl["acs"]:
             acs[a["n"]] = a["text"]
-    land = [b for b in secs.get("landing", {}).get("blocks", []) if b["type"] == "table"]
-    for k, row in enumerate(land[0]["rows"] if land else [], 1):
-        fp[f"door:{k}"] = _h(row)
+    doors = door_table(secs.get("landing"))
+    land_rows = doors["rows"] if doors else []
+    for sid, rows in row_keys(plan).items():
+        for x in rows:
+            fp[x["key"]] = _h(secs[sid]["blocks"][x["b"]]["rows"][x["r"]])
 
     def cited(text):
         return [acs.get(n) for n in cited_acs(text)]
@@ -72,28 +125,40 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
         fp["problem-visual"] = _h(problem)
     for i, x in enumerate(pv.get("symptoms", [])):
         fp[f"symptom:{i}"] = _h([problem, cited((x.get("fix") or {}).get("proof"))])
-    flow_items = [it for b in secs.get("flow", {}).get("blocks", []) if b["type"] == "ol" for it in b["items"]]
+    flow_items = [it for b in path_section(secs).get("blocks", []) if b["type"] == "ol" for it in b["items"]]
     for i, p in enumerate((pg.get("flow_visual") or {}).get("paths", [])):
         hop = p.get("hop")
         fp[f"flow:{i}"] = _h(flow_items[hop - 1] if hop and hop <= len(flow_items) else None)
-    imp = [b for b in secs.get("impact", {}).get("blocks", []) if b["type"] == "table"]
-    rows = imp[0]["rows"] if imp else []
+    rows = (underneath_table(secs) or {"rows": []})["rows"]
     for i, c in enumerate((pg.get("impact_visual") or {}).get("cards", [])):
         r = c.get("row")
         fp[f"impact:{i}"] = _h([rows[r] if r is not None and r < len(rows) else None, cited(c.get("proof"))])
     for i, c in enumerate(pg.get("changes", [])):
         fp[f"change:{i}"] = _h([c.get("s"), cited(c.get("proof"))])
-    land_rows = land[0]["rows"] if land else []
     for d in (pg.get("landing_visual") or {}).get("doors", []):
         n = d.get("n")
         if isinstance(n, int) and 1 <= n <= len(land_rows):
             fp[f"landing:{n}"] = _h([land_rows[n - 1], cited(d.get("proof"))])
     return fp
 
-def validated_keys(pg: dict) -> set[str]:
-    """Validated sections and slices and confirmed doors in review-page.json."""
-    keys = {k for k, ok in (pg.get("review") or {}).items() if ok}
-    return keys | {f"door:{n}" for n in pg.get("doors_confirmed", [])}
+def validated_keys(plan: dict, pg: dict) -> set[str]:
+    """Validated sections, slices and rows and confirmed doors in review-page.json.
+
+    A row with no state of its own takes its section's: validating a section confirms its rows
+    (doors excepted: each one is confirmed on its own).
+    """
+    review = pg.get("review") or {}
+    rejected = set(pg.get("rejected") or [])
+    keys = {k for k, ok in review.items() if ok} | {f"door:{n}" for n in pg.get("doors_confirmed", [])}
+    for sid, rows in row_keys(plan).items():
+        if review.get(sid):
+            keys |= {x["key"] for x in rows if x["key"].startswith("row:") and x["key"] not in review}
+    return keys - rejected
+
+
+def reviewed_keys(plan: dict, pg: dict) -> set[str]:
+    """What the user marked, either way: validated or rejected. Both keep the fingerprint of the text they saw."""
+    return validated_keys(plan, pg) | set(pg.get("rejected") or [])
 
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "template.html"
@@ -155,16 +220,28 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
 
     if not plan["title"]:
         errors.append("plan.md has no title (# ...)")
-    for want in ("problem", "flow", "impact", "landing", "criteria"):
-        if want not in sections:
+    for want in ("problem", "shape", "landing", "criteria"):
+        if want not in sections and not (want == "shape" and "flow" in sections):
             warns.append(f"plan has no {want} section")
 
     review = pg.get("review", {})
+    row_ids = {x["key"] for rows in row_keys(plan).values() for x in rows}
     for k in review:
-        if k not in sections and k not in slice_ids:
-            errors.append(f"review.{k}: not a section or slice of the plan")
+        if k.startswith("row:"):
+            if k not in row_ids:
+                warns.append(f"review.{k}: not a table row of the current plan; ignored")
+        elif k.startswith("door:"):
+            errors.append(f"review.{k}: doors go in doors_confirmed (or rejected), not in review")
+        elif k not in sections and k not in slice_ids:
+            errors.append(f"review.{k}: not a section, slice or table row of the plan")
         elif sections.get(k, {}).get("empty"):
             warns.append(f"review.{k}: the section is empty in the plan, so there is nothing to validate; ignored")
+    doors_ok = {f"door:{n}" for n in pg.get("doors_confirmed", [])}
+    for k in pg.get("rejected", []):
+        if k not in row_ids:
+            warns.append(f"rejected has {k!r}, which is not a table row or door of the current plan; ignored")
+        elif review.get(k) or k in doors_ok:
+            errors.append(f"{k} is both validated and rejected in review-page.json: keep one")
     for sid, sec in sections.items():
         if sid not in review and not sec.get("empty"):
             warns.append(f"review has no '{sid}': the section shows as 'not reviewed'")
@@ -219,7 +296,7 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
 
     fv = pg.get("flow_visual")
     if fv:
-        flow_items = [b for b in sections.get("flow", {}).get("blocks", []) if b["type"] == "ol"]
+        flow_items = [b for b in path_section(sections).get("blocks", []) if b["type"] == "ol"]
         n_hops = sum(len(b["items"]) for b in flow_items)
         hops_seen = set()
         # A node repeated across paths opens its card only the first time; elsewhere it stays
@@ -236,7 +313,7 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
             if p.get("hop"):
                 hops_seen.add(p["hop"])
                 if n_hops and p["hop"] > n_hops:
-                    errors.append(f"flow_visual.paths[{pi}].hop = {p['hop']}, but the Flow has {n_hops} hops")
+                    errors.append(f"flow_visual.paths[{pi}].hop = {p['hop']}, but the path has {n_hops} hops")
             for ni, nd in enumerate(p.get("nodes", [])):
                 if nd.get("change") is not None and not (0 <= nd["change"] < len(changes)):
                     errors.append(f"flow_visual.paths[{pi}].nodes[{ni}].change is outside changes")
@@ -244,18 +321,18 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
                     warns.append(f"flow_visual.paths[{pi}].nodes[{ni}] changes but points to no change (no Where/Why/Proof)")
         missing = [h for h in range(1, n_hops + 1) if h not in hops_seen]
         if n_hops and missing:
-            errors.append(f"flow_visual does not cover Flow hops {missing}")
+            errors.append(f"flow_visual does not cover path hops {missing}")
 
     iv = pg.get("impact_visual")
     if iv:
-        tables = [b for b in sections.get("impact", {}).get("blocks", []) if b["type"] == "table"]
-        rows = tables[0]["rows"] if tables else []
+        rows = (underneath_table(sections) or {"rows": []})["rows"]
+        table = "Changes underneath" if "shape" in sections else "Impact"
         covered = set()
         groups = {g[0] for g in iv.get("groups", [])}
         for ci, c in enumerate(iv.get("cards", [])):
             r = c.get("row")
             if r is None or not (0 <= r < len(rows)):
-                errors.append(f"impact_visual.cards[{ci}].row = {r!r} is outside the Impact table ({len(rows)} rows)")
+                errors.append(f"impact_visual.cards[{ci}].row = {r!r} is outside the {table} table ({len(rows)} rows)")
             else:
                 covered.add(r)
             if c.get("g") not in groups:
@@ -274,12 +351,22 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
                     errors.append(f"impact_visual.cards[{ci}].who has {a!r}, which is not in audiences")
         uncovered = [i for i in range(len(rows)) if i not in covered]
         if uncovered:
-            errors.append(f"impact_visual has no card for Impact rows {uncovered} (the page must show everything)")
+            errors.append(f"impact_visual has no card for {table} rows {uncovered} (the page must show everything)")
 
     landing = sections.get("landing")
     if landing:
-        tables = [b for b in landing.get("blocks", []) if b["type"] == "table"]
-        n_doors = len(tables[0]["rows"]) if tables else 0
+        doors = door_table(landing)
+        n_doors = len(doors["rows"]) if doors else 0
+        # Every "door N" the page links (plan text "(door N)", Proof, `door`/`d` fields) needs that door.
+        cited = {int(n) for n in re.findall(r"\(door (\d+)\)", json.dumps(plan["sections"], ensure_ascii=False))}
+        cited |= {int(n) for n in re.findall(r"\bdoor (\d+)\b", json.dumps(pg, ensure_ascii=False))}
+        cited |= {c["door"] for c in changes if isinstance(c.get("door"), int)}
+        cited |= {x["d"] for p in (pg.get("flow_visual") or {}).get("paths", []) for x in p.get("nodes", []) if isinstance(x.get("d"), int)}
+        cited |= {x["fix"]["door"] for x in (pg.get("problem_visual") or {}).get("symptoms", []) if isinstance((x.get("fix") or {}).get("door"), int)}
+        over = sorted(n for n in cited if n > n_doors)
+        if over:
+            errors.append(f"door {', '.join(map(str, over))} is cited, but the Landing has {n_doors} door(s): "
+                          "doors are the rows of a Landing table whose first header is `One-way door`")
         for n in pg.get("doors_confirmed", []):
             if not (1 <= n <= n_doors):
                 errors.append(f"doors_confirmed has {n}, but the Landing has {n_doors} doors")
@@ -351,6 +438,15 @@ def check_refs(plan_text: str, pg: dict) -> tuple[list[str], list[str]]:
         if absent:
             errors.append(f"{label} = {name!r}: {', '.join(absent)} is not in the plan; a name the plan does not fix takes tbd: true (never invented)")
 
+    # Names render as code already: backticks in them show up literally on the page.
+    names = [(f"changes[{i}].{k}", c.get(k)) for i, c in enumerate(pg.get("changes", [])) for k in ("neu", "old")]
+    names += [(f"impact_visual.cards[{i}].{k}", c.get(k)) for i, c in enumerate((pg.get("impact_visual") or {}).get("cards", [])) for k in ("before", "after")]
+    names += [(f"flow_visual.paths[{pi}].nodes[{ni}].{k}", x.get(k)) for pi, p in enumerate((pg.get("flow_visual") or {}).get("paths", []))
+              for ni, x in enumerate(p.get("nodes", [])) for k in ("n", "o")]
+    for label, name in names:
+        if name and "`" in name:
+            warns.append(f"{label} = {name!r} has backticks, which the page shows literally: the name is already shown as code")
+
     # 2 to 4. Where.
     plan_refs = [(m[1], _ranges(m[2])) for m in FILE_REF.finditer(plan_text) if m[2]]
     items = [(f"changes[{i}]", c) for i, c in enumerate(pg.get("changes", []))]
@@ -401,6 +497,26 @@ def check_refs(plan_text: str, pg: dict) -> tuple[list[str], list[str]]:
     return errors, warns
 
 
+def plan_images(plan_path: Path) -> tuple[list[str], list[str]]:
+    """Captures the plan shows (`![name](captures/x.png)`), as paths relative to plan.md.
+
+    The page loads each one from the same relative path, so it is copied beside the HTML and
+    published with it. Anything else (a URL, a path leaving the feature folder, a missing file)
+    is a warning: the page would show a broken image.
+    """
+    images, warns = [], []
+    for i, line in enumerate(plan_path.read_text(encoding="utf-8").splitlines(), 1):
+        for m in IMAGE.finditer(re.sub(r"`[^`]*`", "", line)):
+            src = m[2]
+            if re.match(r"[a-z]+:|/", src, re.I) or ".." in Path(src).parts:
+                warns.append(f"plan.md:{i} shows {src}, outside the feature folder: the page cannot carry it")
+            elif not (plan_path.parent / src).is_file():
+                warns.append(f"plan.md:{i} shows {src}, which does not exist beside plan.md")
+            elif src not in images:
+                images.append(src)
+    return images, warns
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=".")
@@ -427,7 +543,8 @@ def main() -> int:
     current = plan_hash(plan_path)
 
     if args.mark_published:
-        now = fingerprints(extract(plan_path), pg)
+        plan = extract(plan_path)
+        now = fingerprints(plan, pg)
         pg["published_plan_hash"] = current
         pg["published_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
         # A validated section's fingerprint is that of the text the user validated, not of this
@@ -435,7 +552,7 @@ def main() -> int:
         # without anyone validating again. Only items without a fingerprint get one.
         # Old file without the map: the best reference is the previous publish.
         kept = pg["review_fingerprints"] if "review_fingerprints" in pg else (pg.get("published_fingerprints") or {})
-        pg["review_fingerprints"] = {k: kept.get(k) or now[k] for k in sorted(validated_keys(pg)) if k in now}
+        pg["review_fingerprints"] = {k: kept.get(k) or now[k] for k in sorted(reviewed_keys(plan, pg)) if k in now}
         pg["published_fingerprints"] = now
         pg_path.write_text(json.dumps(pg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"build_page: {pg_path} marked as published (plan.md {current})")
@@ -461,6 +578,9 @@ def main() -> int:
     plan["coverage"] = rendered_pieces(plan_path)
     for line, what in unsupported_markdown(plan_path):
         warns.append(f"plan.md:{line} uses {what}, which the page shows as raw text")
+    images, img_warns = plan_images(plan_path)
+    warns += img_warns
+    plan["images"] = images
 
     # What changed in the plan since the last publish.
     # Derived item: compared with the last publish. Validated section, slice and door: with the
@@ -469,7 +589,7 @@ def main() -> int:
     old = pg.get("published_fingerprints") or {}
     # Validated by hand with no fingerprint yet: the current text counts. Old file without the map: the previous publish.
     val_fp = pg["review_fingerprints"] if "review_fingerprints" in pg else old
-    validated = validated_keys(pg)
+    validated = reviewed_keys(plan, pg)
     now = fingerprints(plan, pg)
     for key, val in now.items():
         if key.startswith(DERIVED):
@@ -482,9 +602,11 @@ def main() -> int:
             continue
         stale["sections"][key] = True
         if key in validated:
-            print(f"  RECHECK {key}: was validated/confirmed, but the text changed since", file=sys.stderr)
+            print(f"  RECHECK {key}: was validated/confirmed/rejected, but the text changed since", file=sys.stderr)
     plan["stale"] = stale
-    # Current fingerprint of each section, slice and door: the page records the one of the text the
+    # Table rows the page numbers and lets the user confirm or reject one by one.
+    plan["rows"] = row_keys(plan)
+    # Current fingerprint of each section, slice, door and table row: the page records the one of the text the
     # user validated (db review/<key>.fp) and shows "changed since" when it stops matching.
     plan["fingerprints"] = {k: v for k, v in fingerprints(plan, pg).items() if not k.startswith(DERIVED)}
     for w in warns:
@@ -501,6 +623,21 @@ def main() -> int:
                 .replace("__PLAN_JSON__", as_script_json(plan))
                 .replace("__PAGE_DATA_JSON__", as_script_json(pg)))
     Path(args.out).write_text(html, encoding="utf-8")
+    # The captures travel with the page, at the path plan.md uses for them. Resolved first: a capture
+    # (a symlink included) is read only from inside the feature folder and written only inside the
+    # page's folder.
+    out_dir = Path(args.out).resolve().parent
+    feat_dir = plan_path.parent.resolve()
+    for src in list(images):
+        origin, target = (feat_dir / src).resolve(), (out_dir / src).resolve()
+        if not origin.is_relative_to(feat_dir) or not target.is_relative_to(out_dir):
+            print(f"  WARN  {src} resolves outside the feature or the page folder; not copied", file=sys.stderr)
+            images.remove(src)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(origin, target)
+    if images:
+        print(f"build_page: {len(images)} capture(s) copied beside the page; publish each with it (files): {', '.join(images)}")
     n_acs = sum(len(s["acs"]) for s in next((x["criteria"]["slices"] for x in plan["sections"] if x["id"] == "criteria"), []))
     print(f"build_page: {args.out} ({len(plan['sections'])} sections, {n_acs} criteria, {len(pg.get('changes', []))} changes, "
           f"{len(plan['coverage'])} plan pieces covered, plan.md {current}, {len(warns)} warning(s))")

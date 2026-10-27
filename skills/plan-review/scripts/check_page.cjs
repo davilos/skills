@@ -66,16 +66,29 @@ if (data) {
   }
   const got = {
     sections: q('section.sec'),
-    acs: q('.acs li'),
+    acs: q('.acs > li'),
     slices: q('.slice'),
     changes: q('.row-btn'),
     impactCards: q('.imp'),
-    paths: q('.path'),
+    paths: q('.paths > .path'),
     symptoms: q('.sym'),
   }
   for (const k of Object.keys(expected)) {
     if (expected[k] !== got[k]) fail.push(`${k}: expected ${expected[k]}, the page shows ${got[k]}`)
   }
+  // Every capture the plan shows (`![name](captures/x.png)`) is an image on the page, loaded from beside it.
+  const imgs = new Set([...d.querySelectorAll('img')].map((i) => i.getAttribute('src')))
+  const noImg = (P.images || []).filter((src) => !imgs.has(src))
+  if (noImg.length) fail.push('captures the plan shows that are not images on the page: ' + noImg.join(', '))
+  if ((P.images || []).length) expected.captures = P.images.length
+  // Every mermaid block of the plan is a drawing with its source (the drawing itself needs the CDN; see checkDiagrams).
+  const blocksOf = (s) => (s.blocks || []).concat(s.criteria ? [s.criteria.intro, ...s.criteria.slices.flatMap((x) => [x.desc, x.extra])].flat() : [])
+  const mermaidSrc = P.sections.flatMap(blocksOf).filter((b) => b.type === 'code' && b.lang === 'mermaid').map((b) => b.text)
+  const figSrc = [...d.querySelectorAll('figure.mmd pre.mermaid')].map((x) => x.textContent)
+  const noFig = mermaidSrc.filter((t) => !figSrc.includes(t))
+  if (noFig.length) fail.push(`${noFig.length} mermaid block(s) of the plan are not a drawing on the page`)
+  if (q('pre.mermaid') !== q('figure.mmd pre.mermaid')) fail.push('a mermaid source on the page is outside a drawing')
+  if (mermaidSrc.length) expected.diagrams = `${mermaidSrc.length} in the plan, ${q('figure.mmd')} on the page`
   // Landing in plain language: one explanation per door, and the "Confirm" button lives there (not in the plan table).
   if (G.landing_visual) {
     const nDoors = G.landing_visual.doors.length
@@ -85,6 +98,17 @@ if (data) {
       fail.push('Landing: the plan table repeats the door-N id of the Visual tab')
     expected.doorsExplained = nDoors
   }
+  // Table rows reviewed one by one: each has its number (a button that copies "Section #N") and exactly one anchor.
+  const rowList = Object.entries(P.rows || {}).flatMap(([sid, rs]) => rs.map((x) => ({ sid, ...x })))
+  const plainRows = rowList.filter((x) => x.key.startsWith('row:'))
+  const refs = new Set([...d.querySelectorAll('.rn')].map((b) => b.getAttribute('data-ref')))
+  const names = Object.fromEntries(P.sections.map((s) => [s.id, s.name]))
+  for (const x of plainRows) {
+    if (!refs.has(`${names[x.sid]} #${x.n}`)) fail.push(`row ${x.key}: no "#${x.n}" number on the page`)
+    if (d.querySelectorAll(`[id="row-${x.sid}-${x.n}"]`).length !== 1) fail.push(`row ${x.key}: expected one #row-${x.sid}-${x.n} anchor`)
+  }
+  if (refs.size !== plainRows.length) fail.push(`row numbers: expected ${plainRows.length}, the page shows ${refs.size}`)
+  if (rowList.length) expected.reviewRows = rowList.length
   // Every name with `tbd` (Flow node, change, Impact card) shows as "not defined", and only those.
   const tbdWant =
     (G.flow_visual ? G.flow_visual.paths.reduce((c, p) => c + p.nodes.filter((x) => x.tbd).length, 0) : 0) +
@@ -211,6 +235,9 @@ async function checkReviewFlow() {
   // Exercise one section with content (starting as pending on the page, whatever review-page.json says) and another for "changed since".
   const [key, other] = toReview.map((s) => s.id)
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+  // A section with table rows, also starting as pending (a row with no state of its own takes its section's).
+  const rsid = Object.keys(data.PLAN.rows || {}).find((sid) => data.PLAN.rows[sid].some((x) => x.key.startsWith('row:')))
+  if (rsid) store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   let listener = null
   const snap = () => ({ docs: Object.keys(store).map((id) => ({ id, exists: true, data: () => store[id] })) })
   const fakeDb = {
@@ -247,11 +274,14 @@ async function checkReviewFlow() {
   await tick()
   const out = []
   const slots = d2.querySelectorAll('[data-rk]').length
-  const want =
-    toReview.length +
-    (P2.sections.find((s) => s.id === 'criteria')?.criteria.slices.length || 0) +
-    Object.keys(P2.fingerprints || {}).filter((k) => k.startsWith('door:')).length
-  if (slots !== want) out.push(`review: ${slots} review badges, expected ${want} (sections with content + slices + doors)`)
+  const want = toReview.length + (P2.sections.find((s) => s.id === 'criteria')?.criteria.slices.length || 0)
+  if (slots !== want) out.push(`review: ${slots} review badges, expected ${want} (sections with content + slices)`)
+  // Every table row and door has its Confirm / Reject (Impact rows: in the Plan text table).
+  const rowKeys = Object.values(P2.rows || {}).flatMap((rs) => rs.map((x) => x.key))
+  const rowSlots = new Set([...d2.querySelectorAll('[data-rk-row]')].map((e) => e.getAttribute('data-rk-row')))
+  const noSlot = rowKeys.filter((k) => !rowSlots.has(k))
+  if (noSlot.length) out.push(`review: rows without Confirm / Reject: ${noSlot.slice(0, 5).join(', ')}`)
+  if (rowSlots.size !== rowKeys.length) out.push(`review: ${rowSlots.size} row reviews, expected ${rowKeys.length}`)
   for (const s of P2.sections.filter((x) => x.empty)) {
     if (d2.querySelector(`[data-rk="${s.id}"]`)) out.push(`review: the empty section ${s.id} has a validate button`)
     if (!d2.querySelector(`section#${s.id} .badge.na`)) out.push(`review: the empty section ${s.id} does not say "nothing to validate"`)
@@ -286,11 +316,191 @@ async function checkReviewFlow() {
   await tick()
   if (!/changed since/.test(badgeOf(other)))
     out.push(`review: a validation of an old text shows as "${badgeOf(other)}"`)
+  // Rows: Confirm, Reject, Reject again (undo), then the section's Validate confirms them all and Undo clears them.
+  if (rsid) {
+    const keys = P2.rows[rsid].map((x) => x.key)
+    const rk = keys.find((k) => k.startsWith('row:'))
+    const rowBadge = (k) => d2.querySelector(`[data-rk-row="${k}"] .badge`).textContent
+    const press = async (k, act) => {
+      d2.querySelector(`.rv-mini.${act}[data-rk-row-btn="${k}"]`).click()
+      await tick()
+    }
+    const last = () => writes[writes.length - 1] || {}
+    await press(rk, 'yes')
+    if (last().path !== `review/${rk}` || last().data.state !== 'validated') out.push(`review: Confirm did not write review/${rk} as validated`)
+    else if (last().data.fp !== P2.fingerprints[rk]) out.push(`review: the fingerprint stored for ${rk} is not the one of the current row`)
+    if (rowBadge(rk) !== 'confirmed') out.push(`review: after Confirm, the row says "${rowBadge(rk)}"`)
+    await press(rk, 'no')
+    if (last().data.state !== 'rejected') out.push('review: Reject did not write rejected')
+    if (rowBadge(rk) !== 'rejected') out.push(`review: after Reject, the row says "${rowBadge(rk)}"`)
+    if (!/rejected/.test(badgeOf(rsid))) out.push(`review: a section with a rejected row says "${badgeOf(rsid)}"`)
+    if (!d2.querySelector('#rail-rej a')) out.push('review: the rejected row is not listed in the panel')
+    const tr = d2.querySelector(`[data-rk-row="${rk}"]`).closest('tr')
+    if (tr && tr.getAttribute('data-rs') !== 'rej') out.push('review: the rejected row is not marked in the table')
+    await press(rk, 'no')
+    if (last().data.state !== 'pending' || rowBadge(rk) !== 'not confirmed') out.push('review: pressing Reject again did not undo it')
+    await press(rk, 'no')
+    const before = writes.length
+    d2.querySelector(`.rv-btn[data-rk-btn="${rsid}"]`).click()
+    await tick()
+    const wrote = writes.slice(before)
+    const missed = [rsid, ...keys].filter((k) => !wrote.some((w) => w.path === `review/${k}` && w.data.state === 'validated'))
+    if (missed.length) out.push(`review: the section's Validate did not confirm ${missed.slice(0, 5).join(', ')}`)
+    if (badgeOf(rsid) !== 'validated') out.push(`review: after validating the section, it says "${badgeOf(rsid)}"`)
+    const notOk = keys.filter((k) => rowBadge(k) !== 'confirmed')
+    if (notOk.length) out.push(`review: after validating the section, rows not confirmed: ${notOk.slice(0, 5).join(', ')}`)
+    d2.querySelector(`.rv-btn[data-rk-btn="${rsid}"]`).click()
+    await tick()
+    if (badgeOf(rsid) !== 'not reviewed' || keys.some((k) => rowBadge(k) !== 'not confirmed'))
+      out.push(`review: the section's Undo left "${badgeOf(rsid)}" and rows ${keys.map(rowBadge).join(' / ')}`)
+  }
+  // A door is a Landing row: Confirm writes door:N as validated.
+  const door = rowKeys.find((k) => k.startsWith('door:'))
+  if (door) {
+    const b = d2.querySelector(`.rv-mini.yes[data-rk-row-btn="${door}"]`)
+    const was = b.getAttribute('aria-pressed') === 'true'
+    b.click()
+    await tick()
+    const w = writes[writes.length - 1] || {}
+    if (w.path !== `review/${door}` || w.data.state !== (was ? 'pending' : 'validated')) out.push(`review: Confirm on ${door} did not write it`)
+  }
   return { out, errs, writes: writes.length }
+}
+
+// Drawings: runs again with a fake Mermaid. Every figure gets its SVG and closes its source; a diagram
+// that does not parse keeps the source open with a note; a theme change draws again with the dark theme.
+// The fake SVG carries what a real one does: a numbered message with its arrow, a module the path names
+// and a door, so the clicks, the link with The path and the full-screen zoom are exercised too.
+async function checkDiagrams() {
+  const out = []
+  if (!data || !d.querySelector('figure.mmd')) return { out }
+  const G = data.PAGE_DATA || {}
+  const xml = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  const paths = (G.flow_visual && G.flow_visual.paths) || []
+  const node = paths.flatMap((p) => p.nodes).find((x) => x.change != null && !x.tbd) || paths.flatMap((p) => p.nodes).find((x) => !x.tbd)
+  const hasDoor = !!d.getElementById('door-1')
+  const fakeSvg = (id) =>
+    `<svg id="${id}" viewBox="0 0 400 200" style="max-width: 400px;"><g><text class="messageText">1. enters</text><line class="messageLine0"></line>` +
+    (node ? `<g><rect class="actor actor-top"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` +
+      `<g><rect class="actor actor-bottom"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` : '') +
+    (hasDoor ? '<text>unique, door 1</text>' : '') + '</g></svg>'
+  const inits = [],
+    renders = []
+  const errs3 = []
+  const dom3 = new jsdom.JSDOM('<!doctype html><html><body>' + html + '</body></html>', {
+    runScripts: 'dangerously',
+    virtualConsole: new jsdom.VirtualConsole().on('jsdomError', (e) => errs3.push(e.message)),
+    beforeParse(win) {
+      win.mermaid = {
+        initialize: (c) => inits.push(c),
+        render: async (id, text) => {
+          renders.push(id)
+          if (renders.length === 1) throw new Error('Parse error on line 1')
+          return { svg: fakeSvg(id) }
+        },
+      }
+    },
+  })
+  const d3 = dom3.window.document
+  const tick = () => new Promise((r) => setTimeout(r, 20))
+  await tick()
+  const figs = [...d3.querySelectorAll('figure.mmd')]
+  if (renders.length !== figs.length) out.push(`drawings: Mermaid drew ${renders.length} of ${figs.length} diagrams`)
+  const [bad, ...good] = figs
+  if (!bad.classList.contains('failed') || !bad.querySelector('.mmd-src').open || bad.querySelector('.mmd-note').hidden)
+    out.push('drawings: a diagram that does not parse does not keep its source open with a note')
+  const notDrawn = good.filter((f) => !f.querySelector('.mmd-draw svg') || f.querySelector('.mmd-draw').hidden || f.querySelector('.mmd-src').open)
+  if (notDrawn.length) out.push(`drawings: ${notDrawn.length} diagram(s) without their SVG, or with the source still open`)
+  if (inits[0] && inits[0].securityLevel !== 'strict') out.push('drawings: Mermaid does not run with securityLevel strict')
+  // Interaction, on the first drawn figure.
+  const P3 = dom3.window.__PLAN_PAGE__.PLAN
+  const pathSec = P3.sections.find((s) => s.id === 'shape' || s.id === 'flow')
+  const hop1 = pathSec && (pathSec.blocks || []).filter((b) => b.type === 'ol').flatMap((b) => b.items).find((it) => it.n === 1)
+  const fig = good[0]
+  const click = (el) => el.dispatchEvent(new dom3.window.MouseEvent('click', { bubbles: true }))
+  const detail = () => fig.querySelector('.mmd-detail')
+  if (fig && hop1) {
+    const hot = fig.querySelector('[data-mmd-key="hop:1"]')
+    if (!hot) out.push('drawings: the numbered step "1." is not clickable')
+    else {
+      click(hot)
+      const want = hop1.text.replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim().slice(0, 40)
+      if (detail().hidden || !detail().textContent.replace(/\s+/g, ' ').includes(want)) out.push('drawings: clicking step 1 does not show hop 1 of the plan')
+      if (!fig.querySelector('line.mmd-sel')) out.push("drawings: clicking step 1 does not light its arrow")
+      click(hot)
+      if (!detail().hidden) out.push('drawings: clicking step 1 again does not close its detail')
+    }
+    // The cards of The path live in the drawing's panel now: step 1 shows each path of hop 1, and a
+    // changed node there opens its Where / Why / Proof. The list itself hides once the path is drawn.
+    const hop1Paths = paths.filter((p) => p.hop === 1).length
+    click(hot)
+    if (detail().querySelectorAll('.mmd-path').length !== hop1Paths)
+      out.push(`drawings: step 1 shows ${detail().querySelectorAll('.mmd-path').length} card(s) of The path, expected ${hop1Paths}`)
+    const pick = detail().querySelector('[data-node-pick]')
+    if (pick) {
+      click(pick)
+      if (!detail().querySelector('.mmd-path dl')) out.push('drawings: a changed node in the panel does not open its Where / Why / Proof')
+    }
+    click(fig.querySelector('[data-mmd-key="hop:1"]'))
+    const list = d3.querySelector('.part-path')
+    if (list && fig.classList.contains('path-drawing') && !list.hidden) out.push('drawings: The path list still shows although the path is drawn')
+  }
+  if (fig && node) {
+    const nm = String(node.n).replace(/[`"*]/g, '').trim()
+    const hot = fig.querySelector(`[data-mmd-key="name:${nm}"]`)
+    if (!hot) out.push(`drawings: the module ${nm} is not clickable`)
+    else {
+      click(hot)
+      if (detail().hidden || !detail().textContent.includes(nm)) out.push(`drawings: clicking ${nm} does not show it`)
+      if (node.change != null && !detail().querySelector('dl')) out.push(`drawings: clicking ${nm} does not show its Where / Why / Proof`)
+      if ((node.o || node.note) && !hot.classList.contains('mmd-chg')) out.push(`drawings: ${nm} changes in the plan but is not green in the drawing`)
+      // Mermaid repeats a participant at the bottom: one block is clickable, the copy only lights with it.
+      if (fig.querySelectorAll(`[data-mmd-key="name:${nm}"]`).length !== 1) out.push(`drawings: ${nm} has ${fig.querySelectorAll(`[data-mmd-key="name:${nm}"]`).length} clickable blocks, expected 1`)
+      const twin = fig.querySelector(`[data-mmd-twin="name:${nm}"]`)
+      if (!twin) out.push(`drawings: the bottom copy of ${nm} is not kept as a copy`)
+      else if (twin.hasAttribute('tabindex') || !twin.classList.contains('mmd-sel')) out.push(`drawings: the bottom copy of ${nm} is clickable, or does not light with the selection`)
+      click(hot)
+    }
+  }
+  if (fig && hasDoor && !fig.querySelector('[data-mmd-key="door:1"]')) out.push('drawings: "door 1" in a drawing is not clickable')
+  // Every clickable block says so: a tooltip of what the click opens (the CSS underlines it); the copy does not.
+  const noTip = good.flatMap((f) => [...f.querySelectorAll('[data-mmd-key]')]).filter((x) => !x.querySelector(':scope > title'))
+  if (noTip.length) out.push(`drawings: ${noTip.length} clickable block(s) without a tooltip of what the click opens`)
+  if (good.some((f) => [...f.querySelectorAll('[data-mmd-twin]')].some((x) => x.querySelector(':scope > title'))))
+    out.push('drawings: the bottom copy of a participant carries a click tooltip')
+  // Full screen: the SVG moves into the dialog, the zoom buttons move it, Close brings it back.
+  const exp = fig && fig.querySelector('.mmd-expand')
+  if (exp) {
+    click(exp)
+    const dlg = d3.querySelector('dialog.mmd-zoom')
+    if (!dlg || !dlg.hasAttribute('open') || !dlg.querySelector('.mmd-stage svg')) out.push('drawings: Expand does not open the diagram full screen')
+    else {
+      const before = dlg.querySelector('.mmd-stage').style.transform
+      click(dlg.querySelector('[data-z="in"]'))
+      if (dlg.querySelector('.mmd-stage').style.transform === before) out.push('drawings: zoom in does not change the full-screen view')
+      const inZoom = dlg.querySelector('.mmd-stage [data-mmd-key]')
+      if (inZoom) {
+        click(inZoom)
+        const det = dlg.querySelector('.mmd-detail')
+        if (!det || det.hidden) out.push('drawings: clicking a step or a name full screen does not show its detail there')
+      }
+      click(dlg.querySelector('[data-z="close"]'))
+      if (dlg.hasAttribute('open') || !fig.querySelector('.mmd-draw svg') || !fig.querySelector('.mmd-detail')) out.push('drawings: Close does not bring the diagram back to the page')
+    }
+  }
+  if (fig && !fig.querySelector('.mmd-copy[data-copy]')) out.push('drawings: no Copy source button')
+  d3.documentElement.setAttribute('data-theme', 'dark')
+  await tick()
+  if (!inits.some((c) => c.theme === 'dark')) out.push('drawings: switching to the dark theme did not draw again in dark')
+  for (const e of errs3) out.push('runtime error (with fake Mermaid): ' + e)
+  return { out, drawn: good.length }
 }
 
 ;(async () => {
   if (data) {
+    const dg = await checkDiagrams()
+    for (const m of dg.out) fail.push(m)
+    if (dg.drawn != null) expected.drawingFlow = dg.out.length ? 'failed' : `ok (fake Mermaid: ${dg.drawn} drawn, 1 parse error shown with its source; steps, names, The path link and zoom exercised)`
     const r = await checkReviewFlow()
     for (const m of r.out) fail.push(m)
     for (const e of r.errs) fail.push('runtime error (with fake db): ' + e)

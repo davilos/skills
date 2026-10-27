@@ -65,6 +65,7 @@ h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02e
 h2 { font-size: 23px; line-height: 1.25; font-weight: 650; letter-spacing: -0.015em; }
 h3 { font-size: 15.5px; line-height: 1.35; font-weight: 600; letter-spacing: -0.005em; }
 p { margin: 0; max-width: 72ch; }
+code, pre { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 code { font-family: var(--mono); font-size: 0.84em; background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg); padding: 0 4px; border-radius: 4px; overflow-wrap: anywhere; }
 b { font-weight: 600; }
 .ic { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: -3px; }
@@ -97,13 +98,14 @@ nav.toc a[aria-current="true"] { background: var(--accent-soft); color: var(--ac
 nav.toc .sub { margin: 2px 0 4px 17px; padding-left: 8px; border-left: 1px solid var(--line); }
 nav.toc .sub a { font-size: 13px; padding: 3px 10px; }
 .toc-progress { margin: 16px 10px 0; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; display: none; }
-/* State icon: validated (check), not reviewed (empty circle), changed since (triangle), nothing to validate (dash). */
+/* State icon: validated (check), not reviewed (empty circle), changed since (triangle), rejected (cross), nothing to validate (dash). */
 .st { width: 14px; height: 14px; flex-shrink: 0; display: inline-flex; color: var(--line-strong); }
 .st svg { width: 14px; height: 14px; }
 .st[data-state="ok"] { color: var(--ok); }
 .st[data-state="pend"] { color: var(--pend); }
 .st[data-state="chg"] { color: var(--chg); }
 .st[data-state="na"] { color: var(--muted); }
+.st[data-state="rej"] { color: var(--chg); }
 
 /* review panel */
 aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--top)); overflow-y: auto; padding: 28px 0 40px; display: grid; gap: 22px; align-content: start; font-size: 13px; }
@@ -117,6 +119,7 @@ aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--t
 .cells a[data-state="pend"] { background: var(--pend-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pend) 45%, transparent); }
 .cells a[data-state="chg"] { background: var(--chg); }
 .cells a[data-state="na"] { background: var(--line); opacity: .5; }
+.cells a[data-state="rej"] { background: repeating-linear-gradient(135deg, var(--chg) 0 3px, var(--chg-soft) 3px 5px); }
 .rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .rail li a { display: flex; align-items: center; gap: 8px; color: var(--fg-2); text-decoration: none; padding: 3px 0; }
 .rail li a:hover { color: var(--accent); }
@@ -137,6 +140,8 @@ main { display: grid; gap: 72px; min-width: 0; padding: 36px 0 96px; }
 .tag.mono { font-family: var(--mono); font-size: 12px; }
 .status { background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font-size: 14px; color: var(--fg-2); }
 .status b.lead { color: var(--fg); margin-right: 4px; }
+.status > div + div { margin-top: 6px; }
+.status .muted { color: var(--muted); }
 .note { font-size: 13px; color: var(--muted); }
 .note:empty { display: none; }
 
@@ -153,8 +158,71 @@ section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20p
 .view { display: grid; gap: 20px; min-width: 0; }
 .blocks { display: grid; gap: 14px; color: var(--fg-2); }
 .blocks > p { color: var(--fg-2); }
+figure.mmd { margin: 0; display: grid; gap: 8px; }
+.mmd-draw { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; text-align: center; }
+.mmd-draw svg { max-height: 560px; }
+.mmd-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.mmd-hint { font-size: 12.5px; color: var(--muted); margin-right: auto; }
+.mmd-actions { display: inline-flex; gap: 6px; }
+.mmd-btn { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; line-height: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: var(--bg); }
+.mmd-btn:hover { border-color: var(--line-strong); color: var(--fg); }
+.mmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* What a click opens: a dashed outline runs around every clickable block or label (never the bottom
+   copy of a participant, nor a label the plan does not name); on hover or selection it holds still. */
+[data-mmd-key] { cursor: pointer; outline: none; }
+[data-mmd-key]:focus { outline: none; }
+/* !important: inside a node the ring is a `rect`, and Mermaid styles `#id .node rect` above any class. */
+rect.mmd-ring { fill: none !important; stroke: var(--accent) !important; stroke-width: 1.5px !important; stroke-dasharray: 5 4 !important; opacity: .85; pointer-events: none; animation: mmd-ring 1.4s linear infinite; }
+@keyframes mmd-ring { to { stroke-dashoffset: -18; } }
+text[data-mmd-key]:hover + rect.mmd-ring, [data-mmd-key]:hover > rect.mmd-ring, [data-mmd-key]:focus-visible > rect.mmd-ring, text[data-mmd-key]:focus-visible + rect.mmd-ring,
+rect.mmd-ring.mmd-lit, rect.mmd-ring.mmd-sel { stroke-dasharray: none !important; stroke-width: 2px !important; opacity: 1; animation: none; }
+text[data-mmd-key]:hover, [data-mmd-key]:hover text, text[data-mmd-key]:focus-visible { fill: var(--accent) !important; }
+[data-mmd-key]:hover .nodeLabel, [data-mmd-key]:hover foreignObject p, [data-mmd-key]:hover foreignObject span { color: var(--accent) !important; }
+@media (prefers-reduced-motion: reduce) { rect.mmd-ring { animation: none; } }
+i.mmd-ring { display: inline-block; width: 14px; height: 10px; margin-right: 6px; vertical-align: -1px; border: 1.5px dashed var(--accent); border-radius: 3px; }
+text.mmd-lit, text.mmd-sel, .mmd-lit text, .mmd-sel text { fill: var(--accent) !important; font-weight: 600; }
+.mmd-lit .nodeLabel, .mmd-sel .nodeLabel, foreignObject.mmd-lit, foreignObject.mmd-sel { color: var(--accent) !important; font-weight: 600; }
+.mmd-lit > rect:not(.mmd-ring), .mmd-sel > rect:not(.mmd-ring), .mmd-lit > polygon, .mmd-sel > polygon, .mmd-lit > path, .mmd-sel > path, .mmd-lit .label-container, .mmd-sel .label-container { stroke: var(--accent) !important; stroke-width: 2px !important; }
+line.mmd-lit, line.mmd-sel, path.mmd-lit, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
+.mmd-chg > rect:not(.mmd-ring), .mmd-chg > polygon, .mmd-chg > circle, .mmd-chg > .label-container, .mmd-chg > path.label-container { fill: var(--add-soft) !important; stroke: color-mix(in srgb, var(--add) 70%, transparent) !important; }
+.mmd-chg.mmd-lit > rect:not(.mmd-ring), .mmd-chg.mmd-sel > rect:not(.mmd-ring), .mmd-chg.mmd-lit > .label-container, .mmd-chg.mmd-sel > .label-container { stroke: var(--accent) !important; }
+.mmd-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.mmd-legend i { width: 12px; height: 12px; border-radius: 3px; background: var(--add-soft); border: 1px solid var(--add); }
+.mmd-path { padding: 10px 12px; }
+.mmd-detail { border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; position: relative; background: var(--bg); font-size: 14px; }
+.mmd-detail p { margin: 0; }
+.mmd-dh { font-weight: 600; padding-right: 28px; }
+.mmd-tag { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
+.mmd-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mmd-row .lbl { font-size: 12.5px; color: var(--muted); margin-right: 2px; }
+.mmd-under { display: grid; gap: 4px; }
+.mmd-x { all: unset; cursor: pointer; position: absolute; top: 6px; right: 8px; font-size: 18px; line-height: 1; padding: 4px 6px; color: var(--muted); border-radius: 4px; }
+.mmd-x:hover { color: var(--fg); background: var(--bg-hover); }
+.path.flash { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); transition: box-shadow .3s, border-color .3s; }
+dialog.mmd-zoom { width: min(96vw, 1600px); height: min(92vh, 1100px); max-width: none; max-height: none; padding: 0; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); overflow: hidden; }
+dialog.mmd-zoom[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+dialog.mmd-zoom::backdrop { background: rgba(10, 12, 16, .55); }
+.mmd-zbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.mmd-zpct { font-size: 12.5px; color: var(--muted); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.mmd-viewport { position: relative; overflow: hidden; touch-action: none; cursor: grab; background: var(--bg-subtle); }
+.mmd-viewport:active { cursor: grabbing; }
+.mmd-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mmd-stage svg { display: block; }
+.mmd-zdetail { max-height: 34vh; overflow: auto; }
+.mmd-zdetail .mmd-detail { border-width: 1px 0 0; border-radius: 0; }
+.mmd-note { margin: 0; font-size: 13px; color: var(--pend); }
+.mmd-src summary { cursor: pointer; font-size: 12.5px; color: var(--muted); width: max-content; }
+.mmd-src[open] summary { margin-bottom: 6px; }
 pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
 .lead-in { color: var(--fg); }
+h3.part { margin: 8px 0 0; }
+ul.ex { margin: 6px 0 0; padding-left: 18px; color: var(--fg-2); font-size: 0.94em; }
+ul.ex li { margin: 2px 0; }
+/* A capture takes its own line; its name and the rest of the plan's line follow under it. */
+.cap { display: block; margin: 4px 0 6px; }
+.cap img { display: block; max-width: min(100%, 520px); height: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-subtle); }
+.cap-name { font-weight: 550; color: var(--fg); }
+.conf-ref { font-size: 12.5px; color: var(--fg-2); }
 
 /* review badge and button */
 .rv { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -164,6 +232,7 @@ pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; li
 .badge.pend { background: var(--pend-soft); color: var(--pend); }
 .badge.stale { background: var(--chg-soft); color: var(--chg); }
 .badge.na { background: var(--bg-hover); color: var(--muted); }
+.badge.rej { background: var(--chg-soft); color: var(--chg); }
 .rv-btn { font: inherit; font-size: 13px; font-weight: 550; line-height: 1; padding: 7px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); box-shadow: 0 1px 1px rgba(17, 20, 26, .04); transition: background-color .15s, border-color .15s; }
 .rv-btn:hover { background: var(--bg-hover); border-color: var(--muted); }
 .rv-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -171,6 +240,16 @@ pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; li
 :root[data-theme="dark"] .rv-btn.primary { color: #0e1013; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rv-btn.primary { color: #0e1013; } }
 .rv-btn:disabled { opacity: .55; cursor: progress; }
+/* Row review (table row, door): Confirm and Reject toggle; pressing the lit one again undoes it. */
+.rv-row { display: inline-grid; gap: 6px; justify-items: start; }
+.rv-row .rv-acts { display: inline-flex; gap: 4px; }
+/* With the buttons on screen, the lit one already says the state: the badge only shows what they cannot (changed since). */
+.rv-row.has-acts .badge:not(.stale) { display: none; }
+.rv-mini { font: inherit; font-size: 12px; font-weight: 550; line-height: 1; padding: 5px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg-2); transition: background-color .15s, border-color .15s, color .15s; }
+.rv-mini:hover { background: var(--bg-hover); border-color: var(--muted); }
+.rv-mini.yes[aria-pressed="true"] { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.rv-mini.no[aria-pressed="true"] { background: var(--chg-soft); border-color: var(--chg); color: var(--chg); }
+.rv-mini:disabled { opacity: .55; cursor: progress; }
 .stale-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 550; color: var(--chg); background: var(--chg-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; vertical-align: 1px; }
 
 /* plan lists */
@@ -201,6 +280,14 @@ th.narrow, td.narrow { width: 1%; white-space: nowrap; }
 .conf .ic { width: 14px; height: 14px; }
 .conf.yes { background: var(--ok-soft); color: var(--ok); }
 .conf.no { background: var(--pend-soft); color: var(--pend); }
+/* Row number: a click copies "Section #N" to cite the row in the conversation. */
+.rn { all: unset; cursor: pointer; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding: 1px 5px; border-radius: 4px; }
+.rn:hover { color: var(--accent); background: var(--accent-soft); }
+.rn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+tr.row-t { scroll-margin-top: calc(var(--top) + 56px); }
+tr.row-t:target td { background: var(--accent-soft); }
+tr[data-rs="rej"] td { background: color-mix(in srgb, var(--chg-soft) 70%, transparent); }
+tr[data-rs="ok"] td.rn-cell { box-shadow: inset 3px 0 0 var(--ok); }
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* clickable cards (symptom, impact) */
@@ -219,8 +306,8 @@ th.narrow, td.narrow { width: 1%; white-space: nowrap; }
 a.xref { font-weight: 600; text-decoration: none; border-radius: 3px; }
 a.xref:hover { text-decoration: underline; }
 a.door-mark.xref { color: var(--accent); }
-.acs li, .door, .slice { scroll-margin-top: calc(var(--top) + 20px); }
-.acs li:target { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: 2px; }
+.acs > li, .door, .slice { scroll-margin-top: calc(var(--top) + 20px); }
+.acs > li:target { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: 2px; }
 .door:target, .slice:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* Problem */
@@ -314,6 +401,10 @@ a.door-mark.xref { color: var(--accent); }
 .risk b { color: var(--fg); }
 .imp-detail { display: grid; gap: 12px; }
 .imp .detail { padding: 0 16px 14px; }
+.imp-n { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+.imp-what .st { vertical-align: -2px; margin-right: 6px; }
+.imp-rv { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.imp-rv .lbl { font-size: 13px; color: var(--muted); }
 .plan-text { font-size: 13.5px; color: var(--fg-2); background: var(--bg-subtle); border-radius: 6px; padding: 10px 12px; }
 .plan-text b.lead { display: block; color: var(--muted); font-size: 12.5px; font-weight: 500; margin-bottom: 2px; }
 .trees { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
@@ -360,7 +451,7 @@ a.door-mark.xref { color: var(--accent); }
 .slice-body { padding: 16px 18px; display: grid; gap: 14px; }
 .slice-body > h4, .renames-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg); }
 .acs { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.acs li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; font-size: 14.5px; color: var(--fg-2); }
+.acs > li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; font-size: 14.5px; color: var(--fg-2); }
 .acs .n { font-weight: 600; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .indep { font-size: 14px; color: var(--fg-2); background: var(--bg-subtle); border-radius: 6px; padding: 10px 12px; }
 .renames { border-top: 1px solid var(--line); }
@@ -442,6 +533,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   .tbl td { border: 0; padding: 2px 0; white-space: normal; }
   .tbl td::before { content: attr(data-label); display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
   .tbl td:empty { display: none; }
+  /* Row number inline ("#2"), and the row state on the whole block. */
+  .tbl td.rn-cell::before { content: "#"; display: inline; font-weight: 600; color: var(--muted); }
+  .tbl td.rn-cell .rn { padding-left: 1px; }
+  .tbl tr[data-rs="ok"] td.rn-cell { box-shadow: none; }
+  .tbl tr[data-rs="ok"] { box-shadow: inset 3px 0 0 var(--ok); }
+  .tbl tr[data-rs="rej"] { background: color-mix(in srgb, var(--chg-soft) 70%, transparent); }
+  .tbl tr[data-rs="rej"] td { background: none; }
   /* On phones the Flow chain is vertical, with the arrow pointing down. */
   .chain { flex-direction: column; align-items: stretch; }
   .chain .unit { flex-direction: column; align-items: stretch; }
@@ -468,7 +566,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <div class="plan-path" id="plan-path"></div>
       <h1 id="plan-title"></h1>
       <div class="tags" id="tags"></div>
-      <div class="status"><b class="lead">Status:</b><span id="status"></span></div>
+      <div class="status" id="status"></div>
       <div class="note" id="review-note" role="status"></div>
     </header>
   </main>
@@ -476,6 +574,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <div><h2>Review</h2><div class="rail-count" id="rail-count"></div><div class="cells" id="rail-cells"></div></div>
     <div><h2>Not reviewed</h2><ul id="rail-todo"></ul></div>
     <div id="rail-chg-box" hidden><h2>Changed since validated</h2><ul id="rail-chg"></ul></div>
+    <div id="rail-rej-box" hidden><h2>Rejected rows</h2><ul id="rail-rej"></ul></div>
     <div><h2>This page</h2><dl id="rail-meta"></dl></div>
   </aside>
 </div>
@@ -499,13 +598,19 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     pend: svg('<circle cx="8" cy="8" r="6.25" stroke-dasharray="2.4 2.2"/>'),
     chg: svg('<path d="M8 2.2l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.6v.1"/>'),
     na: svg('<path d="M5 8h6"/>'),
+    rej: svg('<circle cx="8" cy="8" r="6.25"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/>'),
     copy: svg('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>'),
     check: svg('<path d="M3.5 8.5l3 3 6-7"/>')
   };
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  /* A capture the plan shows (`![name](captures/x.png)`): the image, loaded from beside the page
+     (build_page.py copies it there), and its name. */
   function md(s) {
     return esc(s)
+      .replace(/!\[([^\]]*)\]\(([\w.\/-]+)\)/g, function (all, alt, src) {
+        return '<span class="cap"><img src="' + src + '" alt="' + alt + '" loading="lazy"></span><span class="cap-name">' + alt + "</span>";
+      })
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
       .replace(/\(door (\d+)\)/g, '(<span class="door-mark">door $1</span>)');
@@ -518,20 +623,63 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     set: function (k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
   };
   /* Review state: comes from the artifact db (review/<key>) when it exists; otherwise from review-page.json.
-     Each validation stores the fingerprint of the validated text (fp): if the plan changes, it becomes "changed since". */
+     Each mark stores the fingerprint of the text the user saw (fp): if the plan changes, it becomes "changed since".
+     Keys: a section or slice id; `door:N` for a One-way door; `row:<section>:<n>` for a table row (PLAN.rows).
+     States: ok (validated / confirmed), rej (rejected: the user wants to discuss it), pend. */
   var FP = PLAN.fingerprints || {};
   var DBREV = null, CAN_WRITE = false, ME = null, DB = null;
-  function jsonOk(key) { return key.indexOf("door:") === 0 ? (EN.doors_confirmed || []).indexOf(Number(key.slice(5))) !== -1 : !!REVIEW[key]; }
-  function reviewOf(key) {
+  var REJ = EN.rejected || [];
+  var ROWS = PLAN.rows || {}, ROW_OF = {};
+  Object.keys(ROWS).forEach(function (sid) { ROWS[sid].forEach(function (x) { ROW_OF[x.key] = { sid: sid, n: x.n, b: x.b, r: x.r }; }); });
+  function secRows(sid) { return (ROWS[sid] || []).map(function (x) { return x.key; }); }
+  function isDoor(key) { return key.indexOf("door:") === 0; }
+  /* What was marked on this key itself, or null. */
+  function ownOf(key) {
     var d = DBREV && DBREV[key];
-    if (d) { var ok = d.state === "validated"; return { ok: ok, changed: ok && d.fp !== FP[key], src: "page", at: d.at }; }
-    var ok2 = jsonOk(key);
-    return { ok: ok2, changed: ok2 && !!STALE.sections[key], src: "json" };
+    if (d) {
+      var st = d.state === "validated" ? "ok" : d.state === "rejected" ? "rej" : "pend";
+      return { st: st, changed: st !== "pend" && d.fp !== FP[key], src: "page", at: d.at };
+    }
+    if (REJ.indexOf(key) !== -1) return { st: "rej", changed: !!STALE.sections[key], src: "json" };
+    var ok = isDoor(key) ? (EN.doors_confirmed || []).indexOf(Number(key.slice(5))) !== -1 : !!REVIEW[key];
+    if (ok) return { st: "ok", changed: !!STALE.sections[key], src: "json" };
+    return isDoor(key) || key in REVIEW ? { st: "pend", changed: false, src: "json" } : null;
   }
-  function stateOf(key) { var r = reviewOf(key); return r.ok ? (r.changed ? "chg" : "ok") : "pend"; }
+  /* A table row with no state of its own takes its section's: validating the section confirms its rows. Doors do not inherit. */
+  function reviewOf(key) {
+    var own = ownOf(key), row = ROW_OF[key];
+    if (!own && row && !isDoor(key)) {
+      var sec = ownOf(row.sid);
+      if (sec && sec.st === "ok") return { st: "ok", changed: sec.src === "json" ? !!STALE.sections[key] : sec.changed, src: sec.src, at: sec.at };
+    }
+    return own || { st: "pend", changed: false, src: "json" };
+  }
+  /* A section with rows is validated only when the section and every row are; one rejected row makes it rejected. */
+  function fullOf(key) {
+    var keys = secRows(key), own = reviewOf(key);
+    if (!keys.length) return own;
+    var rows = keys.map(reviewOf);
+    var nOk = rows.filter(function (r) { return r.st === "ok"; }).length;
+    var nRej = rows.filter(function (r) { return r.st === "rej" && !r.changed; }).length;
+    var out = { n: keys.length, nOk: nOk, nRej: nRej, src: own.src, at: own.at };
+    if (nRej) { out.st = "rej"; out.changed = false; }
+    else if (own.st === "ok" && nOk === keys.length) { out.st = "ok"; out.changed = own.changed || rows.some(function (r) { return r.changed; }); }
+    else { out.st = "pend"; out.changed = false; }
+    return out;
+  }
+  function stateOf(key) { var r = fullOf(key); return r.changed && r.st !== "pend" ? "chg" : r.st; }
+  function rowNoun(sid, n) { return (sid === "landing" ? "door" : "row") + (n === 1 ? "" : "s"); }
+  function rowLabel(key) { var x = ROW_OF[key]; return isDoor(key) ? "One-way door " + key.slice(5) : nameOf(x.sid) + " #" + x.n; }
+  function rowHref(key) { var x = ROW_OF[key]; return isDoor(key) ? "#door-" + key.slice(5) : "#row-" + x.sid + "-" + x.n; }
   function reviewSlot(key, okText) {
     return '<span class="rv" data-rk="' + esc(key) + '" data-ok="' + esc(okText) + '"><span class="badge"></span>' +
       '<button type="button" class="rv-btn" data-rk-btn="' + esc(key) + '" hidden></button></span>';
+  }
+  /* Review of one table row or door: a badge and the Confirm / Reject toggles. */
+  function rowSlot(key) {
+    return '<span class="rv-row" data-rk-row="' + esc(key) + '"><span class="badge"></span><span class="rv-acts" hidden>' +
+      '<button type="button" class="rv-mini yes" data-rk-row-btn="' + esc(key) + '" data-act="yes" aria-pressed="false">Confirm</button>' +
+      '<button type="button" class="rv-mini no" data-rk-row-btn="' + esc(key) + '" data-act="no" aria-pressed="false">Reject</button></span></span>';
   }
   /* Empty section (no content, or only `None - <why>`): shown, but there is nothing to validate. */
   var NA_BADGE = '<span class="badge na" title="The plan says this section does not apply">nothing to validate</span>';
@@ -539,23 +687,42 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var s = SECTIONS.filter(function (x) { return x.id === key; })[0];
     return s ? s.name : key;
   }
+  var STATE_LABEL = { ok: "validated", chg: "changed since validated", rej: "has rejected rows", pend: "not reviewed" };
   function paintReview() {
     document.querySelectorAll("[data-rk]").forEach(function (el) {
-      var key = el.getAttribute("data-rk"), okText = el.getAttribute("data-ok"), r = reviewOf(key), door = key.indexOf("door:") === 0;
+      var key = el.getAttribute("data-rk"), okText = el.getAttribute("data-ok"), r = fullOf(key), st = stateOf(key);
       var b = el.querySelector(".badge");
-      b.className = "badge " + (r.ok ? (r.changed ? "stale" : "ok") : "pend");
-      b.textContent = r.ok ? okText + (r.changed ? " · changed since" : "") : (door ? "not confirmed" : "not reviewed");
+      b.className = "badge " + (st === "chg" ? "stale" : st);
+      b.textContent = r.st === "ok" ? okText + (r.changed ? " · changed since" : "")
+        : r.st === "rej" ? r.nRej + " " + rowNoun(key, r.nRej) + " rejected"
+        : r.nOk ? r.nOk + " of " + r.n + " " + rowNoun(key, r.n) + " confirmed" : "not reviewed";
       b.title = r.changed ? "The text changed after it was validated" : (r.src === "page" && r.at ? "Marked on this page at " + String(r.at).slice(0, 16).replace("T", " ") : "");
       var btn = el.querySelector(".rv-btn");
       btn.hidden = !CAN_WRITE;
-      btn.textContent = !r.ok ? (door ? "Confirm" : "Validate") : (r.changed ? (door ? "Confirm again" : "Validate again") : "Undo");
-      btn.classList.toggle("primary", !r.ok || r.changed);
+      btn.textContent = r.st !== "ok" ? "Validate" : (r.changed ? "Validate again" : "Undo");
+      btn.title = r.n ? (r.st === "ok" && !r.changed ? "Back to not reviewed, with its " + r.n + " " + rowNoun(key, r.n) : "Validates the section and confirms its " + r.n + " " + rowNoun(key, r.n)) : "";
+      btn.classList.toggle("primary", r.st !== "ok" || r.changed);
+    });
+    document.querySelectorAll("[data-rk-row]").forEach(function (el) {
+      var key = el.getAttribute("data-rk-row"), r = reviewOf(key), st = stateOf(key);
+      var b = el.querySelector(".badge");
+      b.className = "badge " + (st === "chg" ? "stale" : st);
+      b.textContent = (r.st === "ok" ? "confirmed" : r.st === "rej" ? "rejected" : "not confirmed") + (r.changed ? " · changed since" : "");
+      b.title = r.changed ? "The text changed after it was marked" : (r.src === "page" && r.at ? "Marked on this page at " + String(r.at).slice(0, 16).replace("T", " ") : "");
+      el.querySelector(".rv-acts").hidden = !CAN_WRITE;
+      el.classList.toggle("has-acts", CAN_WRITE);
+      el.querySelectorAll(".rv-mini").forEach(function (m) {
+        var on = !r.changed && r.st === (m.getAttribute("data-act") === "yes" ? "ok" : "rej");
+        m.setAttribute("aria-pressed", String(on));
+        m.title = on ? "Click again to undo" : "";
+      });
+      var tr = el.closest("tr"); if (tr) tr.setAttribute("data-rs", st);
     });
     document.querySelectorAll("[data-rk-dot]").forEach(function (el) {
       var st = stateOf(el.getAttribute("data-rk-dot"));
       if (el.getAttribute("data-state") === st) return;
       el.setAttribute("data-state", st);
-      var label = st === "ok" ? "validated" : st === "chg" ? "changed since validated" : "not reviewed";
+      var label = ROW_OF[el.getAttribute("data-rk-dot")] ? { ok: "confirmed", chg: "changed since marked", rej: "rejected", pend: "not confirmed" }[st] : STATE_LABEL[st];
       el.setAttribute("aria-label", label);
       el.title = label;
       if (el.classList.contains("st")) el.innerHTML = IC[st];
@@ -565,18 +732,25 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var pr = document.getElementById("progress"); if (pr) pr.textContent = txt;
     var tp = document.getElementById("top-progress"); if (tp) tp.textContent = done + "/" + TO_REVIEW.length + " validated";
     var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = done + " <span>of " + TO_REVIEW.length + " sections validated</span>";
-    /* Panel: what is left and what changed, sections and slices in plan order. */
+    /* Panel: what is left, what changed and what was rejected, in plan order. */
     var keys = [];
     TO_REVIEW.forEach(function (s) { keys.push([s.id, s.name, "#" + s.id]); if (s.criteria) s.criteria.slices.forEach(function (x) { keys.push([x.id, x.id, "#slice-" + x.id]); }); });
+    function li(k, st) { return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>"; }
     function items(st) {
-      return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) {
-        return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>";
-      }).join("");
+      return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) { return li(k, st); }).join("");
     }
     var todo = document.getElementById("rail-todo");
-    if (todo) { var t = items("pend"); todo.innerHTML = t || '<li class="empty">Nothing left: everything is validated.</li>'; }
+    if (todo) {
+      var t = items("pend");
+      todo.innerHTML = t || '<li class="empty">' + (keys.some(function (k) { return stateOf(k[0]) === "ok"; }) && keys.every(function (k) { return stateOf(k[0]) === "ok"; }) ? "Nothing left: everything is validated." : "Nothing left to review.") + "</li>";
+    }
     var chg = document.getElementById("rail-chg");
     if (chg) { var c = items("chg"); chg.innerHTML = c; document.getElementById("rail-chg-box").hidden = !c; }
+    var rej = document.getElementById("rail-rej");
+    if (rej) {
+      var rr = Object.keys(ROW_OF).filter(function (k) { return stateOf(k) === "rej"; }).map(function (k) { return li([k, rowLabel(k), rowHref(k)], "rej"); }).join("");
+      rej.innerHTML = rr; document.getElementById("rail-rej-box").hidden = !rr;
+    }
   }
   /* Door mark without a link: for use inside buttons, where <a> is not allowed. */
   function doorMark(n) { return n ? ' · <span class="door-mark">door ' + esc(n) + "</span>" : ""; }
@@ -611,8 +785,13 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   }
 
   /* ---------- plan blocks ---------- */
-  function table(b) {
-    var confirmCol = b.header.map(function (h) { return h.toLowerCase(); }).indexOf("confirmed?");
+  /* `rows` (from PLAN.rows): the key and number of each row, when the user reviews this table row by row.
+     The table then gets a "#" column (a click copies "Section #N" to cite the row) and a Review column.
+     A table whose first column already is "#" with the same numbers keeps it as the number. `withId`: the
+     row carries the row-<section>-<n> anchor (only one copy of a table on the page does). */
+  function table(b, rows, withId) {
+    var reuse = !!rows && String(b.header[0] || "").trim() === "#" && b.rows.every(function (r, i) { return String(r[0] || "").trim() === String(rows[i].n); });
+    var confirmCol = b.header.map(function (h) { return h.trim().toLowerCase().replace(/\?$/, ""); }).indexOf("confirmed");
     var narrow = b.header.map(function (h, i) { return b.rows.every(function (r) { return String(r[i] || "").length <= 12; }) ? ' class="narrow"' : ""; });
     /* Text columns share the width by the root mean square of their cell lengths (minimum 18%):
        a long prose column is not squeezed, and a very long cell also weighs in, so that
@@ -623,28 +802,448 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       return Math.sqrt(sq / Math.max(b.rows.length, 1));
     });
     var total = avg.reduce(function (n, x) { return n + x; }, 0);
-    var cols = total ? "<colgroup>" + avg.map(function (x, i) {
+    var cols = total ? "<colgroup>" + (rows && !reuse ? "<col>" : "") + avg.map(function (x, i) {
       return narrow[i] ? "<col>" : '<col style="width:' + Math.max(18, Math.round(x / total * 100)) + '%">';
-    }).join("") + "</colgroup>" : "";
-    return '<div class="tbl"><table>' + cols + '<thead><tr>' + b.header.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + "</tr></thead><tbody>" +
-      b.rows.map(function (r) {
-        return "<tr>" + r.map(function (c, i) {
+    }).join("") + (rows ? "<col>" : "") + "</colgroup>" : "";
+    var sid = rows && ROW_OF[rows[0].key] ? ROW_OF[rows[0].key].sid : "";
+    function num(x) {
+      var ref = nameOf(sid) + " #" + x.n;
+      return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="Copy &quot;' + esc(ref) + '&quot; to cite this row" aria-label="Row ' + esc(x.n) + ": copy " + esc(ref) + '">' + esc(x.n) + "</button>";
+    }
+    return '<div class="tbl"><table>' + cols + '<thead><tr>' + (rows && !reuse ? '<th class="narrow">#</th>' : "") +
+      b.header.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + (rows ? '<th class="narrow">Review</th>' : "") + "</tr></thead><tbody>" +
+      b.rows.map(function (r, ri) {
+        var x = rows ? rows[ri] : null;
+        return "<tr" + (x ? ' class="row-t"' + (withId ? ' id="row-' + esc(sid) + "-" + esc(x.n) + '"' : "") : "") + ">" +
+          (x && !reuse ? '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>" : "") + r.map(function (c, i) {
           var td = "<td" + narrow[i] + ' data-label="' + esc(b.header[i] || "") + '">';
-          if (i === confirmCol) return td + (c === "y" ? '<span class="conf yes">' + IC.ok + "confirmed</span>" : '<span class="conf no">' + IC.pend + "not confirmed</span>") + '<span class="sr"> (plan.md: ' + esc(c) + ")</span></td>";
+          if (x && reuse && i === 0) return '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>";
+          if (i === confirmCol) {
+            /* "y" or "y - AD-012": the badge, and what follows the y (the decision that holds it) stays visible. */
+            var yes = /^y\b/i.test(String(c).trim()), rest = String(c).trim().replace(/^[yn]\b\s*[-–—]?\s*/i, "");
+            return td + (yes ? '<span class="conf yes">' + IC.ok + "confirmed</span>" : '<span class="conf no">' + IC.pend + "not confirmed</span>") +
+              (rest ? ' <span class="conf-ref">' + md(rest) + "</span>" : "") + '<span class="sr"> (plan.md: ' + esc(c) + ")</span></td>";
+          }
           return td + md(c) + "</td>";
-        }).join("") + "</tr>";
+        }).join("") + (x ? '<td class="narrow rv-cell" data-label="Review">' + rowSlot(x.key) + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
-  function blocks(list) {
+  /* The rows of the table at block index `bi` of section `sec`, in row order, or null. */
+  function rowsAt(sec, bi) {
+    var list = (ROWS[sec.id] || []).filter(function (x) { return x.b === bi; });
+    if (!list.length) return null;
+    return list.slice().sort(function (p, q) { return p.r - q.r; }).map(function (x) { return { key: x.key, n: x.n }; });
+  }
+  /* `sec`: the section the blocks come from (its tables are reviewed row by row); `noIds`: a second copy on the page. */
+  function blocks(list, sec, noIds) {
     return linkDoors('<div class="blocks">' + (list || []).map(function (b) {
       if (b.type === "p") return "<p>" + md(b.text) + "</p>";
       if (b.type === "ul") return '<ul class="notes">' + b.items.map(function (it) { return "<li>" + md(it.text) + "</li>"; }).join("") + "</ul>";
-      if (b.type === "ol") return '<ol class="steps">' + b.items.map(function (it) { return '<li><span class="n">' + it.n + "</span><span>" + md(it.text) + "</span></li>"; }).join("") + "</ol>";
-      if (b.type === "table") return table(b);
-      if (b.type === "code" && b.lang === "mermaid") return '<pre class="mermaid">' + esc(b.text) + "</pre>";
+      if (b.type === "ol") return '<ol class="steps">' + b.items.map(function (it) { return '<li><span class="n">' + it.n + "</span><span>" + md(it.text) + examples(it) + "</span></li>"; }).join("") + "</ol>";
+      if (b.type === "table") return table(b, sec ? rowsAt(sec, sec.blocks.indexOf(b)) : null, !noIds);
+      if (b.type === "code" && b.lang === "mermaid") return diagram(b.text);
       if (b.type === "code") return '<pre class="code">' + esc(b.text) + "</pre>";
       return "";
     }).join("") + "</div>");
+  }
+  /* The examples under a numbered item (a criterion's `- <example> → <result>` lines). */
+  function examples(it) {
+    return it.examples ? '<ul class="ex">' + it.examples.map(function (x) { return "<li>" + md(x) + "</li>"; }).join("") + "</ul>" : "";
+  }
+  /* ---------- mermaid drawings ----------
+     Each mermaid block is drawn by Mermaid, loaded from the CDN, with its source under it. The source
+     stays open until the drawing exists: offline, or when the plan's diagram does not parse, the page
+     shows the source and says why. Drawn again when the theme changes. */
+  var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js";
+  var mmd = { loading: null, gen: 0 };
+  function diagram(text, cls) {
+    return '<figure class="mmd' + (cls ? " " + cls : "") + '"><div class="mmd-bar" hidden><span class="mmd-legend" hidden><i></i>changes in this plan</span>' +
+      '<span class="mmd-hint"><i class="mmd-ring"></i>Steps and names with a moving outline open what the plan says.</span><span class="mmd-actions">' +
+      '<button type="button" class="mmd-btn mmd-expand" aria-label="Open the diagram full screen, with zoom">Expand</button>' +
+      '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">Copy source</button></span></div>' +
+      '<div class="mmd-draw" hidden></div><div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
+      '<details class="mmd-src" open><summary>Mermaid source</summary><pre class="mermaid">' + esc(text) + "</pre></details></figure>";
+  }
+  function diagramKind(text) { return (/^\s*([\w-]+)/.exec(text) || [])[1] || ""; }
+  function isDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t) return t === "dark";
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function loadMermaid() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (!mmd.loading) mmd.loading = new Promise(function (ok, no) {
+      var sc = document.createElement("script");
+      sc.src = MERMAID_SRC; sc.async = true;
+      sc.onload = function () { if (window.mermaid) ok(window.mermaid); else no(new Error("Mermaid did not start")); };
+      sc.onerror = function () { no(new Error("could not load " + MERMAID_SRC)); };
+      document.head.appendChild(sc);
+    });
+    return mmd.loading;
+  }
+  function diagramNote(fig, msg) {
+    var n = fig.querySelector(".mmd-note");
+    n.textContent = msg; n.hidden = !msg;
+  }
+  function diagramFailed(fig, msg) {
+    fig.classList.remove("drawn"); fig.classList.add("failed");
+    fig.querySelector(".mmd-draw").hidden = true;
+    fig.querySelector(".mmd-bar").hidden = true;
+    fig.querySelector(".mmd-detail").hidden = true;
+    fig.querySelector(".mmd-src").open = true;
+    diagramNote(fig, msg);
+  }
+  function drawDiagrams() {
+    var figs = [].slice.call(document.querySelectorAll("figure.mmd"));
+    if (!figs.length) return Promise.resolve();
+    var gen = ++mmd.gen;
+    closeZoom();
+    return loadMermaid().then(function (m) {
+      m.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
+        theme: isDark() ? "dark" : "neutral", fontFamily: getComputedStyle(document.body).fontFamily,
+        sequence: { useMaxWidth: false } });  // a sequence keeps its size and scrolls: shrunk to the column, its labels are unreadable
+      return figs.reduce(function (chain, fig, i) {
+        return chain.then(function () {
+          if (gen !== mmd.gen) return;  // the theme changed: a newer pass draws everything again
+          var id = "mmd-" + gen + "-" + i;
+          return Promise.resolve().then(function () { return m.render(id, fig.querySelector("pre.mermaid").textContent); }).then(function (r) {
+            var box = fig.querySelector(".mmd-draw");
+            box.innerHTML = r.svg; box.hidden = false;
+            if (r.bindFunctions) r.bindFunctions(box);
+            fig.classList.remove("failed"); fig.classList.add("drawn");
+            fig.querySelector(".mmd-bar").hidden = false;
+            wireDiagram(fig);
+            fig.querySelector(".mmd-src").open = false;
+            diagramNote(fig, "");
+          }, function (e) {
+            var left = document.getElementById("d" + id); if (left) left.remove();
+            diagramFailed(fig, "This diagram did not render, so the plan's source is shown: " + String((e && e.message) || e).split("\n")[0]);
+          });
+        });
+      }, Promise.resolve()).then(function () { if (gen === mmd.gen) syncPathList(); });
+    }, function (e) {
+      figs.forEach(function (f) { diagramFailed(f, "The drawings need Mermaid, which did not load (" + e.message + "); the source is shown."); });
+      syncPathList();
+    });
+  }
+  function syncPathList() {
+    [].slice.call(document.querySelectorAll(".part-path")).forEach(function (part) {
+      var view = part.parentNode, drawings = view.querySelectorAll("figure.mmd.path-drawing");
+      part.hidden = !!drawings.length && !!view.querySelector("figure.mmd.path-drawing.drawn");
+    });
+  }
+  /* ---------- what a drawing means in the plan ----------
+     A label in a drawing becomes clickable when the plan knows it: "N. ..." is hop N of the path, a name
+     the path, its cards or the changes underneath name opens what the plan says about it, "door N" is
+     the One-way door. The detail panel under the drawing shows it; the path cards light the arrows of
+     their hop, and the open node card lights its name. Nothing here is new: it is the plan, linked. */
+  function plainName(t) {
+    return String(t || "").replace(/[`"*]/g, "").replace(/\s*\((?:exists|new|door \d+)[^)]*\)\s*$/i, "").replace(/\s+/g, " ").trim();
+  }
+  function ticked(t) { var out = [], m, rx = /`([^`]+)`/g; while ((m = rx.exec(t || ""))) out.push(plainName(m[1])); return out; }
+  /* Built once the sections exist (drawDiagrams runs after the page is assembled). */
+  var PATH_SEC = null, HOPS = {}, FV_PATHS = [], UNDER = null, NAMES = {}, CHANGED = {};
+  function indexPlan() {
+    if (PATH_SEC !== null) return;
+    PATH_SEC = PLAN.sections.filter(function (x) { return x.id === "shape" || x.id === "flow"; })[0] || false;
+    ((PATH_SEC && PATH_SEC.blocks) || []).forEach(function (b) { if (b.type === "ol") b.items.forEach(function (it) { HOPS[it.n] = it.text; }); });
+    FV_PATHS = (EN.flow_visual && EN.flow_visual.paths) || [];
+    UNDER = PATH_SEC ? underneathTable(PATH_SEC) : null;
+    Object.keys(HOPS).forEach(function (n) { ticked(HOPS[n]).forEach(function (x) { NAMES[x] = 1; }); });
+    FV_PATHS.forEach(function (p) { p.nodes.forEach(function (x) { if (!x.tbd) NAMES[plainName(x.n)] = 1; }); });
+    ((UNDER && UNDER.rows) || []).forEach(function (r) { r.forEach(function (c) { ticked(c).forEach(function (x) { NAMES[x] = 1; }); }); });
+    /* What this plan changes, painted green in the drawings as in The path: a node that changes there,
+       a module the path creates ("(new)", "(door N)"), what the `New:` line adds (before "link", "relation"
+       or "to"), and the term of each domain row of Changes underneath. */
+    FV_PATHS.forEach(function (p) { p.nodes.forEach(function (x) { if (!x.tbd && (x.o || x.note)) CHANGED[plainName(x.n)] = 1; }); });
+    Object.keys(HOPS).forEach(function (n) {
+      var m, rx = /`([^`]+)`\s*\((?:new|door \d+)/g;
+      while ((m = rx.exec(HOPS[n]))) CHANGED[plainName(m[1])] = 1;
+    });
+    ((PATH_SEC && PATH_SEC.blocks) || []).forEach(function (b) {
+      var m = b.type === "p" && /^New:\s*([^.]*)/.exec(b.text);
+      if (m) ticked(m[1].split(/\b(?:link|links|relation|relations|to)\b/)[0]).forEach(function (x) { CHANGED[x] = 1; NAMES[x] = 1; });
+    });
+    ((UNDER && UNDER.rows) || []).forEach(function (r) { if (/^domain/i.test(plainName(r[0]))) ticked(r.slice(1).join(" ")).slice(0, 1).forEach(function (x) { CHANGED[x] = 1; }); });
+  }
+  function diagramKey(text) {
+    var m = /^\s*(\d+)\.\s/.exec(text);
+    if (m && HOPS[m[1]]) return "hop:" + m[1];
+    var nm = plainName(text);
+    if (nm && NAMES[nm]) return "name:" + nm;
+    var d = /\bdoor (\d+)\b/.exec(text);
+    if (d && document.getElementById("door-" + d[1])) return "door:" + d[1];
+    return null;
+  }
+  function wireDiagram(fig) {
+    var svg = fig.querySelector(".mmd-draw svg"); if (!svg) return;
+    indexPlan();
+    var seen = [];
+    [].slice.call(svg.querySelectorAll("text, foreignObject")).forEach(function (el) {
+      if (el.tagName.toLowerCase() === "text" && el.closest("foreignObject")) return;
+      var text = el.textContent.replace(/\s+/g, " ").trim(), key = text && diagramKey(text);
+      if (!key) return;
+      var cls = el.getAttribute("class") || "";
+      var target = el.closest("g.node, g.edgeLabel") || (/\bactor\b/.test(cls) && el.parentNode !== svg ? el.parentNode : el);
+      if (seen.indexOf(target) !== -1) return;
+      seen.push(target);
+      if (key.indexOf("name:") === 0 && CHANGED[key.slice(5)]) target.classList.add("mmd-chg");
+      // Mermaid repeats each participant at the bottom of a sequence: only the top one is clickable,
+      // the copy keeps its colour and lights with it.
+      if (target.querySelector && target.querySelector(":scope > rect.actor-bottom")) { target.setAttribute("data-mmd-twin", key); return; }
+      target.setAttribute("data-mmd-key", key);
+      target.setAttribute("tabindex", "0");
+      target.setAttribute("role", "button");
+      target.setAttribute("aria-label", key.indexOf("hop:") === 0 ? "Hop " + key.slice(4) + ": " + text : text);
+      // The browser's own tooltip says what a click opens.
+      var tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tip.textContent = key.indexOf("hop:") === 0 ? "Hop " + key.slice(4) + ": click for the plan's line and its cards" :
+        key.indexOf("door:") === 0 ? "Door " + key.slice(5) + ": click for the decision" : text + ": click for its cards and Where / Why / Proof";
+      target.insertBefore(tip, target.firstChild);
+      // A message's arrow is the line drawn right after its text: it lights with it.
+      var ln = el.nextElementSibling;
+      if (/messageLine/.test((ln && ln.getAttribute("class")) || "")) ln.setAttribute("data-mmd-line", key);
+      cue(target, key);
+    });
+    fig.querySelector(".mmd-legend").hidden = !svg.querySelector(".mmd-chg");
+    if (fig.__sel) markSel(fig, fig.__sel);
+    paintLit();
+  }
+  /* A dashed outline runs around what can be clicked: the block of a participant, entity or state,
+     or the label of a step. Drawn in the drawing's own coordinates, under the label so it never takes
+     the click. */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function cue(target, key) {
+    var shape = target.tagName.toLowerCase() === "text" ? null : target.querySelector(":scope > rect, :scope > polygon, :scope > .label-container, :scope > path");
+    var box = shape || target, bb;
+    if (!box.getBBox) return;
+    try { bb = box.getBBox(); } catch (e) { return; }
+    if (!bb || !bb.width) return;
+    var pad = shape ? 3 : 4;
+    var r = document.createElementNS(SVGNS, "rect");
+    r.setAttribute("class", "mmd-ring");
+    r.setAttribute("data-mmd-cue", key);
+    r.setAttribute("x", bb.x - pad); r.setAttribute("y", bb.y - pad);
+    r.setAttribute("width", bb.width + pad * 2); r.setAttribute("height", bb.height + pad * 2);
+    r.setAttribute("rx", 6);
+    if (shape) {
+      if (shape.getAttribute("transform")) r.setAttribute("transform", shape.getAttribute("transform"));
+      target.insertBefore(r, shape.nextSibling);
+    } else {
+      if (target.getAttribute("transform")) r.setAttribute("transform", target.getAttribute("transform"));
+      // Right after the label, so `label:hover + .mmd-ring` reaches it.
+      target.parentNode.insertBefore(r, target.nextSibling);
+    }
+  }
+  /* Lit keys, by slot: what the pointer is over in The path, and the node card open there. */
+  var LIT = {};
+  function lightKey(slot, key) { if (LIT[slot] === key) return; LIT[slot] = key; paintLit(); }
+  function paintLit() {
+    var on = Object.keys(LIT).map(function (k) { return LIT[k]; }).filter(Boolean);
+    [].slice.call(document.querySelectorAll(".mmd-lit")).forEach(function (x) { x.classList.remove("mmd-lit"); });
+    on.forEach(function (k) {
+      [].slice.call(document.querySelectorAll('[data-mmd-key="' + k + '"], [data-mmd-line="' + k + '"], [data-mmd-twin="' + k + '"], [data-mmd-cue="' + k + '"]')).forEach(function (x) { x.classList.add("mmd-lit"); });
+    });
+    [].slice.call(document.querySelectorAll(".mmd-draw")).forEach(function (box) { reveal(box, box.querySelector(".mmd-lit")); });
+  }
+  /* A wide drawing scrolls sideways inside its box: bring what lit up into view, without moving the page. */
+  function reveal(box, el) {
+    if (!box || !el || !el.getBoundingClientRect || box.scrollWidth <= box.clientWidth) return;
+    var b = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+    if (r.left >= b.left && r.right <= b.right) return;
+    var to = box.scrollLeft + (r.left + r.width / 2) - (b.left + b.width / 2);
+    if (box.scrollTo) box.scrollTo({ left: to, behavior: "smooth" }); else box.scrollLeft = to;
+  }
+  function markSel(fig, key) {
+    var root = zoom && zoom.fig === fig ? zoom.stage : fig;
+    [].slice.call(fig.querySelectorAll(".mmd-sel")).concat([].slice.call(root.querySelectorAll(".mmd-sel"))).forEach(function (x) { x.classList.remove("mmd-sel"); });
+    if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"], [data-mmd-twin="' + key + '"], [data-mmd-cue="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
+    if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), fig.querySelector(".mmd-sel"));
+  }
+  /* A card of The path, as the panel shows it: the chain of nodes, the changed ones open their
+     Where / Why / Proof. `open` is the node key ("pi-ni") whose card is open. */
+  var CARD_OF = null;
+  function cardOfNode(x) {
+    if (x.change != null) return x.change;
+    if (!CARD_OF) { CARD_OF = {}; FV_PATHS.forEach(function (p) { p.nodes.forEach(function (y) { if (y.change != null && !(y.n in CARD_OF)) CARD_OF[y.n] = y.change; }); }); }
+    return CARD_OF[x.n];
+  }
+  function pathCard(pi, open) {
+    var p = FV_PATHS[pi], sel = null;
+    var chain = p.nodes.map(function (x, ni) {
+      var key = pi + "-" + ni, changed = !!(x.o || x.note), idx = cardOfNode(x);
+      if (open === key) sel = x;
+      var inner = '<span class="nk">' + esc(x.k) + doorMark(x.d) + "</span>" + (x.o ? '<span class="no' + pr(x.o) + '">' + esc(x.o) + "</span>" : "") +
+        newName(x.n, x.tbd, "nn") + (x.note ? '<span class="nnote">' + esc(x.note) + "</span>" : "");
+      var n = !changed ? '<div class="node">' + inner + "</div>" : idx == null ? '<div class="node changed">' + inner + "</div>" :
+        '<button type="button" class="node changed node-btn node-pick" data-node-pick="' + key + '" aria-expanded="' + (open === key) + '">' + inner + "</button>";
+      return ni === 0 ? n : '<span class="unit"><span class="sep">' + IC.arrow + "</span>" + n + "</span>";
+    }).join("");
+    var detail = sel ? changeDetail(CHANGES[cardOfNode(sel)], [["Before", "<code>" + esc(sel.o || sel.n) + "</code>"], ["After", newNameText(sel.n, sel.tbd) + (sel.note ? " · " + esc(sel.note) : "")]]) : "";
+    return '<div class="path mmd-path"><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") +
+      (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + detail + "</div>";
+  }
+  function hopChip(n) { return '<button type="button" class="chip" data-mmd-pick="hop:' + n + '">hop ' + n + "</button>"; }
+  function detailHtml(key, open) {
+    var kind = key.slice(0, key.indexOf(":")), val = key.slice(key.indexOf(":") + 1), h = "";
+    if (kind === "hop") {
+      var paths = FV_PATHS.map(function (p, i) { return [p, i]; }).filter(function (x) { return String(x[0].hop) === val; });
+      var names = ticked(HOPS[val]).filter(function (x) { return NAMES[x]; });
+      h = '<div class="mmd-dh"><span class="mmd-tag">Hop ' + esc(val) + "</span> of the path in the plan</div><p>" + linkDoors(md(HOPS[val])) + "</p>" +
+        (names.length ? '<div class="mmd-row"><span class="lbl">Names on this hop</span>' + names.map(function (x) { return '<button type="button" class="chip" data-mmd-pick="name:' + esc(x) + '"><code>' + esc(x) + "</code></button>"; }).join("") + "</div>" : "") +
+        paths.map(function (x) { return pathCard(x[1], open); }).join("");
+    } else if (kind === "name") {
+      var hops = Object.keys(HOPS).filter(function (n) { return ticked(HOPS[n]).indexOf(val) !== -1 || plainName(HOPS[n]).indexOf(val) !== -1; });
+      var node = null, at = [], first = null;
+      FV_PATHS.forEach(function (p, pi) { p.nodes.forEach(function (x, ni) {
+        if (plainName(x.n) !== val) return;
+        if (at.indexOf(pi) === -1) at.push(pi);
+        if (!node || (cardOfNode(node) == null && cardOfNode(x) != null)) { node = x; first = cardOfNode(x) != null ? pi + "-" + ni : null; }
+      }); });
+      // The node's card opens on its own the first time; the panel then follows the clicks.
+      var openKey = open === undefined ? first : open;
+      var ch = node ? null : CHANGES.filter(function (c) { return !c.tbd && plainName(c.neu).split(" ")[0] === val; })[0];
+      var under = ((UNDER && UNDER.rows) || []).map(function (r, i) { return [r, i]; }).filter(function (x) { return x[0].join(" ").indexOf(val) !== -1; });
+      h = '<div class="mmd-dh"><code>' + esc(val) + "</code>" + (node && node.d ? " " + doorLink(node.d) : "") + "</div>" +
+        (hops.length ? '<div class="mmd-row"><span class="lbl">On the path</span>' + hops.map(hopChip).join("") + "</div>" : "") +
+        at.map(function (pi) { return pathCard(pi, openKey); }).join("") +
+        (under.length ? '<div class="mmd-row mmd-under"><span class="lbl">Changes underneath</span>' + under.map(function (x) { return "<p><b>#" + (x[1] + 1) + " " + md(x[0][0]) + ":</b> " + md(x[0].slice(1).join(" · ")) + "</p>"; }).join("") + "</div>" : "") +
+        (ch ? changeDetail(ch) : "");
+    } else if (kind === "door") {
+      var lv = ((EN.landing_visual && EN.landing_visual.doors) || []).filter(function (d) { return String(d.n) === val; })[0];
+      var dt = document.getElementById("door-" + val), title = lv ? lv.title : dt ? (dt.querySelector("h3") || dt).textContent : "";
+      h = '<div class="mmd-dh"><span class="mmd-tag">One-way door ' + esc(val) + "</span> " + esc(title) + "</div>" +
+        (lv && lv.decide ? "<p>" + codeText(lv.decide) + "</p>" : "") + '<p><a class="xref" href="#door-' + esc(val) + '">Open door ' + esc(val) + " in the Landing</a></p>";
+    }
+    return '<button type="button" class="mmd-x" aria-label="Close">×</button>' + h;
+  }
+  /* The detail panel lives under its drawing, or in the full-screen dialog while the drawing is there. */
+  function detailOf(fig) { return zoom && zoom.fig === fig ? zoom.dlg.querySelector(".mmd-detail") : fig.querySelector(".mmd-detail"); }
+  function selectKey(fig, key) {
+    var box = detailOf(fig);
+    fig.__open = undefined;
+    lightKey("panel", null);
+    if (!key || fig.__sel === key) { fig.__sel = null; box.hidden = true; box.innerHTML = ""; markSel(fig, null); return; }
+    fig.__sel = key;
+    box.innerHTML = detailHtml(key); box.hidden = false;
+    markSel(fig, key);
+  }
+  /* A node of a card in the panel: opens or closes its Where / Why / Proof, and lights its name in the drawings. */
+  function pickNode(fig, nodeKey) {
+    var box = detailOf(fig), cur = box.querySelector('[data-node-pick][aria-expanded="true"]');
+    fig.__open = cur && cur.getAttribute("data-node-pick") === nodeKey ? null : nodeKey;
+    box.innerHTML = detailHtml(fig.__sel, fig.__open);
+    var at = fig.__open ? fig.__open.split("-") : null, x = at ? FV_PATHS[+at[0]].nodes[+at[1]] : null;
+    lightKey("panel", x ? "name:" + plainName(x.n) : null);
+    var again = box.querySelector('[data-node-pick="' + nodeKey + '"]'); if (again) again.focus();
+  }
+  function figOf(el) { return el.closest("figure.mmd") || (zoom && zoom.dlg.contains(el) ? zoom.fig : null); }
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t.closest) return;
+    var fig = figOf(t); if (!fig) return;
+    if (zoom && zoom.dragged) { zoom.dragged = false; if (zoom.stage.contains(t)) return; }
+    var hot = t.closest("[data-mmd-key]");
+    if (hot) return selectKey(fig, hot.getAttribute("data-mmd-key"));
+    var pick = t.closest("[data-mmd-pick]");
+    if (pick) { fig.__sel = null; return selectKey(fig, pick.getAttribute("data-mmd-pick")); }
+    var np = t.closest("[data-node-pick]");
+    if (np) return pickNode(fig, np.getAttribute("data-node-pick"));
+    if (t.closest(".mmd-x")) return selectKey(fig, null);
+    if (t.closest(".mmd-expand")) return openZoom(fig);
+    var cp = t.closest(".mmd-copy");
+    if (cp) copyText(cp.getAttribute("data-copy")).then(function () { cp.textContent = "Copied"; setTimeout(function () { cp.textContent = "Copy source"; }, 1500); },
+      function () { toast("<span>Could not copy. Open the Mermaid source and copy it by hand.</span>"); });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var hot = e.target.closest && e.target.closest("[data-mmd-key]"); if (!hot) return;
+    e.preventDefault(); hot.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
+  /* ---------- full screen: zoom with the wheel, the buttons or a pinch, drag to move ---------- */
+  var zoom = null;
+  function buildZoom() {
+    var dlg = document.createElement("dialog");
+    dlg.className = "mmd-zoom"; dlg.setAttribute("aria-label", "Diagram, full screen");
+    dlg.innerHTML = '<div class="mmd-zbar"><button type="button" class="mmd-btn" data-z="out" aria-label="Zoom out">−</button><span class="mmd-zpct"></span>' +
+      '<button type="button" class="mmd-btn" data-z="in" aria-label="Zoom in">+</button><button type="button" class="mmd-btn" data-z="fit">Fit</button>' +
+      '<span class="mmd-hint">Wheel or pinch to zoom, drag to move; click a step or a name for what the plan says.</span><button type="button" class="mmd-btn" data-z="close">Close</button></div>' +
+      '<div class="mmd-viewport"><div class="mmd-stage"></div></div><div class="mmd-zdetail"></div>';
+    document.body.appendChild(dlg);
+    var z = { dlg: dlg, stage: dlg.querySelector(".mmd-stage"), view: dlg.querySelector(".mmd-viewport"), pct: dlg.querySelector(".mmd-zpct"), s: 1, x: 0, y: 0, pts: {}, dragged: false };
+    z.apply = function () { z.stage.style.transform = "translate(" + z.x + "px," + z.y + "px) scale(" + z.s + ")"; z.pct.textContent = Math.round(z.s * 100) + "%"; };
+    z.at = function (f, px, py) {
+      var ns = Math.min(8, Math.max(0.1, z.s * f));
+      z.x = px - (px - z.x) * (ns / z.s); z.y = py - (py - z.y) * (ns / z.s); z.s = ns; z.apply();
+    };
+    z.center = function (f) { var r = z.view.getBoundingClientRect(); z.at(f, r.width / 2, r.height / 2); };
+    z.fit = function () {
+      var r = z.view.getBoundingClientRect(), w = z.w || 1, h = z.h || 1;
+      z.s = Math.min(8, Math.max(0.1, Math.min((r.width - 32) / w, (r.height - 32) / h))) || 1;
+      z.x = (r.width - w * z.s) / 2; z.y = (r.height - h * z.s) / 2; z.apply();
+    };
+    dlg.querySelector(".mmd-zbar").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-z]"); if (!b) return;
+      var a = b.getAttribute("data-z");
+      if (a === "in") z.center(1.25); else if (a === "out") z.center(0.8); else if (a === "fit") z.fit(); else closeZoom();
+    });
+    z.view.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      var r = z.view.getBoundingClientRect();
+      z.at(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
+    // Pointer capture only once it is a drag: a plain click must still reach the label under it.
+    z.view.addEventListener("pointerdown", function (e) { z.pts[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; z.moved = false; });
+    z.view.addEventListener("pointermove", function (e) {
+      var pt = z.pts[e.pointerId]; if (!pt) return;
+      var ids = Object.keys(z.pts);
+      if (!z.moved && Math.abs(e.clientX - pt.x0) + Math.abs(e.clientY - pt.y0) > 4) { z.moved = true; if (z.view.setPointerCapture) z.view.setPointerCapture(e.pointerId); }
+      if (!z.moved) return;
+      if (ids.length === 2) {
+        var o = z.pts[ids[0] === String(e.pointerId) ? ids[1] : ids[0]];
+        var before = Math.hypot(pt.x - o.x, pt.y - o.y), after = Math.hypot(e.clientX - o.x, e.clientY - o.y);
+        var r = z.view.getBoundingClientRect();
+        if (before > 0) z.at(after / before, (e.clientX + o.x) / 2 - r.left, (e.clientY + o.y) / 2 - r.top);
+      } else {
+        z.x += e.clientX - pt.x; z.y += e.clientY - pt.y; z.apply();
+      }
+      pt.x = e.clientX; pt.y = e.clientY;
+    });
+    function up(e) { if (z.moved) z.dragged = true; delete z.pts[e.pointerId]; }
+    z.view.addEventListener("pointerup", up);
+    z.view.addEventListener("pointercancel", up);
+    dlg.addEventListener("keydown", function (e) {
+      if (e.target.closest && e.target.closest("[data-mmd-key]")) return;
+      if (e.key === "+" || e.key === "=") z.center(1.25); else if (e.key === "-") z.center(0.8); else if (e.key === "0") z.fit(); else return;
+      e.preventDefault();
+    });
+    dlg.addEventListener("close", function () { closeZoom(); });
+    return z;
+  }
+  function openZoom(fig) {
+    var box = fig.querySelector(".mmd-draw"), svg = box.querySelector("svg"); if (!svg) return;
+    if (!zoom) zoom = buildZoom();
+    closeZoom();
+    var vb = (svg.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
+    zoom.w = vb[2] || svg.getBoundingClientRect().width; zoom.h = vb[3] || svg.getBoundingClientRect().height;
+    zoom.fig = fig; zoom.svg = svg;
+    zoom.saved = { style: svg.getAttribute("style"), width: svg.getAttribute("width"), height: svg.getAttribute("height") };
+    svg.setAttribute("width", zoom.w); svg.setAttribute("height", zoom.h);
+    svg.style.maxWidth = "none"; svg.style.maxHeight = "none";
+    zoom.stage.appendChild(svg);
+    zoom.dlg.querySelector(".mmd-zdetail").appendChild(fig.querySelector(".mmd-detail"));
+    if (zoom.dlg.showModal) zoom.dlg.showModal(); else zoom.dlg.setAttribute("open", "");
+    zoom.fit();
+  }
+  function closeZoom() {
+    if (!zoom || !zoom.fig) return;
+    var fig = zoom.fig, svg = zoom.svg, box = fig.querySelector(".mmd-draw");
+    zoom.fig = null; zoom.svg = null;
+    ["style", "width", "height"].forEach(function (a) { if (zoom.saved[a] == null) svg.removeAttribute(a); else svg.setAttribute(a, zoom.saved[a]); });
+    box.appendChild(svg);
+    var det = zoom.dlg.querySelector(".mmd-detail"); if (det) box.parentNode.insertBefore(det, box.nextSibling);
+    if (zoom.dlg.open && zoom.dlg.close) zoom.dlg.close(); else zoom.dlg.removeAttribute("open");
   }
   function firstTable(sec) { return (sec.blocks || []).filter(function (b) { return b.type === "table"; })[0]; }
 
@@ -732,7 +1331,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   /* Problem: clickable symptoms (Where / Today / Fixed in) and "who pays" as a filter */
   function renderProblem(s) {
     var v = EN.problem_visual;
-    if (!v) return section(s, blocks(s.blocks));
+    if (!v) return section(s, blocks(s.blocks, s));
     var syms = v.symptoms || [], pays = v.pays || [];
     var st = { pay: null, open: {} };
     var html = staleTag("problem-visual") + (pays.length ? '<h3>Who pays</h3><div class="pay-filter">' + pays.map(function (p, i) {
@@ -742,7 +1341,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       (pays.length ? '<p class="hint">Click who pays to see what hits them; click a symptom to see where it is and what fixes it.</p>' : "") +
       (v.why_now ? '<div class="callout"><b>Why now:</b> ' + md(v.why_now) + "</div>" : "") +
       (v.outcome ? '<div class="callout"><b>Once shipped:</b> ' + md(v.outcome) + "</div>" : "");
-    var el = section(s, html, blocks(s.blocks));
+    var el = section(s, html, blocks(s.blocks, s));
     var box = el.querySelector(".syms");
     function fixHtml(f) {
       if (!f) return "";
@@ -776,11 +1375,11 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     });
   }
 
-  /* Flow: clickable paths */
-  function renderFlow(s) {
+  /* Flow: clickable paths. A part of a section: `html` goes into the Visual tab, `bind` wires it once
+     the section exists. Shape carries it (Flow in older plans). */
+  function flowPart(s) {
     var v = EN.flow_visual;
-    if (!v) return section(s, blocks(s.blocks));
-    var intro = (s.blocks || []).filter(function (b) { return b.type === "p"; })[0];
+    if (!v) return null;
     var st = { sel: null };
     // Where each changing node appears: its card opens in one place, and the other occurrences light up with it.
     // Every copy opens the same card: `change` comes from the occurrence that carries it in the data.
@@ -793,12 +1392,11 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     });
     function cardIdx(x) { return x.change != null ? x.change : cardOf[x.n]; }
     var repeats = Object.keys(seen).some(function (n) { return seen[n].length > 1; });
-    var html = (intro ? '<p class="lead-in">' + md(intro.text) + "</p>" : "") +
+    var html =
       '<div class="toolbar"><button type="button" class="switch flow-focus" aria-pressed="false"><span class="track"></span>Highlight only what changes</button>' +
       '<span class="legend"><span><i class="add"></i>changes: click to see where, why and proof</span><span>struck through = the name today</span>' +
       (repeats ? '<span><i class="same"></i>the same node in another path</span>' : "") + '</span></div><div class="paths"></div>';
-    var el = section(s, html, blocks(s.blocks));
-    var box = el.querySelector(".paths");
+    var el, box;
     function selNode() {
       if (!st.sel) return null;
       var at = st.sel.split("-");
@@ -815,6 +1413,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     }
     function render() {
       var cur = selNode(), selN = cur ? cur.n : null;
+      lightKey("node", cur ? "name:" + plainName(cur.n) : null);
       box.classList.toggle("picking", !!cur);
       box.innerHTML = v.paths.map(function (p, pi) {
         var sel = null, hasSame = false;
@@ -824,36 +1423,50 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
           return ni === 0 ? node(x, key, selN) : '<span class="unit"><span class="sep">' + IC.arrow + "</span>" + node(x, key, selN) + "</span>";
         }).join("");
         var panel = sel ? changeDetail(CHANGES[cardIdx(sel)], [["Before", "<code>" + esc(sel.o || sel.n) + "</code>"], ["After", newNameText(sel.n, sel.tbd) + (sel.note ? " · " + esc(sel.note) : "")]]) : "";
-        return '<div class="path' + (hasSame ? " has-same" : "") + '"><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") + (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + panel + "</div>";
+        return '<div class="path' + (hasSame ? " has-same" : "") + '" data-pi="' + pi + '"' + (p.hop ? ' data-hop="' + esc(p.hop) + '"' : "") + '><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") + (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + panel + "</div>";
       }).join("");
     }
-    render();
-    el.querySelector(".flow-focus").addEventListener("click", function (e) {
-      var on = e.currentTarget.getAttribute("aria-pressed") !== "true";
-      e.currentTarget.setAttribute("aria-pressed", String(on));
-      box.classList.toggle("focus", on);
-    });
-    el.addEventListener("click", function (e) {
-      var b = e.target.closest(".node-btn"); if (!b) return;
-      var k = b.getAttribute("data-key");
-      st.sel = st.sel === k ? null : k;
+    return { html: html, bind: function (sec) {
+      el = sec; box = el.querySelector(".paths");
       render();
-      var again = el.querySelector('.node-btn[data-key="' + k + '"]'); if (again) again.focus();
-    });
+      box.addEventListener("mouseover", function (e) { var p = e.target.closest(".path"); lightKey("hover", p && p.getAttribute("data-hop") ? "hop:" + p.getAttribute("data-hop") : null); });
+      box.addEventListener("mouseleave", function () { lightKey("hover", null); });
+      box.addEventListener("focusin", function (e) { var p = e.target.closest(".path"); lightKey("hover", p && p.getAttribute("data-hop") ? "hop:" + p.getAttribute("data-hop") : null); });
+      el.querySelector(".flow-focus").addEventListener("click", function (e) {
+        var on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+        e.currentTarget.setAttribute("aria-pressed", String(on));
+        box.classList.toggle("focus", on);
+      });
+      el.addEventListener("click", function (e) {
+        var b = e.target.closest(".node-btn"); if (!b) return;
+        var k = b.getAttribute("data-key");
+        st.sel = st.sel === k ? null : k;
+        render();
+        var again = el.querySelector('.node-btn[data-key="' + k + '"]'); if (again) again.focus();
+      });
+    } };
   }
 
-  /* Impact: cards by group, "who feels it" filter */
-  function renderImpact(s) {
+  /* The table each Impact card reads: Shape's "Changes underneath" (first header `Front`), or the
+     first Impact table in older plans. build_page.py (underneath_table) uses the same rule. */
+  function underneathTable(s) {
+    var tables = (s.blocks || []).filter(function (b) { return b.type === "table"; });
+    return tables.filter(function (t) { return String(t.header[0] || "").trim().toLowerCase() === "front"; })[0] || tables[0];
+  }
+  /* Impact: cards by group, "who feels it" filter. A part, like flowPart: Shape carries it (Impact in older plans). */
+  function impactPart(s) {
     var v = EN.impact_visual;
-    if (!v) return section(s, blocks(s.blocks));
-    var rows = (firstTable(s) || { rows: [] }).rows;
+    if (!v) return null;
+    var t = underneathTable(s);
+    var rows = (t || { rows: [] }).rows;
+    /* Each card is a reading of one table row: it shows the row number and its review, so it can be confirmed from the Visual tab. */
+    var rowKeys = rowsAt(s, s.blocks.indexOf(t)) || [];
     var st = { aud: null, open: {} };
     var auds = v.audiences || [];
     var html = (auds.length ? '<div class="aud"><span class="lbl">Who feels it</span><button type="button" class="chip" data-a="" aria-pressed="true">All</button>' +
       auds.map(function (a) { return '<button type="button" class="chip" data-a="' + esc(a) + '" aria-pressed="false">' + esc(a) + "</button>"; }).join("") + "</div>" : "") +
       '<div class="groups"></div><p class="hint">Click a card to see where, why, proof and the plan text for that row.</p>';
-    var el = section(s, html, blocks(s.blocks));
-    var box = el.querySelector(".groups");
+    var el, box;
     function card(c, i) {
       var open = !!st.open[i];
       var dim = st.aud && (c.who || []).indexOf(st.aud) === -1;
@@ -866,12 +1479,14 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
             '</span><span class="why">' + codeText(k[1]) + "</span></li>";
         }).join("") + "</ul>";
         if (c.tree && v.tree) detail += '<div class="trees"><div class="tree"><h3>Before</h3><div class="tree-lines">' + treeHtml(v.tree.before) + '</div></div><div class="tree"><h3>After</h3><div class="tree-lines">' + treeHtml(v.tree.after) + "</div></div></div>";
-        var r = rows[c.row];
+        var r = rows[c.row], rk = rowKeys[c.row];
         if (r) detail += '<div class="plan-text"><b class="lead">Plan text · ' + esc(r[0]) + "</b>" + md(r.slice(1).join(" · ")) + "</div>";
+        if (rk) detail += '<div class="imp-rv"><span class="lbl">' + esc(s.name) + " #" + esc(rk.n) + "</span>" + rowSlot(rk.key) + "</div>";
         detail += "</div>";
       }
       return '<article class="imp ' + esc(c.g) + (open ? " open" : "") + (dim ? " dim" : "") + '"><button type="button" class="imp-btn card-btn" data-i="' + i + '" aria-expanded="' + open + '">' +
-        '<span class="imp-what">' + esc(c.title) + staleTag("impact:" + i) + "</span>" + '<span class="imp-mid">' +
+        '<span class="imp-what">' + (rowKeys[c.row] ? '<span class="st" data-rk-dot="' + esc(rowKeys[c.row].key) + '"></span><span class="imp-n">#' + esc(rowKeys[c.row].n) + "</span>" : "") +
+        esc(c.title) + staleTag("impact:" + i) + "</span>" + '<span class="imp-mid">' +
         (c.before || c.after ? '<span class="ba">' + (c.before ? '<span class="name old' + pr(c.before) + '">' + esc(c.before) + "</span>" : "") + '<span class="ba-new">' + (c.before ? '<span class="arrow">' + IC.arrow + "</span>" : "") + newName(c.after, c.tbd, "name new") + "</span></span>" : "") +
         (c.risk ? '<span class="risk"><b>Risk:</b> ' + esc(c.risk) + "</span>" : "") + "</span>" +
         '<span class="who">' + (c.who || []).map(function (w) { return "<span>" + esc(w) + "</span>"; }).join("") + "</span>" + IC.chev + "</button>" + detail + "</article>";
@@ -883,28 +1498,54 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
         return '<div class="group"><div class="group-head ' + esc(g[0]) + '"><i></i><h3>' + esc(g[1]) + '</h3><span class="gcount">' + cs.length + "</span></div>" +
           '<div class="imps">' + cs.map(function (p) { return card(p[0], p[1]); }).join("") + "</div></div>";
       }).join("");
+      paintReview();
     }
-    render();
-    var audBox = el.querySelector(".aud");
-    if (audBox) audBox.addEventListener("click", function (e) {
-      var b = e.target.closest(".chip"); if (!b) return;
-      st.aud = b.getAttribute("data-a") || null;
-      audBox.querySelectorAll(".chip").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    return { html: html, bind: function (sec) {
+      el = sec; box = el.querySelector(".groups");
       render();
-    });
-    el.addEventListener("click", function (e) {
-      var b = e.target.closest(".imp-btn"); if (!b) return;
-      var i = b.getAttribute("data-i"); st.open[i] = !st.open[i]; render();
-      var again = el.querySelector('.imp-btn[data-i="' + i + '"]'); if (again) again.focus();
-    });
+      var audBox = el.querySelector(".aud");
+      if (audBox) audBox.addEventListener("click", function (e) {
+        var b = e.target.closest(".chip"); if (!b) return;
+        st.aud = b.getAttribute("data-a") || null;
+        audBox.querySelectorAll(".chip").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        render();
+      });
+      el.addEventListener("click", function (e) {
+        var b = e.target.closest(".imp-btn"); if (!b) return;
+        var i = b.getAttribute("data-i"); st.open[i] = !st.open[i]; render();
+        var again = el.querySelector('.imp-btn[data-i="' + i + '"]'); if (again) again.focus();
+      });
+    } };
   }
+
+  /* The section's mermaid drawings whose kind (first word) matches `rx`, as a part of the Visual tab. */
+  function drawingsPart(s, rx) {
+    var ds = (s.blocks || []).filter(function (b) { return b.type === "code" && b.lang === "mermaid" && rx.test(diagramKind(b.text)); });
+    return ds.length ? { html: ds.map(function (b) { return diagram(b.text, rx === PATH_DRAWING ? "path-drawing" : ""); }).join(""), bind: function () {} } : null;
+  }
+  /* A section built from parts `[{head, p, data}]`: a Visual tab only when a part reads
+     review-page.json (`data`), otherwise the plan text alone, drawings included. The first paragraph
+     leads in when `lead`. Shape: the drawing, the path, the changes underneath, the data, the states. */
+  function renderParts(s, parts, lead) {
+    var live = parts.filter(function (x) { return x.p; });
+    if (!live.some(function (x) { return x.data; })) return section(s, blocks(s.blocks, s));
+    var intro = lead ? (s.blocks || []).filter(function (b) { return b.type === "p"; })[0] : null;
+    var drawsPath = live.some(function (x) { return x.drawsPath; });
+    var html = (intro ? '<p class="lead-in">' + md(intro.text) + "</p>" : "") + live.map(function (x) {
+      var hide = x.cls === "part-path" && drawsPath;
+      return '<div class="part-box' + (x.cls ? " " + x.cls : "") + '"' + (hide ? " hidden" : "") + ">" + (live.length > 1 ? '<h3 class="part">' + x.head + "</h3>" : "") + x.p.html + "</div>";
+    }).join("");
+    var el = section(s, html, blocks(s.blocks, s));
+    live.forEach(function (x) { x.p.bind(el); });
+  }
+  var PATH_DRAWING = /^(sequenceDiagram|flowchart|graph)$/;
 
   /* Landing: one card per one-way door.
      With `landing_visual`, the Visual tab explains each door in plain language (it holds the
      "Confirm" button and the door-N id); the plan table stays in the "Plan text" tab. */
   function renderLanding(s) {
     var t = firstTable(s);
-    if (!t || !/one-way door/i.test(t.header[0] || "")) return section(s, blocks(s.blocks));
+    if (!t || !/one-way door/i.test(t.header[0] || "")) return section(s, blocks(s.blocks, s));
     var lv = EN.landing_visual, byN = {};
     ((lv && lv.doors) || []).forEach(function (d) { byN[String(d.n)] = d; });
     var rest = s.blocks.filter(function (b) { return b !== t; });
@@ -914,25 +1555,25 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     function planCard(r, i, live) {
       var h = head(r, i), n = h.n;
       return '<article class="door"' + (live && n ? ' id="door-' + esc(n) + '"' : "") + '><div class="door-head"><h3><span class="n">One-way door ' + esc(n) + "</span> · " + md(h.title) + "</h3>" +
-        (live && n ? reviewSlot("door:" + n, "confirmed") : "") + "</div>" +
+        (live && n ? rowSlot("door:" + n) : "") + "</div>" +
         '<div class="field"><h4>' + esc(t.header[1] || "Literal shape") + '</h4><div class="shape">' + md(r[1] || "") + "</div></div>" +
         '<div class="field"><h4>' + esc(t.header[2] || "Alternative rejected") + "</h4><p>" + md(r[2] || "") + "</p></div></article>";
     }
-    if (!lv) return section(s, t.rows.map(function (r, i) { return planCard(r, i, true); }).join("") + blocks(rest));
+    if (!lv) return section(s, t.rows.map(function (r, i) { return planCard(r, i, true); }).join("") + blocks(rest, s));
     function field(label, html) { return '<div class="field"><h4>' + esc(label) + "</h4>" + html + "</div>"; }
     function para(x) { return "<p>" + codeText(x) + "</p>"; }
     var visual = (lv.intro ? '<div class="callout">' + md(lv.intro) + "</div>" : "") + t.rows.map(function (r, i) {
       var h = head(r, i), n = h.n, d = byN[n] || {};
       return '<article class="door door-v" id="door-' + esc(n) + '"><div class="door-head"><h3><span class="n">One-way door ' + esc(n) + "</span> · " + esc(d.title || h.title) + "</h3>" +
-        staleTag("landing:" + n) + reviewSlot("door:" + n, "confirmed") + "</div>" +
+        staleTag("landing:" + n) + rowSlot("door:" + n) + "</div>" +
         (d.decide ? field("What is decided", para(d.decide)) : "") +
         (d.choice ? field("What we chose", para(d.choice) + (d.names ? '<div class="keep-names">' + d.names.map(function (x) { return "<code>" + esc(x) + "</code>"; }).join("") + "</div>" : "")) : "") +
         (d.hard ? field("Why it is hard to undo", para(d.hard)) : "") +
         (d.risk ? field("On deploy", para(d.risk)) : "") +
         (d.alternatives ? field("What was rejected", '<ul class="alts">' + d.alternatives.map(function (a) { return "<li><b>" + codeText(a[0]) + "</b><span>" + codeText(a[1]) + "</span></li>"; }).join("") + "</ul>") : "") +
         (d.proof ? field("Proof", "<p>" + proof(d.proof) + "</p>") : "") + "</article>";
-    }).join("") + blocks(rest);
-    return section(s, visual, t.rows.map(function (r, i) { return planCard(r, i, false); }).join("") + blocks(rest));
+    }).join("") + blocks(rest, s, true);
+    return section(s, visual, t.rows.map(function (r, i) { return planCard(r, i, false); }).join("") + blocks(rest, s));
   }
 
   /* Criteria: slices, criteria and each slice's changes */
@@ -949,7 +1590,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
         return '<article class="slice" id="slice-' + esc(sl.id) + '"><div class="slice-head"><span class="sid">' + esc(sl.id) + "</span><h3>" + md(sl.title) + '</h3><span class="prio">' + esc(sl.prio) + "</span>" +
           reviewSlot(sl.id, "validated") + "</div>" +
           '<div class="slice-body">' + blocks(sl.desc) + '<h4>Acceptance Criteria</h4><ol class="acs">' +
-          sl.acs.map(function (a) { return '<li id="ac-' + a.n + '"><span class="n">' + a.n + ".</span><span>" + linkDoors(md(a.text)) + "</span></li>"; }).join("") + "</ol>" +
+          sl.acs.map(function (a) { return '<li id="ac-' + a.n + '"><span class="n">' + a.n + ".</span><span>" + linkDoors(md(a.text) + examples(a)) + "</span></li>"; }).join("") + "</ol>" +
           (sl.indep ? '<div class="indep"><b>Independent test:</b> ' + md(sl.indep) + "</div>" : "") + blocks(sl.extra) + "</div>" +
           '<div class="renames" data-slice="' + esc(sl.id) + '"></div></article>';
       }).join("");
@@ -1006,23 +1647,42 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   document.getElementById("top-hash").textContent = PLAN.hash ? "plan.md " + PLAN.hash : "";
   document.getElementById("plan-path").textContent = planPath;
   document.getElementById("plan-title").textContent = PLAN.title;
-  document.getElementById("status").innerHTML = md(PLAN.status);
+  /* Approval is the user's word, written by tlc-spec-lean under the title; validating on this page is not it.
+     Older plans carry a `**Status**:` line instead (or as well). */
+  function statusLine(lead, html) { return '<div><b class="lead">' + lead + "</b> " + html + "</div>"; }
+  document.getElementById("status").innerHTML =
+    (PLAN.approved ? statusLine("Approved:", md(PLAN.approved)) : PLAN.status ? "" : statusLine("Approved:", '<span class="muted">not yet: the plan is in review</span>')) +
+    (PLAN.status ? statusLine("Status:", md(PLAN.status)) : "");
   document.getElementById("tags").innerHTML = (EN.tags || []).map(function (t) { return '<span class="tag' + (t.warn ? " warn" : "") + '">' + esc(t.text) + "</span>"; }).join("") +
     (PLAN.hash ? '<span class="tag mono" title="Hash of the plan.md this page was generated from. If the current plan.md has a different hash, the page is out of date.">plan.md ' + esc(PLAN.hash) + (PLAN.generated ? " · generated " + esc(PLAN.generated) : "") + "</span>" : "");
 
   SECTIONS.forEach(function (s) {
     if (s.id === "problem") return renderProblem(s);
-    if (s.id === "flow") return renderFlow(s);
-    if (s.id === "impact") return renderImpact(s);
+    /* The path's cards open from the drawing (a click on a step or a module); the list only shows
+       when there is no drawing of the path, or it could not be drawn. */
+    if (s.id === "shape") return renderParts(s, [
+      { head: "The drawing", p: drawingsPart(s, PATH_DRAWING), drawsPath: true },
+      { head: "The path", p: flowPart(s), data: true, cls: "part-path" },
+      { head: "Changes underneath", p: impactPart(s), data: true },
+      { head: "The data", p: drawingsPart(s, /^erDiagram$/) },
+      { head: "States", p: drawingsPart(s, /^stateDiagram/) }], true);
+    if (s.id === "flow") return renderParts(s, [{ head: "The drawing", p: drawingsPart(s, PATH_DRAWING), drawsPath: true }, { head: "The path", p: flowPart(s), data: true, cls: "part-path" }], true);
+    if (s.id === "impact") return renderParts(s, [{ p: impactPart(s), data: true }]);
     if (s.id === "landing") return renderLanding(s);
     if (s.id === "criteria") return renderCriteria(s);
-    section(s, blocks(s.blocks));
+    section(s, blocks(s.blocks, s));
   });
 
   var foot = document.createElement("footer");
   foot.innerHTML = "Mirror of <code>" + esc(planPath) + "</code>" + (PLAN.hash ? " (hash " + esc(PLAN.hash) + ")" : "") + (PLAN.generated ? ", generated " + esc(PLAN.generated) : "") +
     ". Section text comes from the plan; Where, Why and Proof come from reading the code" + (EN.code_ref ? " at " + esc(EN.code_ref) : "") + ".";
   main.appendChild(foot);
+  drawDiagrams();
+  if (window.matchMedia) {
+    var darkMq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (darkMq.addEventListener) darkMq.addEventListener("change", drawDiagrams);
+  }
+  if (window.MutationObserver) new MutationObserver(drawDiagrams).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
     var dot = s.empty ? '<span class="st" data-state="na" title="nothing to validate">' + IC.na + "</span>" : '<span class="st" data-rk-dot="' + esc(s.id) + '"></span>';
@@ -1167,15 +1827,50 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       setTimeout(function () { c.classList.remove("done"); c.innerHTML = IC.copy; c.setAttribute("aria-label", "Copy " + text); }, 1500);
     }, function () { toast("<span>Could not copy. Select the text and copy it by hand.</span>"); });
   });
+  function mark(keys, state) {
+    var at = new Date().toISOString();
+    return Promise.all(keys.map(function (k) { return DB.doc("review/" + k).set({ state: state, fp: FP[k] || null, plan: PLAN.hash || null, by: ME, at: at }); }));
+  }
+  function failed(err) { say("Could not save (" + ((err && err.code) || "error") + "). Try again."); }
+  /* Section or slice: Validate also confirms every row of the section (rejected ones included); Undo takes them all back to pending. */
   document.addEventListener("click", function (e) {
     var b = e.target.closest(".rv-btn");
     if (!b || !DB || !CAN_WRITE) return;
-    var key = b.getAttribute("data-rk-btn"), r = reviewOf(key);
-    var next = r.ok && !r.changed ? "pending" : "validated";
+    var key = b.getAttribute("data-rk-btn"), r = fullOf(key);
+    var next = r.st === "ok" && !r.changed ? "pending" : "validated";
     b.disabled = true;
-    DB.doc("review/" + key).set({ state: next, fp: FP[key] || null, plan: PLAN.hash || null, by: ME, at: new Date().toISOString() })
+    mark([key].concat(secRows(key)), next)
       .then(function () { b.disabled = false; say(""); if (next === "validated") nextToast(key); })
-      .catch(function (err) { b.disabled = false; say("Could not save (" + ((err && err.code) || "error") + "). Try again."); });
+      .catch(function (err) { b.disabled = false; failed(err); });
   });
+  /* Table row or door: Confirm / Reject; pressing the one already lit takes it back to pending. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".rv-mini");
+    if (!b || !DB || !CAN_WRITE) return;
+    var key = b.getAttribute("data-rk-row-btn"), yes = b.getAttribute("data-act") === "yes", r = reviewOf(key);
+    var next = !r.changed && r.st === (yes ? "ok" : "rej") ? "pending" : yes ? "validated" : "rejected";
+    b.disabled = true;
+    mark([key], next)
+      .then(function () {
+        b.disabled = false; say("");
+        if (next === "rejected") toast("<span>" + esc(rowLabel(key)) + " rejected.</span><span>Cite <b>" + esc(rowLabel(key)) + "</b> in the conversation to say what is wrong.</span>");
+        else if (next === "validated" && isDoor(key)) nextToast(key);
+      })
+      .catch(function (err) { b.disabled = false; failed(err); });
+  });
+  /* Row number: copies "Section #N", to cite the row in the conversation. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".rn"); if (!b) return;
+    var ref = b.getAttribute("data-ref");
+    copyText(ref).then(function () { toast("<span>Copied <b>" + esc(ref) + "</b>: paste it in the conversation to discuss this row.</span>"); },
+      function () { toast("<span>Cite this row as <b>" + esc(ref) + "</b>.</span>"); });
+  });
+  /* A link to a row inside a hidden "Plan text" tab (Impact) opens that tab first, so the jump has a target on screen. */
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest("a[href^='#row-']"); if (!a) return;
+    var t = document.getElementById(a.getAttribute("href").slice(1)), view = t && t.closest(".view[hidden]");
+    if (!view) return;
+    var tab = document.getElementById(view.getAttribute("aria-labelledby")); if (tab) tab.click();
+  }, true);
 })();
 </script>
