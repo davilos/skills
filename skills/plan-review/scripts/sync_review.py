@@ -12,9 +12,10 @@ Usage:
     python3 sync_review.py --root <project> <feature> --dir <out_dir directory>
         [--dry-run]
 
-Updates `review`, `doors_confirmed` and `rejected` in review-page.json and prints the
-validation part of the plan.md `**Status**:` line, which whoever runs the skill copies into
-the plan, plus the rejected rows: what the user wants to discuss.
+Updates `review`, `doors_confirmed` and `rejected` in review-page.json and prints a summary
+of the validations, plus the rejected rows: what the user wants to discuss, and whether the
+plan carries `**Approved**:`. Validating is not approving: that line is the user's word, written
+by tlc-spec-lean. An older plan with a `**Status**:` line takes the summary into that line.
 """
 from __future__ import annotations
 
@@ -124,7 +125,9 @@ def main() -> int:
     print(f"sync_review: {len(rows)} validation(s) read; review-page.json {'not written (--dry-run)' if args.dry_run else 'updated'}")
     for key in changed_after:
         print(f"  RECHECK {key}: marked on the page, but the text changed since; does not count as validated or rejected")
-    print("Status (validations):")
+    print(f"Approved: {plan['approved']}" if plan.get("approved") else
+          "Approved: not yet - approval is the user's word, which tlc-spec-lean writes as `**Approved**:` under the title")
+    print("Validations" + (" (copy into the plan's `**Status**:` line):" if plan.get("status") else ":"))
     print(f"  validated by the reviewer: {', '.join(ok_secs) or 'no section'}"
           + (f"; slices {', '.join(ok_slices)}" if ok_slices else "")
           + (f"; doors {', '.join(str(d) for d in sorted(doors))} confirmed" if doors else ""))

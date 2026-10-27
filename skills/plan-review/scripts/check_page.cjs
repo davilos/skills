@@ -66,7 +66,7 @@ if (data) {
   }
   const got = {
     sections: q('section.sec'),
-    acs: q('.acs li'),
+    acs: q('.acs > li'),
     slices: q('.slice'),
     changes: q('.row-btn'),
     impactCards: q('.imp'),

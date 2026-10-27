@@ -9,7 +9,7 @@ title), each tagged with the section it belongs to, and checks at both ends:
   section and in plan order (catches template bugs).
 
 Labels the page renders differently are left out as labels, but their content is
-kept: `**Status**:`, `**Acceptance Criteria**`, `**Independent test:**`,
+kept: `**Approved**:`, `**Status**:`, `**Acceptance Criteria**`, `**Independent test:**`,
 `**Open questions:**` and the `#`/`##`/`###` of headings.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ from pathlib import Path
 
 from extract_plan import OPEN_Q_RE, SLICE_RE, section_id, split_row
 
-LABELS = ("**Status**:", "**Independent test:**", "**Open questions:**")
+LABELS = ("**Approved**:", "**Status**:", "**Independent test:**", "**Open questions:**")
 SEPARATOR = re.compile(r"\|?[\s:\-|]+\|?")
 
 # Markdown the template's md() does not render: the page shows the raw text.
@@ -107,9 +107,15 @@ def rendered_pieces(plan_path: Path) -> list[list]:
 
 def unsupported_markdown(plan_path: Path) -> list[tuple[int, str]]:
     found = []
+    under_ol = False
     for i, line in enumerate(plan_path.read_text(encoding="utf-8").splitlines(), 1):
+        # A `-` item indented under a numbered item is a criterion's example: the page lists it.
+        if re.match(r"\d+\.\s", line):
+            under_ol = True
+        elif line.strip() and not line.startswith((" ", "\t")):
+            under_ol = False
         code_free = re.sub(r"`[^`]*`", "", line)
         for rx, name in UNSUPPORTED:
-            if rx.search(code_free):
+            if rx.search(code_free) and not (name == "nested list" and under_ol and re.match(r"\s+[-*]\s", line)):
                 found.append((i, name))
     return found

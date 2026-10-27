@@ -139,6 +139,8 @@ main { display: grid; gap: 72px; min-width: 0; padding: 36px 0 96px; }
 .tag.mono { font-family: var(--mono); font-size: 12px; }
 .status { background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font-size: 14px; color: var(--fg-2); }
 .status b.lead { color: var(--fg); margin-right: 4px; }
+.status > div + div { margin-top: 6px; }
+.status .muted { color: var(--muted); }
 .note { font-size: 13px; color: var(--muted); }
 .note:empty { display: none; }
 
@@ -157,6 +159,10 @@ section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20p
 .blocks > p { color: var(--fg-2); }
 pre.code, pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
 .lead-in { color: var(--fg); }
+h3.part { margin: 8px 0 0; }
+ul.ex { margin: 6px 0 0; padding-left: 18px; color: var(--fg-2); font-size: 0.94em; }
+ul.ex li { margin: 2px 0; }
+.conf-ref { font-size: 12.5px; color: var(--fg-2); }
 
 /* review badge and button */
 .rv { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -500,7 +506,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <div class="plan-path" id="plan-path"></div>
       <h1 id="plan-title"></h1>
       <div class="tags" id="tags"></div>
-      <div class="status"><b class="lead">Status:</b><span id="status"></span></div>
+      <div class="status" id="status"></div>
       <div class="note" id="review-note" role="status"></div>
     </header>
   </main>
@@ -720,7 +726,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
      row carries the row-<section>-<n> anchor (only one copy of a table on the page does). */
   function table(b, rows, withId) {
     var reuse = !!rows && String(b.header[0] || "").trim() === "#" && b.rows.every(function (r, i) { return String(r[0] || "").trim() === String(rows[i].n); });
-    var confirmCol = b.header.map(function (h) { return h.toLowerCase(); }).indexOf("confirmed?");
+    var confirmCol = b.header.map(function (h) { return h.trim().toLowerCase().replace(/\?$/, ""); }).indexOf("confirmed");
     var narrow = b.header.map(function (h, i) { return b.rows.every(function (r) { return String(r[i] || "").length <= 12; }) ? ' class="narrow"' : ""; });
     /* Text columns share the width by the root mean square of their cell lengths (minimum 18%):
        a long prose column is not squeezed, and a very long cell also weighs in, so that
@@ -747,7 +753,12 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
           (x && !reuse ? '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>" : "") + r.map(function (c, i) {
           var td = "<td" + narrow[i] + ' data-label="' + esc(b.header[i] || "") + '">';
           if (x && reuse && i === 0) return '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>";
-          if (i === confirmCol) return td + (c === "y" ? '<span class="conf yes">' + IC.ok + "confirmed</span>" : '<span class="conf no">' + IC.pend + "not confirmed</span>") + '<span class="sr"> (plan.md: ' + esc(c) + ")</span></td>";
+          if (i === confirmCol) {
+            /* "y" or "y - AD-012": the badge, and what follows the y (the decision that holds it) stays visible. */
+            var yes = /^y\b/i.test(String(c).trim()), rest = String(c).trim().replace(/^[yn]\b\s*[-–—]?\s*/i, "");
+            return td + (yes ? '<span class="conf yes">' + IC.ok + "confirmed</span>" : '<span class="conf no">' + IC.pend + "not confirmed</span>") +
+              (rest ? ' <span class="conf-ref">' + md(rest) + "</span>" : "") + '<span class="sr"> (plan.md: ' + esc(c) + ")</span></td>";
+          }
           return td + md(c) + "</td>";
         }).join("") + (x ? '<td class="narrow rv-cell" data-label="Review">' + rowSlot(x.key) + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
@@ -763,12 +774,16 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     return linkDoors('<div class="blocks">' + (list || []).map(function (b) {
       if (b.type === "p") return "<p>" + md(b.text) + "</p>";
       if (b.type === "ul") return '<ul class="notes">' + b.items.map(function (it) { return "<li>" + md(it.text) + "</li>"; }).join("") + "</ul>";
-      if (b.type === "ol") return '<ol class="steps">' + b.items.map(function (it) { return '<li><span class="n">' + it.n + "</span><span>" + md(it.text) + "</span></li>"; }).join("") + "</ol>";
+      if (b.type === "ol") return '<ol class="steps">' + b.items.map(function (it) { return '<li><span class="n">' + it.n + "</span><span>" + md(it.text) + examples(it) + "</span></li>"; }).join("") + "</ol>";
       if (b.type === "table") return table(b, sec ? rowsAt(sec, sec.blocks.indexOf(b)) : null, !noIds);
       if (b.type === "code" && b.lang === "mermaid") return '<pre class="mermaid">' + esc(b.text) + "</pre>";
       if (b.type === "code") return '<pre class="code">' + esc(b.text) + "</pre>";
       return "";
     }).join("") + "</div>");
+  }
+  /* The examples under a numbered item (a criterion's `- <example> → <result>` lines). */
+  function examples(it) {
+    return it.examples ? '<ul class="ex">' + it.examples.map(function (x) { return "<li>" + md(x) + "</li>"; }).join("") + "</ul>" : "";
   }
   function firstTable(sec) { return (sec.blocks || []).filter(function (b) { return b.type === "table"; })[0]; }
 
@@ -900,10 +915,11 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     });
   }
 
-  /* Flow: clickable paths */
-  function renderFlow(s) {
+  /* Flow: clickable paths. A part of a section: `html` goes into the Visual tab, `bind` wires it once
+     the section exists. Shape carries it (Flow in older plans). */
+  function flowPart(s) {
     var v = EN.flow_visual;
-    if (!v) return section(s, blocks(s.blocks, s));
+    if (!v) return null;
     var intro = (s.blocks || []).filter(function (b) { return b.type === "p"; })[0];
     var st = { sel: null };
     // Where each changing node appears: its card opens in one place, and the other occurrences light up with it.
@@ -921,8 +937,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       '<div class="toolbar"><button type="button" class="switch flow-focus" aria-pressed="false"><span class="track"></span>Highlight only what changes</button>' +
       '<span class="legend"><span><i class="add"></i>changes: click to see where, why and proof</span><span>struck through = the name today</span>' +
       (repeats ? '<span><i class="same"></i>the same node in another path</span>' : "") + '</span></div><div class="paths"></div>';
-    var el = section(s, html, blocks(s.blocks, s));
-    var box = el.querySelector(".paths");
+    var el, box;
     function selNode() {
       if (!st.sel) return null;
       var at = st.sel.split("-");
@@ -951,35 +966,44 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
         return '<div class="path' + (hasSame ? " has-same" : "") + '"><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") + (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + panel + "</div>";
       }).join("");
     }
-    render();
-    el.querySelector(".flow-focus").addEventListener("click", function (e) {
-      var on = e.currentTarget.getAttribute("aria-pressed") !== "true";
-      e.currentTarget.setAttribute("aria-pressed", String(on));
-      box.classList.toggle("focus", on);
-    });
-    el.addEventListener("click", function (e) {
-      var b = e.target.closest(".node-btn"); if (!b) return;
-      var k = b.getAttribute("data-key");
-      st.sel = st.sel === k ? null : k;
+    return { html: html, bind: function (sec) {
+      el = sec; box = el.querySelector(".paths");
       render();
-      var again = el.querySelector('.node-btn[data-key="' + k + '"]'); if (again) again.focus();
-    });
+      el.querySelector(".flow-focus").addEventListener("click", function (e) {
+        var on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+        e.currentTarget.setAttribute("aria-pressed", String(on));
+        box.classList.toggle("focus", on);
+      });
+      el.addEventListener("click", function (e) {
+        var b = e.target.closest(".node-btn"); if (!b) return;
+        var k = b.getAttribute("data-key");
+        st.sel = st.sel === k ? null : k;
+        render();
+        var again = el.querySelector('.node-btn[data-key="' + k + '"]'); if (again) again.focus();
+      });
+    } };
   }
 
-  /* Impact: cards by group, "who feels it" filter */
-  function renderImpact(s) {
+  /* The table each Impact card reads: Shape's "Changes underneath" (first header `Front`), or the
+     first Impact table in older plans. build_page.py (underneath_table) uses the same rule. */
+  function underneathTable(s) {
+    var tables = (s.blocks || []).filter(function (b) { return b.type === "table"; });
+    return tables.filter(function (t) { return String(t.header[0] || "").trim().toLowerCase() === "front"; })[0] || tables[0];
+  }
+  /* Impact: cards by group, "who feels it" filter. A part, like flowPart: Shape carries it (Impact in older plans). */
+  function impactPart(s) {
     var v = EN.impact_visual;
-    if (!v) return section(s, blocks(s.blocks, s));
-    var rows = (firstTable(s) || { rows: [] }).rows;
-    /* Each card is a reading of one Impact row: it shows the row number and its review, so it can be confirmed from the Visual tab. */
-    var rowKeys = rowsAt(s, s.blocks.indexOf(firstTable(s))) || [];
+    if (!v) return null;
+    var t = underneathTable(s);
+    var rows = (t || { rows: [] }).rows;
+    /* Each card is a reading of one table row: it shows the row number and its review, so it can be confirmed from the Visual tab. */
+    var rowKeys = rowsAt(s, s.blocks.indexOf(t)) || [];
     var st = { aud: null, open: {} };
     var auds = v.audiences || [];
     var html = (auds.length ? '<div class="aud"><span class="lbl">Who feels it</span><button type="button" class="chip" data-a="" aria-pressed="true">All</button>' +
       auds.map(function (a) { return '<button type="button" class="chip" data-a="' + esc(a) + '" aria-pressed="false">' + esc(a) + "</button>"; }).join("") + "</div>" : "") +
       '<div class="groups"></div><p class="hint">Click a card to see where, why, proof and the plan text for that row.</p>';
-    var el = section(s, html, blocks(s.blocks, s));
-    var box = el.querySelector(".groups");
+    var el, box;
     function card(c, i) {
       var open = !!st.open[i];
       var dim = st.aud && (c.who || []).indexOf(st.aud) === -1;
@@ -1013,19 +1037,32 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       }).join("");
       paintReview();
     }
-    render();
-    var audBox = el.querySelector(".aud");
-    if (audBox) audBox.addEventListener("click", function (e) {
-      var b = e.target.closest(".chip"); if (!b) return;
-      st.aud = b.getAttribute("data-a") || null;
-      audBox.querySelectorAll(".chip").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    return { html: html, bind: function (sec) {
+      el = sec; box = el.querySelector(".groups");
       render();
-    });
-    el.addEventListener("click", function (e) {
-      var b = e.target.closest(".imp-btn"); if (!b) return;
-      var i = b.getAttribute("data-i"); st.open[i] = !st.open[i]; render();
-      var again = el.querySelector('.imp-btn[data-i="' + i + '"]'); if (again) again.focus();
-    });
+      var audBox = el.querySelector(".aud");
+      if (audBox) audBox.addEventListener("click", function (e) {
+        var b = e.target.closest(".chip"); if (!b) return;
+        st.aud = b.getAttribute("data-a") || null;
+        audBox.querySelectorAll(".chip").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        render();
+      });
+      el.addEventListener("click", function (e) {
+        var b = e.target.closest(".imp-btn"); if (!b) return;
+        var i = b.getAttribute("data-i"); st.open[i] = !st.open[i]; render();
+        var again = el.querySelector('.imp-btn[data-i="' + i + '"]'); if (again) again.focus();
+      });
+    } };
+  }
+
+  /* A section built from parts: without any, only the plan text. Flow and Impact (older plans)
+     carry one part each; Shape carries the path, then the changes underneath. */
+  function renderParts(s, parts) {
+    var heads = parts.length > 1 ? ["The path", "Changes underneath"] : [];
+    var live = parts.map(function (p, i) { return p && { p: p, head: heads[i] }; }).filter(Boolean);
+    if (!live.length) return section(s, blocks(s.blocks, s));
+    var el = section(s, live.map(function (x) { return (x.head ? '<h3 class="part">' + x.head + "</h3>" : "") + x.p.html; }).join(""), blocks(s.blocks, s));
+    live.forEach(function (x) { x.p.bind(el); });
   }
 
   /* Landing: one card per one-way door.
@@ -1078,7 +1115,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
         return '<article class="slice" id="slice-' + esc(sl.id) + '"><div class="slice-head"><span class="sid">' + esc(sl.id) + "</span><h3>" + md(sl.title) + '</h3><span class="prio">' + esc(sl.prio) + "</span>" +
           reviewSlot(sl.id, "validated") + "</div>" +
           '<div class="slice-body">' + blocks(sl.desc) + '<h4>Acceptance Criteria</h4><ol class="acs">' +
-          sl.acs.map(function (a) { return '<li id="ac-' + a.n + '"><span class="n">' + a.n + ".</span><span>" + linkDoors(md(a.text)) + "</span></li>"; }).join("") + "</ol>" +
+          sl.acs.map(function (a) { return '<li id="ac-' + a.n + '"><span class="n">' + a.n + ".</span><span>" + linkDoors(md(a.text) + examples(a)) + "</span></li>"; }).join("") + "</ol>" +
           (sl.indep ? '<div class="indep"><b>Independent test:</b> ' + md(sl.indep) + "</div>" : "") + blocks(sl.extra) + "</div>" +
           '<div class="renames" data-slice="' + esc(sl.id) + '"></div></article>';
       }).join("");
@@ -1135,14 +1172,20 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   document.getElementById("top-hash").textContent = PLAN.hash ? "plan.md " + PLAN.hash : "";
   document.getElementById("plan-path").textContent = planPath;
   document.getElementById("plan-title").textContent = PLAN.title;
-  document.getElementById("status").innerHTML = md(PLAN.status);
+  /* Approval is the user's word, written by tlc-spec-lean under the title; validating on this page is not it.
+     Older plans carry a `**Status**:` line instead (or as well). */
+  function statusLine(lead, html) { return '<div><b class="lead">' + lead + "</b> " + html + "</div>"; }
+  document.getElementById("status").innerHTML =
+    (PLAN.approved ? statusLine("Approved:", md(PLAN.approved)) : PLAN.status ? "" : statusLine("Approved:", '<span class="muted">not yet: the plan is in review</span>')) +
+    (PLAN.status ? statusLine("Status:", md(PLAN.status)) : "");
   document.getElementById("tags").innerHTML = (EN.tags || []).map(function (t) { return '<span class="tag' + (t.warn ? " warn" : "") + '">' + esc(t.text) + "</span>"; }).join("") +
     (PLAN.hash ? '<span class="tag mono" title="Hash of the plan.md this page was generated from. If the current plan.md has a different hash, the page is out of date.">plan.md ' + esc(PLAN.hash) + (PLAN.generated ? " · generated " + esc(PLAN.generated) : "") + "</span>" : "");
 
   SECTIONS.forEach(function (s) {
     if (s.id === "problem") return renderProblem(s);
-    if (s.id === "flow") return renderFlow(s);
-    if (s.id === "impact") return renderImpact(s);
+    if (s.id === "shape") return renderParts(s, [flowPart(s), impactPart(s)]);
+    if (s.id === "flow") return renderParts(s, [flowPart(s)]);
+    if (s.id === "impact") return renderParts(s, [impactPart(s)]);
     if (s.id === "landing") return renderLanding(s);
     if (s.id === "criteria") return renderCriteria(s);
     section(s, blocks(s.blocks, s));

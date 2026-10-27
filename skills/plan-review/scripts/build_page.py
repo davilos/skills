@@ -39,6 +39,20 @@ def _h(obj) -> str:
     return hashlib.sha256(json.dumps(obj, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:12]
 
 
+def path_section(secs: dict) -> dict:
+    """Where the numbered path lives: `## Shape`, or `## Flow` in older tlc-spec-lean plans."""
+    return secs.get("shape") or secs.get("flow") or {}
+
+
+def underneath_table(secs: dict) -> dict | None:
+    """The table each Impact card reads: Shape's `Changes underneath` (the table whose first header
+    is `Front`), or the first `## Impact` table in older plans. The page uses the same rule."""
+    sec = secs.get("shape") or secs.get("impact") or {}
+    tables = [b for b in sec.get("blocks", []) if b["type"] == "table"]
+    front = [t for t in tables if t["header"] and t["header"][0].strip().lower() == "front"]
+    return (front or tables or [None])[0]
+
+
 def door_table(section: dict | None) -> dict | None:
     """The Landing table that holds the one-way doors: the first table, when its first header
     is `One-way door` (the tlc-spec-lean form). The page uses the same rule (renderLanding)."""
@@ -110,12 +124,11 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
         fp["problem-visual"] = _h(problem)
     for i, x in enumerate(pv.get("symptoms", [])):
         fp[f"symptom:{i}"] = _h([problem, cited((x.get("fix") or {}).get("proof"))])
-    flow_items = [it for b in secs.get("flow", {}).get("blocks", []) if b["type"] == "ol" for it in b["items"]]
+    flow_items = [it for b in path_section(secs).get("blocks", []) if b["type"] == "ol" for it in b["items"]]
     for i, p in enumerate((pg.get("flow_visual") or {}).get("paths", [])):
         hop = p.get("hop")
         fp[f"flow:{i}"] = _h(flow_items[hop - 1] if hop and hop <= len(flow_items) else None)
-    imp = [b for b in secs.get("impact", {}).get("blocks", []) if b["type"] == "table"]
-    rows = imp[0]["rows"] if imp else []
+    rows = (underneath_table(secs) or {"rows": []})["rows"]
     for i, c in enumerate((pg.get("impact_visual") or {}).get("cards", [])):
         r = c.get("row")
         fp[f"impact:{i}"] = _h([rows[r] if r is not None and r < len(rows) else None, cited(c.get("proof"))])
@@ -206,8 +219,8 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
 
     if not plan["title"]:
         errors.append("plan.md has no title (# ...)")
-    for want in ("problem", "flow", "impact", "landing", "criteria"):
-        if want not in sections:
+    for want in ("problem", "shape", "landing", "criteria"):
+        if want not in sections and not (want == "shape" and "flow" in sections):
             warns.append(f"plan has no {want} section")
 
     review = pg.get("review", {})
@@ -282,7 +295,7 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
 
     fv = pg.get("flow_visual")
     if fv:
-        flow_items = [b for b in sections.get("flow", {}).get("blocks", []) if b["type"] == "ol"]
+        flow_items = [b for b in path_section(sections).get("blocks", []) if b["type"] == "ol"]
         n_hops = sum(len(b["items"]) for b in flow_items)
         hops_seen = set()
         # A node repeated across paths opens its card only the first time; elsewhere it stays
@@ -299,7 +312,7 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
             if p.get("hop"):
                 hops_seen.add(p["hop"])
                 if n_hops and p["hop"] > n_hops:
-                    errors.append(f"flow_visual.paths[{pi}].hop = {p['hop']}, but the Flow has {n_hops} hops")
+                    errors.append(f"flow_visual.paths[{pi}].hop = {p['hop']}, but the path has {n_hops} hops")
             for ni, nd in enumerate(p.get("nodes", [])):
                 if nd.get("change") is not None and not (0 <= nd["change"] < len(changes)):
                     errors.append(f"flow_visual.paths[{pi}].nodes[{ni}].change is outside changes")
@@ -307,18 +320,18 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
                     warns.append(f"flow_visual.paths[{pi}].nodes[{ni}] changes but points to no change (no Where/Why/Proof)")
         missing = [h for h in range(1, n_hops + 1) if h not in hops_seen]
         if n_hops and missing:
-            errors.append(f"flow_visual does not cover Flow hops {missing}")
+            errors.append(f"flow_visual does not cover path hops {missing}")
 
     iv = pg.get("impact_visual")
     if iv:
-        tables = [b for b in sections.get("impact", {}).get("blocks", []) if b["type"] == "table"]
-        rows = tables[0]["rows"] if tables else []
+        rows = (underneath_table(sections) or {"rows": []})["rows"]
+        table = "Changes underneath" if "shape" in sections else "Impact"
         covered = set()
         groups = {g[0] for g in iv.get("groups", [])}
         for ci, c in enumerate(iv.get("cards", [])):
             r = c.get("row")
             if r is None or not (0 <= r < len(rows)):
-                errors.append(f"impact_visual.cards[{ci}].row = {r!r} is outside the Impact table ({len(rows)} rows)")
+                errors.append(f"impact_visual.cards[{ci}].row = {r!r} is outside the {table} table ({len(rows)} rows)")
             else:
                 covered.add(r)
             if c.get("g") not in groups:
@@ -337,7 +350,7 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
                     errors.append(f"impact_visual.cards[{ci}].who has {a!r}, which is not in audiences")
         uncovered = [i for i in range(len(rows)) if i not in covered]
         if uncovered:
-            errors.append(f"impact_visual has no card for Impact rows {uncovered} (the page must show everything)")
+            errors.append(f"impact_visual has no card for {table} rows {uncovered} (the page must show everything)")
 
     landing = sections.get("landing")
     if landing:

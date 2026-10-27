@@ -1,6 +1,6 @@
 # review-page.json
 
-Lives at `.specs/features/{slug}/review-page.json`. It holds what the page needs and `plan.md` does not have. Every field is optional unless stated; without `problem_visual`, `flow_visual` or `impact_visual`, the matching section shows only the plan text.
+Lives at `.specs/features/{slug}/review-page.json`. It holds what the page needs and `plan.md` does not have. Every field is optional unless stated; without `problem_visual`, `flow_visual` or `impact_visual`, the matching section shows only the plan text. `flow_visual` and `impact_visual` both go on `## Shape` (on `## Flow` and `## Impact` in older plans).
 
 Text with backticks (`` `x` ``) and `**bold**` renders as code and bold in fields marked _(md)_; other fields render as written. Write prose fields (`why`, `today`, `decide`, `hard`...) in the language the plan's reviewers read.
 
@@ -29,9 +29,9 @@ Proof fields (`changes[].proof`, `impact_visual.cards[].proof`, `problem_visual.
 | `review_fingerprints`    | `{key: hash}`     | fingerprint of the text the user validated or rejected for each section, slice, door and table row marked; the build compares against it to show "validated · changed since". `--mark-published` writes it for keys that have none yet (the current text counts) and never recomputes the others; `sync_review.py` writes the one from a validation made on the page. When you mark a validation by hand in `review`, do not create the key: the next `--mark-published` does |
 | `code_ref`               | string            | repo, branch and commit read for the Where (e.g. `billing-api feat/dunning @ f75a388c9`)                                                                                                                                                                                                                                                                                                                                                                  |
 | `tags`                   | `[{text, warn?}]` | top-of-page tags; `warn: true` paints it amber (use it for "plan in review")                                                                                                                                                                                                                                                                                                                                                                              |
-| `review`                 | `{id: bool}`      | review state when the page has no db (outside claude.ai) or the item was not marked on it yet; what the user marks on the page (db `review/{key}`) wins, and `sync_review.py` brings it back here. Section ids: `problem`, `flow`, `impact`, `relations`, `surface`, `landing`, `criteria`, `out`, `assumptions`, `questions`, `observable`, `sources`; slice ids: `S1`, `S2`...; table row ids: `row:{section}:{n}` (`row:assumptions:2`, the N-th table row of the section, 1-based, counted across its tables; Landing door rows are doors, not rows). Missing = "not reviewed"; a row missing takes its section's value. Leave out empty sections (no content or only `None - <why>`): they have nothing to validate and the build ignores them                                                 |
+| `review`                 | `{id: bool}`      | review state when the page has no db (outside claude.ai) or the item was not marked on it yet; what the user marks on the page (db `review/{key}`) wins, and `sync_review.py` brings it back here. Section ids: `problem`, `shape`, `surface`, `landing`, `criteria`, `out`, `assumptions`, `questions`, `differences` (Differences from the source), `sources` (older plans: `flow`, `impact`, `relations`, `observable`); slice ids: `S1`, `S2`...; table row ids: `row:{section}:{n}` (`row:assumptions:2`, the N-th table row of the section, 1-based, counted across its tables; Landing door rows are doors, not rows). Missing = "not reviewed"; a row missing takes its section's value. Leave out empty sections (no content or only `None - <why>`): they have nothing to validate and the build ignores them                                                 |
 | `doors_confirmed`        | `[int]`           | numbers of the one-way doors the user confirmed                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `rejected`               | `[key]`           | table rows (`row:impact:3`) and doors (`door:2`) the user rejected: what they want to discuss. A key cannot be both here and validated (`review` true or in `doors_confirmed`); the build rejects that. `sync_review.py` writes it from the page                                                                                                                                                                                                                  |
+| `rejected`               | `[key]`           | table rows (`row:shape:3`) and doors (`door:2`) the user rejected: what they want to discuss. A key cannot be both here and validated (`review` true or in `doors_confirmed`); the build rejects that. `sync_review.py` writes it from the page                                                                                                                                                                                                                  |
 
 Doors are the rows of the first `## Landing` table whose first header is `One-way door` (the tlc-spec-lean form), numbered by row (first row = door 1), the same numbering the plan uses in "(door N)". A first cell written as `1. name` also works. A Landing table with any other header is plain text, with no doors.
 
@@ -69,7 +69,7 @@ Doors are the rows of the first `## Landing` table whose first header is `One-wa
 
 ## flow_visual
 
-`paths`: `[{title, when, hop, nodes}]`. `hop` = the number of the `## Flow` item the path represents (every hop in the plan needs at least one path; two paths may share a hop).
+`paths`: `[{title, when, hop, nodes}]`. `hop` = the number of the Shape path line the path represents (the `## Flow` item in older plans) (every hop in the plan needs at least one path; two paths may share a hop).
 
 Each node: `{k, n, o?, d?, note?, change?, tbd?, shared?}`: `k` = kind (job, task, module, client, config, metric, webhook, output), `n` = new name, `o` = today's name, `d` = door, `note` = what changes when the name does not, `change` = index into `changes` whose Where / Why / Proof the click opens. `tbd: true` = the plan does not fix the name yet: `n` carries a description, and the node shows "not defined". `shared: true` = this node deliberately opens the same change as another, different node (same Where / Why / Proof); without it, the build warns. A node with `o` or `note` is green; without `change` it is not clickable (the build warns).
 
@@ -89,11 +89,11 @@ The plan's Landing is written for the agent (Literal shape, Alternative rejected
 | `decide`       | the question the door answers, without jargon                     |
 | `choice`       | what was chosen, with the exact names (rendered as code)          |
 | `hard`         | why it is hard to undo: who comes to depend on the name           |
-| `risk`         | what happens on deploy (from the Impact)                          |
+| `risk`         | what happens on deploy (from Shape's `Changes underneath`)        |
 | `alternatives` | `[[option, why not]]`, taken from Alternative rejected            |
 | `proof`        | criteria that guarantee it, e.g. `AC 10 to 12, 15` (become links) |
 
-Nothing here is a new decision: everything comes from the plan's Landing, Impact and criteria.
+Nothing here is a new decision: everything comes from the plan's Landing, Shape and criteria.
 
 ## impact_visual
 
@@ -101,15 +101,15 @@ Nothing here is a new decision: everything comes from the plan's Landing, Impact
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `audiences` | `[string]`: who feels it (filter)                                                                                                                             |
 | `groups`    | `[[id, label]]`, e.g. `[["code","Changes in code"],["ops","Changes in operations"],["same","Does not change"]]`; `code`/`ops`/`same` have their own colour    |
-| `cards`     | see below; **every row of the `## Impact` table needs at least one card**                                                                                     |
+| `cards`     | see below; **every row of Shape's `Changes underneath` table needs at least one card** (the `## Impact` table in older plans)                                  |
 | `keep`      | `[[names, reason]]`: a list opened on the card with `keep: true`; several names in `names` are separated by `·` (each one becomes code, always the full name) |
 | `tree`      | `{before: [[text, class, note]], after: [...]}`: a file tree opened on the card with `tree: true`; class `del`, `add` or `""`                                 |
 
-Card: `{g, row, title, before?, after?, tbd?, who, risk?, where, why, proof, keep?, tree?}`. `tbd: true` = the name in `after` is not fixed in the plan yet: `after` carries the description, and the card shows "not defined". `row` = 0-based index of the Impact table row; its text appears in the open card. `where` (Where), `why` (Why) and `proof` (Proof) are required; on a card with `keep: true` Where is optional (the list is the content; do not write "the list below").
+Card: `{g, row, title, before?, after?, tbd?, who, risk?, where, why, proof, keep?, tree?}`. `tbd: true` = the name in `after` is not fixed in the plan yet: `after` carries the description, and the card shows "not defined". `row` = 0-based index of the `Changes underneath` row (the table whose first header is `Front`); its text appears in the open card. `where` (Where), `why` (Why) and `proof` (Proof) are required; on a card with `keep: true` Where is optional (the list is the content; do not write "the list below").
 
 ## Minimal example
 
-For a plan with one slice, one Flow hop, one Impact row and one door:
+For a plan with one slice, one Shape path line, one `Changes underneath` row and one door:
 
 ```json
 {

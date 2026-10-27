@@ -2,8 +2,8 @@
 """Read `.specs/features/<feature>/plan.md` and print the plan as JSON.
 
 This is the mechanical part of the page: the text of each section, tables, lists,
-mermaid blocks, the `## Criteria` slices with their numbered criteria, and the
-`**Status**:` line. A section with no content or only `None - <why>` comes out with
+mermaid blocks, the `## Criteria` slices with their numbered criteria (with the examples
+listed under each one), and the `**Approved**:` line (`**Status**:` in older plans). A section with no content or only `None - <why>` comes out with
 `empty: true`: there is nothing in it to validate. Nothing else here interprets the
 plan; whatever requires reading the code (Where / Why / Proof, Flow paths, Impact
 cards) comes from the `review-page.json` the agent writes.
@@ -21,6 +21,8 @@ from pathlib import Path
 
 KNOWN_IDS = {
     "problem": "problem",
+    "shape": "shape",
+    # Older tlc-spec-lean plans: Flow, Impact and Relations before Shape merged them.
     "flow": "flow",
     "impact": "impact",
     "relations": "relations",
@@ -31,6 +33,8 @@ KNOWN_IDS = {
     "assumptions": "assumptions",
     "open questions": "questions",
     "observable": "observable",
+    "differences from the source": "differences",
+    "differences": "differences",
     "sources": "sources",
 }
 
@@ -140,10 +144,17 @@ def parse_blocks(lines: list[str]) -> list[dict]:
                 mo, mu = OL_RE.match(cs), UL_RE.match(cs)
                 if kind == "ol" and mo and not cur.startswith(("  ", "\t")):
                     items.append({"n": int(mo.group(1)), "text": mo.group(2)})
+                elif kind == "ol" and mu and cur.startswith(("  ", "\t")) and items:
+                    # The examples under a criterion: `   - <example> → <result>; ...`
+                    items[-1].setdefault("examples", []).append(mu.group(1))
                 elif kind == "ul" and mu and not cur.startswith(("  ", "\t")):
                     items.append({"text": mu.group(1)})
                 elif cs and cur.startswith(("  ", "\t")) and items:
-                    items[-1]["text"] += " " + cs
+                    # A wrapped line continues the last example, or the item when it has none.
+                    if items[-1].get("examples"):
+                        items[-1]["examples"][-1] += " " + cs
+                    else:
+                        items[-1]["text"] += " " + cs
                 else:
                     break
                 i += 1
@@ -192,7 +203,7 @@ def parse_criteria(lines: list[str]) -> dict:
 def extract(plan_path: Path) -> dict:
     text = plan_path.read_text(encoding="utf-8")
     lines = text.splitlines()
-    title, status = "", ""
+    title, status, approved = "", "", ""
     sections: list[dict] = []
     cur = None
     for line in lines:
@@ -201,6 +212,9 @@ def extract(plan_path: Path) -> dict:
             continue
         if line.startswith("**Status**:") and not sections:
             status = line[len("**Status**:"):].strip()
+            continue
+        if line.startswith("**Approved**:") and not sections:
+            approved = line[len("**Approved**:"):].strip()
             continue
         if line.startswith("## "):
             name = line[3:].strip()
@@ -234,7 +248,7 @@ def extract(plan_path: Path) -> dict:
         s["empty"] = is_empty(s["blocks"])
         result.append(s)
 
-    return {"path": str(plan_path), "title": title, "status": status, "sections": result}
+    return {"path": str(plan_path), "title": title, "status": status, "approved": approved, "sections": result}
 
 
 def main() -> int:
