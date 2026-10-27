@@ -463,6 +463,11 @@ async function checkDiagrams() {
     }
   }
   if (fig && hasDoor && !fig.querySelector('[data-mmd-key="door:1"]')) out.push('drawings: "door 1" in a drawing is not clickable')
+  // Every clickable block says so: a tooltip of what the click opens (the CSS underlines it); the copy does not.
+  const noTip = good.flatMap((f) => [...f.querySelectorAll('[data-mmd-key]')]).filter((x) => !x.querySelector(':scope > title'))
+  if (noTip.length) out.push(`drawings: ${noTip.length} clickable block(s) without a tooltip of what the click opens`)
+  if (good.some((f) => [...f.querySelectorAll('[data-mmd-twin]')].some((x) => x.querySelector(':scope > title'))))
+    out.push('drawings: the bottom copy of a participant carries a click tooltip')
   // Full screen: the SVG moves into the dialog, the zoom buttons move it, Close brings it back.
   const exp = fig && fig.querySelector('.mmd-expand')
   if (exp) {

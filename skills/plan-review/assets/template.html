@@ -167,9 +167,23 @@ figure.mmd { margin: 0; display: grid; gap: 8px; }
 .mmd-btn { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; line-height: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: var(--bg); }
 .mmd-btn:hover { border-color: var(--line-strong); color: var(--fg); }
 .mmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-[data-mmd-key] { cursor: pointer; outline: none; }
+/* What a click opens: a dotted underline on every clickable label (never on the bottom copy of a
+   participant, nor on a label the plan does not name), a lit border on hover, a pulse on first sight. */
+[data-mmd-key] { cursor: pointer; outline: none; transition: filter .15s; }
 [data-mmd-key]:focus { outline: none; }
-.mmd-draw [data-mmd-key]:hover, .mmd-stage [data-mmd-key]:hover, [data-mmd-key]:focus-visible { filter: drop-shadow(0 0 2px var(--accent)); }
+[data-mmd-key] .nodeLabel, [data-mmd-key] .edgeLabel, [data-mmd-key] foreignObject p, [data-mmd-key] foreignObject span {
+  text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 75%, transparent); }
+[data-mmd-key]:hover, [data-mmd-key]:focus-visible { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 55%, transparent)); }
+[data-mmd-key]:hover > rect, [data-mmd-key]:hover > polygon, [data-mmd-key]:hover > .label-container, [data-mmd-key]:focus-visible > rect, [data-mmd-key]:focus-visible > .label-container { stroke: var(--accent) !important; stroke-width: 2px !important; }
+text[data-mmd-key]:hover, [data-mmd-key]:hover text, text[data-mmd-key]:focus-visible { fill: var(--accent) !important; }
+[data-mmd-key]:hover .nodeLabel, [data-mmd-key]:hover foreignObject p, [data-mmd-key]:hover foreignObject span { color: var(--accent) !important; }
+line.mmd-cue { stroke: var(--accent); stroke-width: 1.5px; stroke-dasharray: 2 2.5; opacity: .8; pointer-events: none; }
+text[data-mmd-key]:hover + line.mmd-cue, [data-mmd-key]:hover > line.mmd-cue, line.mmd-cue.mmd-lit, line.mmd-cue.mmd-sel, [data-mmd-key].mmd-sel > line.mmd-cue { stroke-dasharray: none; stroke-width: 2px !important; opacity: 1; }
+@keyframes mmd-pulse { 0%, 100% { filter: none; } 50% { filter: drop-shadow(0 0 5px var(--accent)); } }
+.mmd-intro [data-mmd-key] { animation: mmd-pulse 1.1s ease-in-out 2; }
+@media (prefers-reduced-motion: reduce) { .mmd-intro [data-mmd-key] { animation: none; } [data-mmd-key] { transition: none; } }
+.mmd-u { text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 3px; text-decoration-color: var(--accent); }
 text.mmd-lit, text.mmd-sel, .mmd-lit text, .mmd-sel text { fill: var(--accent) !important; font-weight: 600; }
 .mmd-lit .nodeLabel, .mmd-sel .nodeLabel, foreignObject.mmd-lit, foreignObject.mmd-sel { color: var(--accent) !important; font-weight: 600; }
 .mmd-lit > rect, .mmd-sel > rect, .mmd-lit > polygon, .mmd-sel > polygon, .mmd-lit > path, .mmd-sel > path, .mmd-lit .label-container, .mmd-sel .label-container { stroke: var(--accent) !important; stroke-width: 2px !important; }
@@ -848,7 +862,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   var mmd = { loading: null, gen: 0 };
   function diagram(text, cls) {
     return '<figure class="mmd' + (cls ? " " + cls : "") + '"><div class="mmd-bar" hidden><span class="mmd-legend" hidden><i></i>changes in this plan</span>' +
-      '<span class="mmd-hint">Click a step or a name for what the plan says.</span><span class="mmd-actions">' +
+      '<span class="mmd-hint"><span class="mmd-u">Underlined</span> steps and names open what the plan says.</span><span class="mmd-actions">' +
       '<button type="button" class="mmd-btn mmd-expand" aria-label="Open the diagram full screen, with zoom">Expand</button>' +
       '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">Copy source</button></span></div>' +
       '<div class="mmd-draw" hidden></div><div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
@@ -985,13 +999,50 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
       target.setAttribute("tabindex", "0");
       target.setAttribute("role", "button");
       target.setAttribute("aria-label", key.indexOf("hop:") === 0 ? "Hop " + key.slice(4) + ": " + text : text);
+      // The browser's own tooltip says what a click opens.
+      var tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tip.textContent = key.indexOf("hop:") === 0 ? "Hop " + key.slice(4) + ": click for the plan's line and its cards" :
+        key.indexOf("door:") === 0 ? "Door " + key.slice(5) + ": click for the decision" : text + ": click for its cards and Where / Why / Proof";
+      target.insertBefore(tip, target.firstChild);
       // A message's arrow is the line drawn right after its text: it lights with it.
       var ln = el.nextElementSibling;
       if (/messageLine/.test((ln && ln.getAttribute("class")) || "")) ln.setAttribute("data-mmd-line", key);
+      cue(target, key);
     });
     fig.querySelector(".mmd-legend").hidden = !svg.querySelector(".mmd-chg");
+    introPulse(fig);
     if (fig.__sel) markSel(fig, fig.__sel);
     paintLit();
+  }
+  /* An SVG text label is underlined by a dashed line drawn under it (CSS underlines an SVG text in its
+     own fill, so it barely shows); an HTML label (flowchart, state, entity) gets the CSS underline. */
+  function cue(target, key) {
+    var label = target.tagName.toLowerCase() === "text" ? target : target.querySelector(":scope > text");
+    if (!label || !label.getBBox) return;
+    var bb; try { bb = label.getBBox(); } catch (e) { return; }
+    if (!bb || !bb.width) return;
+    var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("class", "mmd-cue");
+    line.setAttribute("data-mmd-cue", key);
+    line.setAttribute("x1", bb.x); line.setAttribute("x2", bb.x + bb.width);
+    line.setAttribute("y1", bb.y + bb.height + 1.5); line.setAttribute("y2", bb.y + bb.height + 1.5);
+    if (label.getAttribute("transform")) line.setAttribute("transform", label.getAttribute("transform"));
+    // Right after the label, so `label:hover + .mmd-cue` reaches it.
+    label.parentNode.insertBefore(line, label.nextSibling);
+  }
+  /* The first time a drawing comes into view, what is clickable pulses twice: once, never on a redraw. */
+  var pulseSeen = window.IntersectionObserver ? new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      pulseSeen.unobserve(e.target);
+      e.target.classList.add("mmd-intro");
+      setTimeout(function () { e.target.classList.remove("mmd-intro"); }, 2400);
+    });
+  }, { threshold: 0.4 }) : null;
+  function introPulse(fig) {
+    if (fig.__pulsed || !pulseSeen || !fig.querySelector("[data-mmd-key]")) return;
+    fig.__pulsed = true;
+    pulseSeen.observe(fig.querySelector(".mmd-draw"));
   }
   /* Lit keys, by slot: what the pointer is over in The path, and the node card open there. */
   var LIT = {};
@@ -1000,7 +1051,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var on = Object.keys(LIT).map(function (k) { return LIT[k]; }).filter(Boolean);
     [].slice.call(document.querySelectorAll(".mmd-lit")).forEach(function (x) { x.classList.remove("mmd-lit"); });
     on.forEach(function (k) {
-      [].slice.call(document.querySelectorAll('[data-mmd-key="' + k + '"], [data-mmd-line="' + k + '"], [data-mmd-twin="' + k + '"]')).forEach(function (x) { x.classList.add("mmd-lit"); });
+      [].slice.call(document.querySelectorAll('[data-mmd-key="' + k + '"], [data-mmd-line="' + k + '"], [data-mmd-twin="' + k + '"], [data-mmd-cue="' + k + '"]')).forEach(function (x) { x.classList.add("mmd-lit"); });
     });
     [].slice.call(document.querySelectorAll(".mmd-draw")).forEach(function (box) { reveal(box, box.querySelector(".mmd-lit")); });
   }
@@ -1015,7 +1066,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   function markSel(fig, key) {
     var root = zoom && zoom.fig === fig ? zoom.stage : fig;
     [].slice.call(fig.querySelectorAll(".mmd-sel")).concat([].slice.call(root.querySelectorAll(".mmd-sel"))).forEach(function (x) { x.classList.remove("mmd-sel"); });
-    if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"], [data-mmd-twin="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
+    if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"], [data-mmd-twin="' + key + '"], [data-mmd-cue="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
     if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), fig.querySelector(".mmd-sel"));
   }
   /* A card of The path, as the panel shows it: the chain of nodes, the changed ones open their
