@@ -369,20 +369,33 @@ async function checkReviewFlow() {
 
 // Drawings: runs again with a fake Mermaid. Every figure gets its SVG and closes its source; a diagram
 // that does not parse keeps the source open with a note; a theme change draws again with the dark theme.
+// The fake SVG carries what a real one does: a numbered message with its arrow, a module the path names
+// and a door, so the clicks, the link with The path and the full-screen zoom are exercised too.
 async function checkDiagrams() {
   const out = []
   if (!data || !d.querySelector('figure.mmd')) return { out }
+  const G = data.PAGE_DATA || {}
+  const xml = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  const paths = (G.flow_visual && G.flow_visual.paths) || []
+  const node = paths.flatMap((p) => p.nodes).find((x) => x.change != null && !x.tbd) || paths.flatMap((p) => p.nodes).find((x) => !x.tbd)
+  const hasDoor = !!d.getElementById('door-1')
+  const fakeSvg = (id) =>
+    `<svg id="${id}" viewBox="0 0 400 200" style="max-width: 400px;"><g><text class="messageText">1. enters</text><line class="messageLine0"></line>` +
+    (node ? `<g><rect class="actor actor-top"></rect><text class="actor actor-box">${xml(node.n)}</text></g>` : '') +
+    (hasDoor ? '<text>unique, door 1</text>' : '') + '</g></svg>'
   const inits = [],
     renders = []
+  const errs3 = []
   const dom3 = new jsdom.JSDOM('<!doctype html><html><body>' + html + '</body></html>', {
     runScripts: 'dangerously',
+    virtualConsole: new jsdom.VirtualConsole().on('jsdomError', (e) => errs3.push(e.message)),
     beforeParse(win) {
       win.mermaid = {
         initialize: (c) => inits.push(c),
         render: async (id, text) => {
           renders.push(id)
           if (renders.length === 1) throw new Error('Parse error on line 1')
-          return { svg: `<svg data-fake="${id}"><text>${text.length}</text></svg>` }
+          return { svg: fakeSvg(id) }
         },
       }
     },
@@ -398,9 +411,69 @@ async function checkDiagrams() {
   const notDrawn = good.filter((f) => !f.querySelector('.mmd-draw svg') || f.querySelector('.mmd-draw').hidden || f.querySelector('.mmd-src').open)
   if (notDrawn.length) out.push(`drawings: ${notDrawn.length} diagram(s) without their SVG, or with the source still open`)
   if (inits[0] && inits[0].securityLevel !== 'strict') out.push('drawings: Mermaid does not run with securityLevel strict')
+  // Interaction, on the first drawn figure.
+  const P3 = dom3.window.__PLAN_PAGE__.PLAN
+  const pathSec = P3.sections.find((s) => s.id === 'shape' || s.id === 'flow')
+  const hop1 = pathSec && (pathSec.blocks || []).filter((b) => b.type === 'ol').flatMap((b) => b.items).find((it) => it.n === 1)
+  const fig = good[0]
+  const click = (el) => el.dispatchEvent(new dom3.window.MouseEvent('click', { bubbles: true }))
+  const detail = () => fig.querySelector('.mmd-detail')
+  if (fig && hop1) {
+    const hot = fig.querySelector('[data-mmd-key="hop:1"]')
+    if (!hot) out.push('drawings: the numbered step "1." is not clickable')
+    else {
+      click(hot)
+      const want = hop1.text.replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim().slice(0, 40)
+      if (detail().hidden || !detail().textContent.replace(/\s+/g, ' ').includes(want)) out.push('drawings: clicking step 1 does not show hop 1 of the plan')
+      if (!fig.querySelector('line.mmd-sel')) out.push("drawings: clicking step 1 does not light its arrow")
+      click(hot)
+      if (!detail().hidden) out.push('drawings: clicking step 1 again does not close its detail')
+    }
+    const card = d3.querySelector('.path[data-hop="1"]')
+    if (card) {
+      card.dispatchEvent(new dom3.window.MouseEvent('mouseover', { bubbles: true }))
+      if (!fig.querySelector('[data-mmd-key="hop:1"].mmd-lit')) out.push('drawings: pointing at a hop 1 card in The path does not light step 1')
+      card.closest('.paths').dispatchEvent(new dom3.window.MouseEvent('mouseleave'))
+    }
+  }
+  if (fig && node) {
+    const nm = String(node.n).replace(/[`"*]/g, '').trim()
+    const hot = fig.querySelector(`[data-mmd-key="name:${nm}"]`)
+    if (!hot) out.push(`drawings: the module ${nm} is not clickable`)
+    else {
+      click(hot)
+      if (detail().hidden || !detail().textContent.includes(nm)) out.push(`drawings: clicking ${nm} does not show it`)
+      if (node.change != null && !detail().querySelector('dl')) out.push(`drawings: clicking ${nm} does not show its Where / Why / Proof`)
+      const go = detail().querySelector('[data-goto-path]')
+      if (go) click(go)
+    }
+  }
+  if (fig && hasDoor && !fig.querySelector('[data-mmd-key="door:1"]')) out.push('drawings: "door 1" in a drawing is not clickable')
+  // Full screen: the SVG moves into the dialog, the zoom buttons move it, Close brings it back.
+  const exp = fig && fig.querySelector('.mmd-expand')
+  if (exp) {
+    click(exp)
+    const dlg = d3.querySelector('dialog.mmd-zoom')
+    if (!dlg || !dlg.hasAttribute('open') || !dlg.querySelector('.mmd-stage svg')) out.push('drawings: Expand does not open the diagram full screen')
+    else {
+      const before = dlg.querySelector('.mmd-stage').style.transform
+      click(dlg.querySelector('[data-z="in"]'))
+      if (dlg.querySelector('.mmd-stage').style.transform === before) out.push('drawings: zoom in does not change the full-screen view')
+      const inZoom = dlg.querySelector('.mmd-stage [data-mmd-key]')
+      if (inZoom) {
+        click(inZoom)
+        const det = dlg.querySelector('.mmd-detail')
+        if (!det || det.hidden) out.push('drawings: clicking a step or a name full screen does not show its detail there')
+      }
+      click(dlg.querySelector('[data-z="close"]'))
+      if (dlg.hasAttribute('open') || !fig.querySelector('.mmd-draw svg') || !fig.querySelector('.mmd-detail')) out.push('drawings: Close does not bring the diagram back to the page')
+    }
+  }
+  if (fig && !fig.querySelector('.mmd-copy[data-copy]')) out.push('drawings: no Copy source button')
   d3.documentElement.setAttribute('data-theme', 'dark')
   await tick()
   if (!inits.some((c) => c.theme === 'dark')) out.push('drawings: switching to the dark theme did not draw again in dark')
+  for (const e of errs3) out.push('runtime error (with fake Mermaid): ' + e)
   return { out, drawn: good.length }
 }
 
@@ -408,7 +481,7 @@ async function checkDiagrams() {
   if (data) {
     const dg = await checkDiagrams()
     for (const m of dg.out) fail.push(m)
-    if (dg.drawn != null) expected.drawingFlow = dg.out.length ? 'failed' : `ok (fake Mermaid: ${dg.drawn} drawn, 1 parse error shown with its source)`
+    if (dg.drawn != null) expected.drawingFlow = dg.out.length ? 'failed' : `ok (fake Mermaid: ${dg.drawn} drawn, 1 parse error shown with its source; steps, names, The path link and zoom exercised)`
     const r = await checkReviewFlow()
     for (const m of r.out) fail.push(m)
     for (const e of r.errs) fail.push('runtime error (with fake db): ' + e)

@@ -161,6 +161,39 @@ section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20p
 figure.mmd { margin: 0; display: grid; gap: 8px; }
 .mmd-draw { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; text-align: center; }
 .mmd-draw svg { max-height: 560px; }
+.mmd-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.mmd-hint { font-size: 12.5px; color: var(--muted); margin-right: auto; }
+.mmd-btn { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; line-height: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: var(--bg); }
+.mmd-btn:hover { border-color: var(--line-strong); color: var(--fg); }
+.mmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+[data-mmd-key] { cursor: pointer; outline: none; }
+[data-mmd-key]:focus { outline: none; }
+.mmd-draw [data-mmd-key]:hover, .mmd-stage [data-mmd-key]:hover, [data-mmd-key]:focus-visible { filter: drop-shadow(0 0 2px var(--accent)); }
+text.mmd-lit, text.mmd-sel, .mmd-lit text, .mmd-sel text { fill: var(--accent) !important; font-weight: 600; }
+.mmd-lit .nodeLabel, .mmd-sel .nodeLabel, foreignObject.mmd-lit, foreignObject.mmd-sel { color: var(--accent) !important; font-weight: 600; }
+.mmd-lit > rect, .mmd-sel > rect, .mmd-lit > polygon, .mmd-sel > polygon, .mmd-lit > path, .mmd-sel > path, .mmd-lit .label-container, .mmd-sel .label-container { stroke: var(--accent) !important; stroke-width: 2px !important; }
+line.mmd-lit, line.mmd-sel, path.mmd-lit, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
+.mmd-detail { border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; position: relative; background: var(--bg); font-size: 14px; }
+.mmd-detail p { margin: 0; }
+.mmd-dh { font-weight: 600; padding-right: 28px; }
+.mmd-tag { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
+.mmd-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mmd-row .lbl { font-size: 12.5px; color: var(--muted); margin-right: 2px; }
+.mmd-under { display: grid; gap: 4px; }
+.mmd-x { all: unset; cursor: pointer; position: absolute; top: 6px; right: 8px; font-size: 18px; line-height: 1; padding: 4px 6px; color: var(--muted); border-radius: 4px; }
+.mmd-x:hover { color: var(--fg); background: var(--bg-hover); }
+.path.flash { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); transition: box-shadow .3s, border-color .3s; }
+dialog.mmd-zoom { width: min(96vw, 1600px); height: min(92vh, 1100px); max-width: none; max-height: none; padding: 0; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); overflow: hidden; }
+dialog.mmd-zoom[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+dialog.mmd-zoom::backdrop { background: rgba(10, 12, 16, .55); }
+.mmd-zbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.mmd-zpct { font-size: 12.5px; color: var(--muted); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.mmd-viewport { position: relative; overflow: hidden; touch-action: none; cursor: grab; background: var(--bg-subtle); }
+.mmd-viewport:active { cursor: grabbing; }
+.mmd-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mmd-stage svg { display: block; }
+.mmd-zdetail { max-height: 34vh; overflow: auto; }
+.mmd-zdetail .mmd-detail { border-width: 1px 0 0; border-radius: 0; }
 .mmd-note { margin: 0; font-size: 13px; color: var(--pend); }
 .mmd-src summary { cursor: pointer; font-size: 12.5px; color: var(--muted); width: max-content; }
 .mmd-src[open] summary { margin-bottom: 6px; }
@@ -808,7 +841,10 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js";
   var mmd = { loading: null, gen: 0 };
   function diagram(text) {
-    return '<figure class="mmd"><div class="mmd-draw" hidden></div><p class="mmd-note" hidden></p>' +
+    return '<figure class="mmd"><div class="mmd-bar" hidden><span class="mmd-hint">Click a numbered step or a name to see what the plan says about it.</span>' +
+      '<button type="button" class="mmd-btn mmd-expand" aria-label="Open the diagram full screen, with zoom">Expand</button>' +
+      '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">Copy source</button></div>' +
+      '<div class="mmd-draw" hidden></div><div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
       '<details class="mmd-src" open><summary>Mermaid source</summary><pre class="mermaid">' + esc(text) + "</pre></details></figure>";
   }
   function diagramKind(text) { return (/^\s*([\w-]+)/.exec(text) || [])[1] || ""; }
@@ -835,6 +871,8 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   function diagramFailed(fig, msg) {
     fig.classList.remove("drawn"); fig.classList.add("failed");
     fig.querySelector(".mmd-draw").hidden = true;
+    fig.querySelector(".mmd-bar").hidden = true;
+    fig.querySelector(".mmd-detail").hidden = true;
     fig.querySelector(".mmd-src").open = true;
     diagramNote(fig, msg);
   }
@@ -842,6 +880,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     var figs = [].slice.call(document.querySelectorAll("figure.mmd"));
     if (!figs.length) return Promise.resolve();
     var gen = ++mmd.gen;
+    closeZoom();
     return loadMermaid().then(function (m) {
       m.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
         theme: isDark() ? "dark" : "neutral", fontFamily: getComputedStyle(document.body).fontFamily,
@@ -855,6 +894,8 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
             box.innerHTML = r.svg; box.hidden = false;
             if (r.bindFunctions) r.bindFunctions(box);
             fig.classList.remove("failed"); fig.classList.add("drawn");
+            fig.querySelector(".mmd-bar").hidden = false;
+            wireDiagram(fig);
             fig.querySelector(".mmd-src").open = false;
             diagramNote(fig, "");
           }, function (e) {
@@ -866,6 +907,238 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     }, function (e) {
       figs.forEach(function (f) { diagramFailed(f, "The drawings need Mermaid, which did not load (" + e.message + "); the source is shown."); });
     });
+  }
+  /* ---------- what a drawing means in the plan ----------
+     A label in a drawing becomes clickable when the plan knows it: "N. ..." is hop N of the path, a name
+     the path, its cards or the changes underneath name opens what the plan says about it, "door N" is
+     the One-way door. The detail panel under the drawing shows it; the path cards light the arrows of
+     their hop, and the open node card lights its name. Nothing here is new: it is the plan, linked. */
+  function plainName(t) {
+    return String(t || "").replace(/[`"*]/g, "").replace(/\s*\((?:exists|new|door \d+)[^)]*\)\s*$/i, "").replace(/\s+/g, " ").trim();
+  }
+  function ticked(t) { var out = [], m, rx = /`([^`]+)`/g; while ((m = rx.exec(t || ""))) out.push(plainName(m[1])); return out; }
+  /* Built once the sections exist (drawDiagrams runs after the page is assembled). */
+  var PATH_SEC = null, HOPS = {}, FV_PATHS = [], UNDER = null, NAMES = {};
+  function indexPlan() {
+    if (PATH_SEC !== null) return;
+    PATH_SEC = PLAN.sections.filter(function (x) { return x.id === "shape" || x.id === "flow"; })[0] || false;
+    ((PATH_SEC && PATH_SEC.blocks) || []).forEach(function (b) { if (b.type === "ol") b.items.forEach(function (it) { HOPS[it.n] = it.text; }); });
+    FV_PATHS = (EN.flow_visual && EN.flow_visual.paths) || [];
+    UNDER = PATH_SEC ? underneathTable(PATH_SEC) : null;
+    Object.keys(HOPS).forEach(function (n) { ticked(HOPS[n]).forEach(function (x) { NAMES[x] = 1; }); });
+    FV_PATHS.forEach(function (p) { p.nodes.forEach(function (x) { if (!x.tbd) NAMES[plainName(x.n)] = 1; }); });
+    ((UNDER && UNDER.rows) || []).forEach(function (r) { r.forEach(function (c) { ticked(c).forEach(function (x) { NAMES[x] = 1; }); }); });
+  }
+  function diagramKey(text) {
+    var m = /^\s*(\d+)\.\s/.exec(text);
+    if (m && HOPS[m[1]]) return "hop:" + m[1];
+    var nm = plainName(text);
+    if (nm && NAMES[nm]) return "name:" + nm;
+    var d = /\bdoor (\d+)\b/.exec(text);
+    if (d && document.getElementById("door-" + d[1])) return "door:" + d[1];
+    return null;
+  }
+  function wireDiagram(fig) {
+    var svg = fig.querySelector(".mmd-draw svg"); if (!svg) return;
+    indexPlan();
+    var seen = [];
+    [].slice.call(svg.querySelectorAll("text, foreignObject")).forEach(function (el) {
+      if (el.tagName.toLowerCase() === "text" && el.closest("foreignObject")) return;
+      var text = el.textContent.replace(/\s+/g, " ").trim(), key = text && diagramKey(text);
+      if (!key) return;
+      var cls = el.getAttribute("class") || "";
+      var target = el.closest("g.node, g.edgeLabel") || (/\bactor\b/.test(cls) && el.parentNode !== svg ? el.parentNode : el);
+      if (seen.indexOf(target) !== -1) return;
+      seen.push(target);
+      target.setAttribute("data-mmd-key", key);
+      target.setAttribute("tabindex", "0");
+      target.setAttribute("role", "button");
+      target.setAttribute("aria-label", key.indexOf("hop:") === 0 ? "Hop " + key.slice(4) + ": " + text : text);
+      // A message's arrow is the line drawn right after its text: it lights with it.
+      var ln = el.nextElementSibling;
+      if (/messageLine/.test((ln && ln.getAttribute("class")) || "")) ln.setAttribute("data-mmd-line", key);
+    });
+    if (fig.__sel) markSel(fig, fig.__sel);
+    paintLit();
+  }
+  /* Lit keys, by slot: what the pointer is over in The path, and the node card open there. */
+  var LIT = {};
+  function lightKey(slot, key) { if (LIT[slot] === key) return; LIT[slot] = key; paintLit(); }
+  function paintLit() {
+    var on = Object.keys(LIT).map(function (k) { return LIT[k]; }).filter(Boolean);
+    [].slice.call(document.querySelectorAll(".mmd-lit")).forEach(function (x) { x.classList.remove("mmd-lit"); });
+    on.forEach(function (k) {
+      [].slice.call(document.querySelectorAll('[data-mmd-key="' + k + '"], [data-mmd-line="' + k + '"]')).forEach(function (x) { x.classList.add("mmd-lit"); });
+    });
+    [].slice.call(document.querySelectorAll(".mmd-draw")).forEach(function (box) { reveal(box, box.querySelector(".mmd-lit")); });
+  }
+  /* A wide drawing scrolls sideways inside its box: bring what lit up into view, without moving the page. */
+  function reveal(box, el) {
+    if (!box || !el || !el.getBoundingClientRect || box.scrollWidth <= box.clientWidth) return;
+    var b = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+    if (r.left >= b.left && r.right <= b.right) return;
+    var to = box.scrollLeft + (r.left + r.width / 2) - (b.left + b.width / 2);
+    if (box.scrollTo) box.scrollTo({ left: to, behavior: "smooth" }); else box.scrollLeft = to;
+  }
+  function markSel(fig, key) {
+    var root = zoom && zoom.fig === fig ? zoom.stage : fig;
+    [].slice.call(fig.querySelectorAll(".mmd-sel")).concat([].slice.call(root.querySelectorAll(".mmd-sel"))).forEach(function (x) { x.classList.remove("mmd-sel"); });
+    if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
+    if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), fig.querySelector(".mmd-sel"));
+  }
+  function hopChip(n) { return '<button type="button" class="chip" data-mmd-pick="hop:' + n + '">hop ' + n + "</button>"; }
+  function detailHtml(key) {
+    var kind = key.slice(0, key.indexOf(":")), val = key.slice(key.indexOf(":") + 1), h = "";
+    if (kind === "hop") {
+      var paths = FV_PATHS.map(function (p, i) { return [p, i]; }).filter(function (x) { return String(x[0].hop) === val; });
+      var names = ticked(HOPS[val]).filter(function (x) { return NAMES[x]; });
+      h = '<div class="mmd-dh"><span class="mmd-tag">Hop ' + esc(val) + "</span> of the path in the plan</div><p>" + linkDoors(md(HOPS[val])) + "</p>" +
+        (names.length ? '<div class="mmd-row"><span class="lbl">Names on this hop</span>' + names.map(function (x) { return '<button type="button" class="chip" data-mmd-pick="name:' + esc(x) + '"><code>' + esc(x) + "</code></button>"; }).join("") + "</div>" : "") +
+        (paths.length ? '<div class="mmd-row"><span class="lbl">In The path</span>' + paths.map(function (x) { return '<button type="button" class="chip" data-goto-path="' + x[1] + '">' + esc(x[0].title) + "</button>"; }).join("") + "</div>" : "");
+    } else if (kind === "name") {
+      var hops = Object.keys(HOPS).filter(function (n) { return ticked(HOPS[n]).indexOf(val) !== -1 || plainName(HOPS[n]).indexOf(val) !== -1; });
+      var node = null, at = null;
+      FV_PATHS.forEach(function (p, pi) { p.nodes.forEach(function (x) { if (plainName(x.n) === val && (!node || (node.change == null && x.change != null))) { node = x; at = pi; } }); });
+      var ch = node && node.change != null ? CHANGES[node.change] : CHANGES.filter(function (c) { return !c.tbd && plainName(c.neu).split(" ")[0] === val; })[0];
+      var under = ((UNDER && UNDER.rows) || []).map(function (r, i) { return [r, i]; }).filter(function (x) { return x[0].join(" ").indexOf(val) !== -1; });
+      h = '<div class="mmd-dh"><code>' + esc(val) + "</code>" + (node && node.d ? " " + doorLink(node.d) : "") + "</div>" +
+        (hops.length ? '<div class="mmd-row"><span class="lbl">On the path</span>' + hops.map(hopChip).join("") + "</div>" : "") +
+        (node && at != null ? '<div class="mmd-row"><span class="lbl">In The path</span><button type="button" class="chip" data-goto-path="' + at + '">' + esc(FV_PATHS[at].title) + "</button></div>" : "") +
+        (under.length ? '<div class="mmd-row mmd-under"><span class="lbl">Changes underneath</span>' + under.map(function (x) { return "<p><b>#" + (x[1] + 1) + " " + md(x[0][0]) + ":</b> " + md(x[0].slice(1).join(" · ")) + "</p>"; }).join("") + "</div>" : "") +
+        (ch ? changeDetail(ch) : "");
+    } else if (kind === "door") {
+      var lv = ((EN.landing_visual && EN.landing_visual.doors) || []).filter(function (d) { return String(d.n) === val; })[0];
+      var dt = document.getElementById("door-" + val), title = lv ? lv.title : dt ? (dt.querySelector("h3") || dt).textContent : "";
+      h = '<div class="mmd-dh"><span class="mmd-tag">One-way door ' + esc(val) + "</span> " + esc(title) + "</div>" +
+        (lv && lv.decide ? "<p>" + codeText(lv.decide) + "</p>" : "") + '<p><a class="xref" href="#door-' + esc(val) + '">Open door ' + esc(val) + " in the Landing</a></p>";
+    }
+    return '<button type="button" class="mmd-x" aria-label="Close">×</button>' + h;
+  }
+  /* The detail panel lives under its drawing, or in the full-screen dialog while the drawing is there. */
+  function detailOf(fig) { return zoom && zoom.fig === fig ? zoom.dlg.querySelector(".mmd-detail") : fig.querySelector(".mmd-detail"); }
+  function selectKey(fig, key) {
+    var box = detailOf(fig);
+    if (!key || fig.__sel === key) { fig.__sel = null; box.hidden = true; box.innerHTML = ""; markSel(fig, null); return; }
+    fig.__sel = key;
+    box.innerHTML = detailHtml(key); box.hidden = false;
+    markSel(fig, key);
+  }
+  function gotoPath(pi) {
+    closeZoom();
+    var sec = PATH_SEC && document.getElementById(PATH_SEC.id); if (!sec) return;
+    var tab = sec.querySelector('[role=tab][data-view="visual"]');
+    if (tab && tab.getAttribute("aria-selected") !== "true") tab.click();
+    var p = sec.querySelector('.path[data-pi="' + pi + '"]'); if (!p) return;
+    if (p.scrollIntoView) p.scrollIntoView({ behavior: "smooth", block: "center" });
+    p.classList.add("flash"); setTimeout(function () { p.classList.remove("flash"); }, 1600);
+  }
+  function figOf(el) { return el.closest("figure.mmd") || (zoom && zoom.dlg.contains(el) ? zoom.fig : null); }
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t.closest) return;
+    var fig = figOf(t); if (!fig) return;
+    if (zoom && zoom.dragged) { zoom.dragged = false; if (zoom.stage.contains(t)) return; }
+    var hot = t.closest("[data-mmd-key]");
+    if (hot) return selectKey(fig, hot.getAttribute("data-mmd-key"));
+    var pick = t.closest("[data-mmd-pick]");
+    if (pick) { fig.__sel = null; return selectKey(fig, pick.getAttribute("data-mmd-pick")); }
+    var go = t.closest("[data-goto-path]");
+    if (go) return gotoPath(go.getAttribute("data-goto-path"));
+    if (t.closest(".mmd-x")) return selectKey(fig, null);
+    if (t.closest(".mmd-expand")) return openZoom(fig);
+    var cp = t.closest(".mmd-copy");
+    if (cp) copyText(cp.getAttribute("data-copy")).then(function () { cp.textContent = "Copied"; setTimeout(function () { cp.textContent = "Copy source"; }, 1500); },
+      function () { toast("<span>Could not copy. Open the Mermaid source and copy it by hand.</span>"); });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var hot = e.target.closest && e.target.closest("[data-mmd-key]"); if (!hot) return;
+    e.preventDefault(); hot.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
+  /* ---------- full screen: zoom with the wheel, the buttons or a pinch, drag to move ---------- */
+  var zoom = null;
+  function buildZoom() {
+    var dlg = document.createElement("dialog");
+    dlg.className = "mmd-zoom"; dlg.setAttribute("aria-label", "Diagram, full screen");
+    dlg.innerHTML = '<div class="mmd-zbar"><button type="button" class="mmd-btn" data-z="out" aria-label="Zoom out">−</button><span class="mmd-zpct"></span>' +
+      '<button type="button" class="mmd-btn" data-z="in" aria-label="Zoom in">+</button><button type="button" class="mmd-btn" data-z="fit">Fit</button>' +
+      '<span class="mmd-hint">Wheel or pinch to zoom, drag to move; click a step or a name for what the plan says.</span><button type="button" class="mmd-btn" data-z="close">Close</button></div>' +
+      '<div class="mmd-viewport"><div class="mmd-stage"></div></div><div class="mmd-zdetail"></div>';
+    document.body.appendChild(dlg);
+    var z = { dlg: dlg, stage: dlg.querySelector(".mmd-stage"), view: dlg.querySelector(".mmd-viewport"), pct: dlg.querySelector(".mmd-zpct"), s: 1, x: 0, y: 0, pts: {}, dragged: false };
+    z.apply = function () { z.stage.style.transform = "translate(" + z.x + "px," + z.y + "px) scale(" + z.s + ")"; z.pct.textContent = Math.round(z.s * 100) + "%"; };
+    z.at = function (f, px, py) {
+      var ns = Math.min(8, Math.max(0.1, z.s * f));
+      z.x = px - (px - z.x) * (ns / z.s); z.y = py - (py - z.y) * (ns / z.s); z.s = ns; z.apply();
+    };
+    z.center = function (f) { var r = z.view.getBoundingClientRect(); z.at(f, r.width / 2, r.height / 2); };
+    z.fit = function () {
+      var r = z.view.getBoundingClientRect(), w = z.w || 1, h = z.h || 1;
+      z.s = Math.min(8, Math.max(0.1, Math.min((r.width - 32) / w, (r.height - 32) / h))) || 1;
+      z.x = (r.width - w * z.s) / 2; z.y = (r.height - h * z.s) / 2; z.apply();
+    };
+    dlg.querySelector(".mmd-zbar").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-z]"); if (!b) return;
+      var a = b.getAttribute("data-z");
+      if (a === "in") z.center(1.25); else if (a === "out") z.center(0.8); else if (a === "fit") z.fit(); else closeZoom();
+    });
+    z.view.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      var r = z.view.getBoundingClientRect();
+      z.at(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
+    // Pointer capture only once it is a drag: a plain click must still reach the label under it.
+    z.view.addEventListener("pointerdown", function (e) { z.pts[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; z.moved = false; });
+    z.view.addEventListener("pointermove", function (e) {
+      var pt = z.pts[e.pointerId]; if (!pt) return;
+      var ids = Object.keys(z.pts);
+      if (!z.moved && Math.abs(e.clientX - pt.x0) + Math.abs(e.clientY - pt.y0) > 4) { z.moved = true; if (z.view.setPointerCapture) z.view.setPointerCapture(e.pointerId); }
+      if (!z.moved) return;
+      if (ids.length === 2) {
+        var o = z.pts[ids[0] === String(e.pointerId) ? ids[1] : ids[0]];
+        var before = Math.hypot(pt.x - o.x, pt.y - o.y), after = Math.hypot(e.clientX - o.x, e.clientY - o.y);
+        var r = z.view.getBoundingClientRect();
+        if (before > 0) z.at(after / before, (e.clientX + o.x) / 2 - r.left, (e.clientY + o.y) / 2 - r.top);
+      } else {
+        z.x += e.clientX - pt.x; z.y += e.clientY - pt.y; z.apply();
+      }
+      pt.x = e.clientX; pt.y = e.clientY;
+    });
+    function up(e) { if (z.moved) z.dragged = true; delete z.pts[e.pointerId]; }
+    z.view.addEventListener("pointerup", up);
+    z.view.addEventListener("pointercancel", up);
+    dlg.addEventListener("keydown", function (e) {
+      if (e.target.closest && e.target.closest("[data-mmd-key]")) return;
+      if (e.key === "+" || e.key === "=") z.center(1.25); else if (e.key === "-") z.center(0.8); else if (e.key === "0") z.fit(); else return;
+      e.preventDefault();
+    });
+    dlg.addEventListener("close", function () { closeZoom(); });
+    return z;
+  }
+  function openZoom(fig) {
+    var box = fig.querySelector(".mmd-draw"), svg = box.querySelector("svg"); if (!svg) return;
+    if (!zoom) zoom = buildZoom();
+    closeZoom();
+    var vb = (svg.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
+    zoom.w = vb[2] || svg.getBoundingClientRect().width; zoom.h = vb[3] || svg.getBoundingClientRect().height;
+    zoom.fig = fig; zoom.svg = svg;
+    zoom.saved = { style: svg.getAttribute("style"), width: svg.getAttribute("width"), height: svg.getAttribute("height") };
+    svg.setAttribute("width", zoom.w); svg.setAttribute("height", zoom.h);
+    svg.style.maxWidth = "none"; svg.style.maxHeight = "none";
+    zoom.stage.appendChild(svg);
+    zoom.dlg.querySelector(".mmd-zdetail").appendChild(fig.querySelector(".mmd-detail"));
+    if (zoom.dlg.showModal) zoom.dlg.showModal(); else zoom.dlg.setAttribute("open", "");
+    zoom.fit();
+  }
+  function closeZoom() {
+    if (!zoom || !zoom.fig) return;
+    var fig = zoom.fig, svg = zoom.svg, box = fig.querySelector(".mmd-draw");
+    zoom.fig = null; zoom.svg = null;
+    ["style", "width", "height"].forEach(function (a) { if (zoom.saved[a] == null) svg.removeAttribute(a); else svg.setAttribute(a, zoom.saved[a]); });
+    box.appendChild(svg);
+    var det = zoom.dlg.querySelector(".mmd-detail"); if (det) box.parentNode.insertBefore(det, box.nextSibling);
+    if (zoom.dlg.open && zoom.dlg.close) zoom.dlg.close(); else zoom.dlg.removeAttribute("open");
   }
   function firstTable(sec) { return (sec.blocks || []).filter(function (b) { return b.type === "table"; })[0]; }
 
@@ -1035,6 +1308,7 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
     }
     function render() {
       var cur = selNode(), selN = cur ? cur.n : null;
+      lightKey("node", cur ? "name:" + plainName(cur.n) : null);
       box.classList.toggle("picking", !!cur);
       box.innerHTML = v.paths.map(function (p, pi) {
         var sel = null, hasSame = false;
@@ -1044,12 +1318,15 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
           return ni === 0 ? node(x, key, selN) : '<span class="unit"><span class="sep">' + IC.arrow + "</span>" + node(x, key, selN) + "</span>";
         }).join("");
         var panel = sel ? changeDetail(CHANGES[cardIdx(sel)], [["Before", "<code>" + esc(sel.o || sel.n) + "</code>"], ["After", newNameText(sel.n, sel.tbd) + (sel.note ? " · " + esc(sel.note) : "")]]) : "";
-        return '<div class="path' + (hasSame ? " has-same" : "") + '"><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") + (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + panel + "</div>";
+        return '<div class="path' + (hasSame ? " has-same" : "") + '" data-pi="' + pi + '"' + (p.hop ? ' data-hop="' + esc(p.hop) + '"' : "") + '><div class="path-head"><h3>' + esc(p.title) + "</h3>" + staleTag("flow:" + pi) + '<span class="when">' + esc(p.when || "") + (p.hop ? " · plan hop " + p.hop : "") + '</span></div><div class="chain">' + chain + "</div>" + panel + "</div>";
       }).join("");
     }
     return { html: html, bind: function (sec) {
       el = sec; box = el.querySelector(".paths");
       render();
+      box.addEventListener("mouseover", function (e) { var p = e.target.closest(".path"); lightKey("hover", p && p.getAttribute("data-hop") ? "hop:" + p.getAttribute("data-hop") : null); });
+      box.addEventListener("mouseleave", function () { lightKey("hover", null); });
+      box.addEventListener("focusin", function (e) { var p = e.target.closest(".path"); lightKey("hover", p && p.getAttribute("data-hop") ? "hop:" + p.getAttribute("data-hop") : null); });
       el.querySelector(".flow-focus").addEventListener("click", function (e) {
         var on = e.currentTarget.getAttribute("aria-pressed") !== "true";
         e.currentTarget.setAttribute("aria-pressed", String(on));
