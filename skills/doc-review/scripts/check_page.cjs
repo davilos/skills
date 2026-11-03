@@ -326,10 +326,42 @@ async function checkDiagrams() {
   return { out, drawn: good.length }
 }
 
+// Step notes: a numbered list right after a drawing. Every drawing parses here; its notes fold once drawn,
+// and a step whose note has "**Label**: text" rows opens them under the drawing.
+async function checkStepNotes() {
+  const out = []
+  if (!data || !d.querySelector('figure.mmd[data-notes]')) return { out, n: 0 }
+  const { d: d4, w: w4, errs } = load({
+    beforeParse(win) {
+      win.mermaid = {
+        initialize: () => {},
+        render: async (id) => ({ svg: `<svg id="${id}" viewBox="0 0 400 200"><g><text class="messageText">1. first</text><line class="messageLine0"></line><text class="messageText">2. second</text><line class="messageLine0"></line></g></svg>` }),
+      }
+    },
+  })
+  await tick()
+  const figs = [...d4.querySelectorAll('figure.mmd[data-notes]')]
+  for (const fig of figs) {
+    const notes = fig.querySelector('.mmd-notes')
+    if (!notes || notes.open) { out.push('step notes: the notes list does not fold once the drawing is drawn'); continue }
+    const labelled = [...notes.querySelectorAll(':scope > ol > li')].find((li) => li.value === 1 && li.querySelector('b, strong'))
+    const hot = fig.querySelector('[data-mmd-key="step:1"]')
+    if (!labelled || !hot) continue
+    hot.dispatchEvent(new w4.MouseEvent('click', { bubbles: true }))
+    const det = fig.querySelector('.mmd-detail')
+    if (det.hidden || !det.querySelector('dl dt')) out.push('step notes: clicking step 1 does not show the rows of its note')
+  }
+  for (const e of errs) out.push('runtime error (step notes): ' + e)
+  return { out, n: figs.length }
+}
+
 ;(async () => {
   if (data) {
     const dg = await checkDiagrams()
     for (const m of dg.out) fail.push(m)
+    const sn = await checkStepNotes()
+    for (const m of sn.out) fail.push(m)
+    if (sn.n) expected.stepNotes = sn.out.length ? 'failed' : `ok (${sn.n} drawing(s) with notes)`
     if (dg.drawn != null) expected.drawingFlow = dg.out.length ? 'failed' : `ok (fake Mermaid: ${dg.drawn} drawn, 1 parse error shown with its source; steps, step by step and zoom exercised)`
     const r = await checkReviewFlow()
     for (const m of r.out) fail.push(m)

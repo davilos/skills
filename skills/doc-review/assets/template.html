@@ -199,6 +199,12 @@ text.sequenceNumber.mmd-sel { fill: #fff !important; }
 line.mmd-sel, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
 .mmd-detail { border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; position: relative; background: var(--bg); font-size: 14px; }
 .mmd-detail p { margin: 0; }
+.mmd-detail dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; padding-top: 8px; border-top: 1px solid var(--line); }
+.mmd-detail dt { color: var(--muted); font-size: 13px; font-weight: 500; }
+.mmd-detail dd { margin: 0; overflow-wrap: anywhere; color: var(--fg-2); }
+@media (max-width: 560px) { .mmd-detail dl { grid-template-columns: minmax(0, 1fr); gap: 2px; } .mmd-detail dt { margin-top: 6px; } }
+.mmd-notes summary { cursor: pointer; font-size: 12.5px; color: var(--muted); width: max-content; }
+.mmd-notes[open] summary { margin-bottom: 6px; }
 .mmd-dh { font-weight: 600; padding-right: 28px; }
 .mmd-tag { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
 .mmd-x { all: unset; cursor: pointer; position: absolute; top: 6px; right: 8px; font-size: 18px; line-height: 1; padding: 4px 6px; color: var(--muted); border-radius: 4px; }
@@ -386,7 +392,7 @@ var STATE = __STATE_JSON__;
       savedHere: "What you validate or confirm here is saved on this page.", onlyEditors: "Only editors of this page can validate.",
       hashTitle: "Hash of the document this page was generated from. If the current document has a different hash, the page is out of date.",
       generatedAt: " · generated ", mirror: "Mirror of ", hashWord: "hash", footerTail: ". The text comes from the document as written; the page adds nothing of its own.",
-      localLink: "Link to a local file: ", stepByStep: "Step by step", prev: "← Previous", next: "Next →", step: "Step ",
+      localLink: "Link to a local file: ", stepByStep: "Step by step", stepNotes: "Step notes", prev: "← Previous", next: "Next →", step: "Step ",
       copySource: "Copy source", copiedShort: "Copied", source: "Mermaid source", expandAria: "Open the diagram full screen, with zoom", expandTitle: "Expand",
       hint: "Numbered steps with a moving outline open with a click.", stepTip: function (n) { return "Step " + n + ": click to follow it"; },
       renderFailed: "This diagram did not render, so its source is shown: ", noMermaid: function (m) { return "The drawings need Mermaid, which did not load (" + m + "); the source is shown."; },
@@ -419,7 +425,7 @@ var STATE = __STATE_JSON__;
       savedHere: "O que você valida ou confirma aqui fica salvo nesta página.", onlyEditors: "Só quem edita esta página pode validar.",
       hashTitle: "Hash do documento que gerou esta página. Se o documento atual tiver outro hash, a página está desatualizada.",
       generatedAt: " · gerada em ", mirror: "Espelho de ", hashWord: "hash", footerTail: ". O texto vem do documento como está escrito; a página não acrescenta nada.",
-      localLink: "Link para um arquivo local: ", stepByStep: "Passo a passo", prev: "← Anterior", next: "Próximo →", step: "Passo ",
+      localLink: "Link para um arquivo local: ", stepByStep: "Passo a passo", stepNotes: "Notas dos passos", prev: "← Anterior", next: "Próximo →", step: "Passo ",
       copySource: "Copiar fonte", copiedShort: "Copiado", source: "Fonte Mermaid", expandAria: "Abrir o diagrama em tela cheia, com zoom", expandTitle: "Expandir",
       hint: "Passos numerados com contorno animado abrem com um clique.", stepTip: function (n) { return "Passo " + n + ": clique para acompanhar"; },
       renderFailed: "Este diagrama não foi desenhado, então a fonte aparece: ", noMermaid: function (m) { return "Os desenhos precisam do Mermaid, que não carregou (" + m + "); a fonte aparece."; },
@@ -659,7 +665,9 @@ var STATE = __STATE_JSON__;
   }
   /* `sec`: the section the blocks come from (its tables are reviewed row by row; its subheadings get anchors). */
   function blocks(list, sec) {
+    var skip = -1;
     return '<div class="blocks">' + (list || []).map(function (b, bi) {
+      if (bi === skip) return "";
       if (b.type === "p") return "<p>" + md(b.text) + "</p>";
       if (b.type === "h") {
         var lv = Math.min(6, Math.max(3, b.level - (DOC.level || 2) + 2));
@@ -667,7 +675,12 @@ var STATE = __STATE_JSON__;
       }
       if (b.type === "ul" || b.type === "ol") return listHtml(b);
       if (b.type === "table") return table(b, sec ? rowsAt(sec, bi) : null);
-      if (b.type === "code" && b.lang === "mermaid") return diagram(b.text);
+      if (b.type === "code" && b.lang === "mermaid") {
+        // A numbered list right after the drawing holds its steps' notes: item N opens with step N.
+        var nx = list[bi + 1];
+        if (nx && nx.type === "ol") { skip = bi + 1; return diagram(b.text, nx); }
+        return diagram(b.text);
+      }
       if (b.type === "code") return '<div class="code-box">' + (b.lang ? '<span class="code-lang">' + esc(b.lang) + "</span>" : "") + '<pre class="code">' + esc(b.text) + "</pre></div>";
       if (b.type === "quote") return "<blockquote>" + blocks(b.blocks, null) + "</blockquote>";
       if (b.type === "hr") return "<hr>";
@@ -681,13 +694,34 @@ var STATE = __STATE_JSON__;
      the source and says why. Drawn again when the theme changes. */
   var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js";
   var mmd = { loading: null, gen: 0 };
-  function diagram(text) {
-    return '<figure class="mmd"><div class="mmd-bar" hidden><span class="mmd-steps" role="group" aria-label="' + esc(L.stepByStep) + '" hidden></span>' +
+  var STEP_NOTES = [];
+  function diagram(text, notes) {
+    var ni = notes ? STEP_NOTES.push(notes) - 1 : -1;
+    return '<figure class="mmd"' + (notes ? ' data-notes="' + ni + '"' : "") + '><div class="mmd-bar" hidden><span class="mmd-steps" role="group" aria-label="' + esc(L.stepByStep) + '" hidden></span>' +
       '<span class="mmd-hint" hidden><i class="mmd-ring"></i>' + L.hint + '</span><span class="mmd-actions">' +
       '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">' + L.copySource + "</button></span></div>" +
       '<div class="mmd-frame"><div class="mmd-draw" hidden></div><button type="button" class="mmd-expand" aria-label="' + esc(L.expandAria) + '" title="' + esc(L.expandTitle) + '">' + IC.expand + "</button></div>" +
       '<div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
-      '<details class="mmd-src" open><summary>' + L.source + '</summary><pre class="mermaid">' + esc(text) + "</pre></details></figure>";
+      '<details class="mmd-src" open><summary>' + L.source + '</summary><pre class="mermaid">' + esc(text) + "</pre></details>" +
+      (notes ? '<details class="mmd-notes" open><summary>' + L.stepNotes + "</summary>" + listHtml(notes) + "</details>" : "") + "</figure>";
+  }
+  /* The note of step n, from the list under the drawing: its text, and each "**Label**: text" sub-item as a row. */
+  function stepNote(fig, n, label) {
+    var list = STEP_NOTES[+fig.getAttribute("data-notes")];
+    var it = list && list.items.filter(function (x) { return x.n === n; })[0];
+    if (!it) return "";
+    var rows = [], rest = [];
+    (it.sub || []).forEach(function (s) {
+      var plain = [];
+      s.items.forEach(function (x) {
+        var m = /^\*\*([^*]+?):?\*\*:?\s*([\s\S]*)$/.exec(x.text);
+        if (m) rows.push("<dt>" + esc(m[1]) + "</dt><dd>" + md(m[2]) + (x.sub || []).map(listHtml).join("") + "</dd>");
+        else plain.push(x);
+      });
+      if (plain.length) rest.push(listHtml({ type: s.type, items: plain }));
+    });
+    var same = it.text.trim() === label.replace(/^\s*\d+[.)]\s+/, "").trim();
+    return (same ? "" : "<p>" + md(it.text) + "</p>") + (rows.length ? "<dl>" + rows.join("") + "</dl>" : "") + rest.join("");
   }
   function isDark() {
     var t = document.documentElement.getAttribute("data-theme");
@@ -715,6 +749,7 @@ var STATE = __STATE_JSON__;
     fig.querySelector(".mmd-bar").hidden = true;
     fig.querySelector(".mmd-detail").hidden = true;
     fig.querySelector(".mmd-src").open = true;
+    var nt = fig.querySelector(".mmd-notes"); if (nt) nt.open = true;
     diagramNote(fig, msg);
   }
   function drawDiagrams() {
@@ -742,6 +777,7 @@ var STATE = __STATE_JSON__;
             fig.querySelector(".mmd-bar").hidden = false;
             wireDiagram(fig);
             fig.querySelector(".mmd-src").open = false;
+            var nt = fig.querySelector(".mmd-notes"); if (nt) nt.open = false;
             diagramNote(fig, "");
           }, function (e) {
             var left = document.getElementById("d" + id); if (left) left.remove();
@@ -903,7 +939,7 @@ var STATE = __STATE_JSON__;
     fig.__sel = key;
     var n = +key.slice(5), label = (fig.__labels || {})[n] || "";
     box.innerHTML = '<button type="button" class="mmd-x" aria-label="' + esc(L.closeAria) + '">×</button><div class="mmd-dh"><span class="mmd-tag">' + esc(L.step + n) + "</span></div><p>" +
-      esc(label.replace(/^\s*\d+[.)]\s+/, "")) + "</p>";
+      esc(label.replace(/^\s*\d+[.)]\s+/, "")) + "</p>" + stepNote(fig, n, label);
     box.hidden = false;
     markSel(fig, key);
     syncSteps(fig);

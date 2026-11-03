@@ -4,7 +4,7 @@ description: 'Builds an interactive HTML review page that mirrors any local Mark
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.0.1'
+  version: '1.1.0'
 ---
 
 # Doc Review
@@ -71,6 +71,7 @@ On a published artifact the user validates on the page itself: every section wit
 - **All of the document, in its order.** One `section` per section, with its subheadings, lists, tables, code, quotes and images. Nothing is summarized, reordered or added.
 - **Diagrams are drawn.** Every mermaid block is drawn by Mermaid 11.17.2 from `cdn.jsdelivr.net` (allowed in Artifacts), with its source folded under it and a "Copy source" button; the colours follow the light or dark theme. A sequence or flowchart keeps its natural size and scrolls sideways; the expand icon in its top right corner opens it full screen (wheel, buttons or pinch to zoom, drag to move). Offline, or when a block does not parse, the source stays open with the reason.
 - **Numbered steps are walked step by step.** A label that starts with a number (`1. dispara`, `2) responde`) and a message numbered by `autonumber` are steps: a click lights the label, its arrow and its number, fades the other steps, and repeats the step under the drawing. With two steps or more the drawing gets "Step by step" (Previous, one button per step, Next; ← → on them and anywhere in full screen, where the view also moves and zooms to the step). A drawing with no numbers has no stepper.
+- **Step notes come from a list under the drawing.** A numbered list right after a mermaid block holds its steps' notes: item N opens with step N, under the step's label. Each sub-item written `- **Label**: text` (`**Exemplo**:`, `**Por quê**:`, `**Where**:`...) becomes a row of the box, like the Where / Why / Proof of plan-review; other sub-items show as a list. The list folds under the drawing as "Step notes" once drawn, and stays open when the drawing fails. A step with no item shows only its label. Nothing is invented: when the user wants more in a step's box, add or extend its item in the document.
 - **Interface language.** Buttons and labels follow the document (`pt` or `en`); section names, row text and the document's own words are never translated.
 
 ## Examples
