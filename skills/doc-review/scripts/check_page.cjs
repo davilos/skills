@@ -142,6 +142,8 @@ async function checkReviewFlow() {
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   const rsid = Object.keys(data.DOC.rows || {})[0]
   if (rsid) store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+  // Start the exercised rows from pending too: a row already marked in the review state would make Confirm undo it.
+  for (const r of (rsid && data.DOC.rows[rsid]) || []) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   let listener = null
   const snap = () => ({ docs: Object.keys(store).map((id) => ({ id, exists: true, data: () => store[id] })) })
   const fakeDb = {

@@ -4,7 +4,7 @@ description: 'Builds an interactive HTML review page that mirrors any local Mark
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # Doc Review
