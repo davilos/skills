@@ -1,6 +1,6 @@
 # Revisão unificada de documentos - design
 
-Proposta para unir `plan-review` e `doc-review` em uma skill só, que monta a página de revisão de qualquer documento de design e reconhece os formatos que têm regras próprias (tlc-spec-lean, tlc-spec-driven, superpowers). Estado: **em validação**. Nada foi construído ainda; o nome da skill está em aberto.
+Proposta para unir `plan-review` e `doc-review` em uma skill só, que monta a página de revisão de qualquer documento de design e reconhece os formatos que têm regras próprias (tlc-spec-lean e tlc-spec-driven). São três perfis: `generic`, `tlc-spec-lean` e `tlc-spec-driven`. Estado: **em validação**. Nada foi construído ainda; o nome da skill está em aberto.
 
 ## Objetivo
 
@@ -8,7 +8,7 @@ As duas skills fazem a mesma coisa: espelham um documento Markdown numa página,
 
 A skill unificada tem um núcleo genérico e **perfis**: um perfil diz como reconhecer um formato, quais arquivos fazem parte dele e o que, no texto, vira item revisável ou link. Um formato novo custa um arquivo de perfil, não um script novo.
 
-A skill não escreve nem muda o documento. Ela entra depois de tlc-spec-lean, tlc-spec-driven ou superpowers terem gerado o documento.
+A skill não escreve nem muda o documento. Ela entra depois de tlc-spec-lean ou tlc-spec-driven terem gerado o documento.
 
 ## Decisões
 
@@ -20,8 +20,7 @@ A skill não escreve nem muda o documento. Ela entra depois de tlc-spec-lean, tl
 | 4   | Quando o usuário diz o formato, a palavra dele vale, mesmo que a detecção aponte outro; o agente só avisa                | decidido                       |
 | 5   | O formato é detectado sozinho e anunciado antes do build                                                                  | proposta                       |
 | 6   | O perfil tlc-spec-driven parte da versão 4.x e aceita documentos da 3.x                                                   | proposta                       |
-| 7   | O perfil superpowers é provisório até a skill estar instalada aqui                                                        | proposta                       |
-| 8   | Páginas já publicadas pelo `plan-review` e pelo `doc-review` mantêm o link e as validações                                | proposta                       |
+| 7   | Páginas já publicadas pelo `plan-review` e pelo `doc-review` mantêm o link e as validações                                | proposta                       |
 
 ## Como o formato é escolhido
 
@@ -57,7 +56,6 @@ skills/{nome}/
     generic.json
     tlc-spec-lean.json      # + tlc_spec_lean.py: Where/Why/Proof, cards, doors
     tlc-spec-driven.json
-    superpowers.json
   assets/template.html      # um template; os blocos de cada perfil ligam ou desligam
   references/
     profiles.md             # como escrever um perfil novo
@@ -144,7 +142,6 @@ sequenceDiagram
 | generic         | qualquer Markdown que nenhum outro perfil reconhece              | uma, ou as que o usuário listar               | nada: é o doc-review de hoje                                                                |
 | tlc-spec-lean   | `.specs/features/*/plan.md` com `Shape` e `Landing`              | uma (plan)                                    | abas Visual, cards Where / Why / Proof, doors, ACs como links, selo de aprovação           |
 | tlc-spec-driven | `.specs/features/*/spec.md`, `design.md`, `tasks.md`             | spec, context, design, tasks, validation      | critérios EARS e tasks revisáveis um a um, Depends on e Requirement como links entre abas  |
-| superpowers     | design doc e plano de implementação da superpowers (provisório)  | design, plan                                  | cada Task e cada passo em checkbox revisáveis um a um                                       |
 
 ## Páginas já publicadas
 
@@ -163,8 +160,7 @@ sequenceDiagram
 | 2   | Portar o plan-review como perfil `tlc-spec-lean`                                         | um plano real com seu `review-page.json` passa no check como hoje             |
 | 3   | Página com abas no núcleo                                                                | uma feature com vários arquivos passa no check, com cobertura por arquivo     |
 | 4   | Perfil `tlc-spec-driven` (4.x e 3.x)                                                     | uma feature 4.x e uma 3.x geram página, com links entre abas                  |
-| 5   | Perfil `superpowers`                                                                     | depois de ver a skill instalada e documentos reais                            |
-| 6   | Apagar `skills/plan-review`, ajustar descrição, versão e README                          | `security-scan.sh` limpo                                                      |
+| 5   | Apagar `skills/plan-review`, ajustar descrição, versão e README                          | `security-scan.sh` limpo                                                      |
 
 ## Riscos
 
@@ -177,8 +173,9 @@ sequenceDiagram
 
 ## Fora do escopo
 
-- Escrever ou corrigir o documento revisado: continua sendo trabalho de tlc-spec-lean, tlc-spec-driven, superpowers ou do usuário.
+- Escrever ou corrigir o documento revisado: continua sendo trabalho de tlc-spec-lean, tlc-spec-driven ou do usuário.
 - Aprovar o documento a partir das validações: aprovar é a palavra do usuário.
+- Um perfil para a superpowers ou outras metodologias: ficam fora desta versão. Pelo contrato de perfil, entram depois como um arquivo novo em `profiles/`, sem mudar o núcleo.
 - Documentos que não são Markdown local (Google Docs, Notion, PDF).
 
 ## Pendências
