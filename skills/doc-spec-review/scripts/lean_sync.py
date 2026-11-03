@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bring into review-page.json what the user validated on the page itself.
+"""Bring into doc-spec-review.json what the user validated on the page itself.
 
 The page writes each validation to the artifact's db at `review/<key>` (`problem`,
 `S1`, `door:1`, `row:assumptions:2`...), with the state (`validated`, `rejected` or
@@ -12,7 +12,7 @@ Usage:
     python3 sync_review.py --root <project> <feature> --dir <out_dir directory>
         [--dry-run]
 
-Updates `review`, `doors_confirmed` and `rejected` in review-page.json and prints a summary
+Updates `review`, `doors_confirmed` and `rejected` in doc-spec-review.json and prints a summary
 of the validations, plus the rejected rows: what the user wants to discuss, and whether the
 plan carries `**Approved**:`. Validating is not approving: that line is the user's word, written
 by tlc-spec-lean. An older plan with a `**Status**:` line takes the summary into that line.
@@ -26,8 +26,8 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ in the skill folder: the registry would ship it
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_page import DERIVED, fingerprints, row_keys  # noqa: E402
-from extract_plan import extract  # noqa: E402
+from lean_build import DERIVED, fingerprints, row_keys  # noqa: E402
+from lean_extract import extract  # noqa: E402
 
 
 def load_rows(folder: Path) -> dict[str, dict]:
@@ -46,11 +46,12 @@ def main() -> int:
     ap.add_argument("--root", default=".")
     ap.add_argument("--dir", required=True, help="directory where ArtifactData saved the review collection")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--data", help="the review state file (default: the feature's doc-spec-review.json)")
     ap.add_argument("feature")
     args = ap.parse_args()
 
     feat = Path(args.root) / ".specs" / "features" / args.feature
-    pg_path = feat / "review-page.json"
+    pg_path = Path(args.data) if args.data else feat / "doc-spec-review.json"
     plan = extract(feat / "plan.md")
     pg = json.loads(pg_path.read_text(encoding="utf-8"))
     fp = {k: v for k, v in fingerprints(plan, pg).items() if not k.startswith(DERIVED)}
@@ -122,7 +123,7 @@ def main() -> int:
             pending.append(f"`{names[k]}`")
     ok_slices = [k for k in slices if review.get(k)]
     to_discuss = [label(x["key"]) for k in table_rows for x in table_rows[k] if x["key"] in rejected]
-    print(f"sync_review: {len(rows)} validation(s) read; review-page.json {'not written (--dry-run)' if args.dry_run else 'updated'}")
+    print(f"sync_review: {len(rows)} validation(s) read; doc-spec-review.json {'not written (--dry-run)' if args.dry_run else 'updated'}")
     for key in changed_after:
         print(f"  RECHECK {key}: marked on the page, but the text changed since; does not count as validated or rejected")
     print(f"Approved: {plan['approved']}" if plan.get("approved") else

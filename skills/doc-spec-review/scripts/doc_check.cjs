@@ -142,6 +142,8 @@ async function checkReviewFlow() {
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   const rsid = Object.keys(data.DOC.rows || {})[0]
   if (rsid) store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+  // Start the exercised rows from pending too: a row already marked in the review state would make Confirm undo it.
+  for (const r of (rsid && data.DOC.rows[rsid]) || []) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   let listener = null
   const snap = () => ({ docs: Object.keys(store).map((id) => ({ id, exists: true, data: () => store[id] })) })
   const fakeDb = {
@@ -168,8 +170,10 @@ async function checkReviewFlow() {
     out.push('review: the validate button does not show for an editor')
     return { out, errs }
   }
+  const before = writes.length
   btn.click(); await tick()
-  const wr = writes[writes.length - 1]
+  // Validate writes the section and then each of its rows: find the section's own write.
+  const wr = writes.slice(before).find((x) => x.path === `review/${key}`)
   if (!wr || wr.path !== `review/${key}` || wr.data.state !== 'validated') out.push(`review: clicking Validate did not write review/${key} as validated`)
   else if (wr.data.fp !== D2.fingerprints[key]) out.push('review: the stored fingerprint is not the one of the current text')
   if (badgeOf(key) !== 'ok') out.push(`review: after validating, the badge is "${badgeOf(key)}"`)

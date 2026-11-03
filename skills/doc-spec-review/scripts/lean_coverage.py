@@ -18,7 +18,7 @@ import json
 import re
 from pathlib import Path
 
-from extract_plan import OPEN_Q_RE, SLICE_RE, section_id, split_row
+from lean_extract import OPEN_Q_RE, SLICE_RE, section_id, split_row
 
 LABELS = ("**Approved**:", "**Status**:", "**Independent test:**", "**Open questions:**")
 # A capture shown in the plan: `![name](captures/file.png)`. The page shows the image and its name.

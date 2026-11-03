@@ -17,7 +17,7 @@ import json
 import re
 from pathlib import Path
 
-from extract_doc import COMMENT_RE, FENCE, HEADING, HR_RE, TASK_RE, code_mask, is_separator, list_item, outline, split_row
+from doc_extract import COMMENT_RE, FENCE, HEADING, HR_RE, TASK_RE, code_mask, is_separator, list_item, outline, split_row
 
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
