@@ -1,10 +1,10 @@
 ---
 name: plan-review
-description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lean plan.md section by section, with visual Problem / Shape / Landing views, interactive mermaid diagrams, the capture images from the plan, per-section validation, numbered table rows the reviewer can confirm, reject and cite, and scripts that prove nothing from the plan is missing. Publishes it as an Artifact when available, otherwise writes a local HTML file. Use right after a tlc-spec-lean plan passes validate_plan.py and on every new plan version, or when the user says "plan review page", "make a page for the plan", "show the plan as a page", "interactive plan", "plan-review", "update the plan page", or "sync what I validated on the page". Do NOT use for writing or changing the plan, or for checks, build or verify (use tlc-spec-lean), for cutting a PRD into tasks (use tlc-plan), or for generic diagrams (use mermaid-studio).'
+description: 'Builds an interactive HTML review page that mirrors a tlc-spec-lean plan.md section by section, with visual Problem / Shape / Landing views, interactive mermaid diagrams, the capture images from the plan, per-section validation, numbered table rows the reviewer can confirm, reject and cite, and scripts that prove nothing from the plan is missing. Publishes it as an Artifact when available, otherwise writes a local HTML file. Use right after a tlc-spec-lean plan passes validate_plan.py and on every new plan version, or when the user says "plan review page", "make a page for the plan", "show the plan as a page", "interactive plan", "plan-review", "update the plan page", or "sync what I validated on the page". Do NOT use for documents other than a tlc-spec-lean plan.md, such as a TDD, ADR or RFC (use doc-review), for writing or changing the plan, or for checks, build or verify (use tlc-spec-lean), for cutting a PRD into tasks (use tlc-plan), or for generic diagrams (use mermaid-studio).'
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.10.0'
+  version: '1.10.1'
 ---
 
 # Tech Lead's Club - Plan Review
