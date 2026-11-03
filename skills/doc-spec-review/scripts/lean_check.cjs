@@ -238,8 +238,6 @@ async function checkReviewFlow() {
   // A section with table rows, also starting as pending (a row with no state of its own takes its section's).
   const rsid = Object.keys(data.PLAN.rows || {}).find((sid) => data.PLAN.rows[sid].some((x) => x.key.startsWith('row:')))
   if (rsid) store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
-  // Start the exercised rows from pending too: a row already marked in the review state would make Confirm undo it.
-  for (const r of (rsid && data.PLAN.rows[rsid]) || []) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   let listener = null
   const snap = () => ({ docs: Object.keys(store).map((id) => ({ id, exists: true, data: () => store[id] })) })
   const fakeDb = {
@@ -320,6 +318,10 @@ async function checkReviewFlow() {
     out.push(`review: a validation of an old text shows as "${badgeOf(other)}"`)
   // Rows: Confirm, Reject, Reject again (undo), then the section's Validate confirms them all and Undo clears them.
   if (rsid) {
+    // Start the rows from pending (the section too): a row already marked in the review state would make Confirm undo it.
+    store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    for (const r of data.PLAN.rows[rsid]) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    listener(snap()); await tick()
     const keys = P2.rows[rsid].map((x) => x.key)
     const rk = keys.find((k) => k.startsWith('row:'))
     const rowBadge = (k) => d2.querySelector(`[data-rk-row="${k}"] .badge`).textContent

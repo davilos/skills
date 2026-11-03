@@ -142,8 +142,6 @@ async function checkReviewFlow() {
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   const rsid = Object.keys(data.DOC.rows || {})[0]
   if (rsid) store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
-  // Start the exercised rows from pending too: a row already marked in the review state would make Confirm undo it.
-  for (const r of (rsid && data.DOC.rows[rsid]) || []) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   let listener = null
   const snap = () => ({ docs: Object.keys(store).map((id) => ({ id, exists: true, data: () => store[id] })) })
   const fakeDb = {
@@ -188,6 +186,10 @@ async function checkReviewFlow() {
   if (!other) { store[old] = { state: 'pending', fp: null }; listener(snap()); await tick() }
   // Rows: Confirm, Reject, Reject again (undo), then the section's Validate confirms them all and Undo clears them.
   if (rsid) {
+    // Start the rows from pending (the section too): a row already marked in the review state would make Confirm undo it.
+    store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    for (const r of data.DOC.rows[rsid]) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    listener(snap()); await tick()
     const keys = D2.rows[rsid].map((x) => x.key), rk = keys[0]
     const rowState = (k) => d2.querySelector(`[data-rk-row="${k}"]`).closest('tr').getAttribute('data-rs')
     const press = async (k, act) => { d2.querySelector(`.rv-mini.${act}[data-rk-row-btn="${k}"]`).click(); await tick() }

@@ -129,7 +129,9 @@ def detect(targets: list[str], forced: str | None = None, recorded: str | None =
         found.append(("tlc-spec-lean", f"{plan} has the tlc-spec-lean sections"))
     df = driven_files(folder) if (first.is_dir() or first.name != "plan.md") else {}
     recognized = [n for n, ok in df.items() if ok]
-    if len(paths) == 1 and recognized and (first.is_dir() or first.name in df):
+    # A Verifier report alone is not a tlc-spec-driven feature: tlc-spec-lean writes verification.md too.
+    core = [n for n in recognized if n in ("spec.md", "design.md", "tasks.md")]
+    if len(paths) == 1 and core and (first.is_dir() or first.name in df):
         found.append(("tlc-spec-driven", f"{', '.join(recognized)} with the tlc-spec-driven sections"))
 
     warn = None
