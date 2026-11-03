@@ -112,6 +112,7 @@ def page_data(info: dict, lang: str | None) -> tuple[dict, list[str], list[str]]
     if multi:
         page["tabs"] = tabs
         page["path"] = str(Path(first["path"]).parent)
+        page["front"] = []  # each tab shows its own front matter, under its own title
     if not page["sections"]:
         errors.append("the document has no sections (no headings and no text)")
     return page, errors, warns
@@ -189,7 +190,37 @@ def row_keys(page: dict, info: dict) -> dict[str, list[dict]]:
                 break
         if units:
             out[s["id"]] = units
+    if is_multi(info):
+        unique_cites(page, out)
     return out
+
+
+def unique_cites(page: dict, units: dict[str, list[dict]]) -> None:
+    """Every unit of a page with tabs gets a citation no other unit has.
+
+    The profile's citation (`P1 AC 2`) is kept when it is unique in its tab; repeated (two P1 stories),
+    it falls back to `Section #N`, unique in its section. A citation repeated across tabs (two files
+    with the same section name) is prefixed with the tab: `spec · Risks #2`.
+    """
+    secs = {s["id"]: s for s in page["sections"]}
+    per_tab: dict[tuple, int] = {}
+    for sid, us in units.items():
+        for u in us:
+            if u.get("cite"):
+                k = (secs[sid].get("tab"), u["cite"])
+                per_tab[k] = per_tab.get(k, 0) + 1
+    for sid, us in units.items():
+        for u in us:
+            if not u.get("cite") or per_tab[(secs[sid].get("tab"), u["cite"])] > 1:
+                u["cite"] = f"{secs[sid]['name']} #{u['n']}"
+    across: dict[str, int] = {}
+    for us in units.values():
+        for u in us:
+            across[u["cite"]] = across.get(u["cite"], 0) + 1
+    for sid, us in units.items():
+        for u in us:
+            if across[u["cite"]] > 1:
+                u["cite"] = f"{secs[sid].get('tab')} · {u['cite']}"
 
 
 def unit_text(s: dict, u: dict):
@@ -218,6 +249,7 @@ def xrefs(page: dict, info: dict, units: dict) -> tuple[dict, dict]:
     if not id_rules:
         return {}, {}
     where: dict[str, str] = {}
+    seen: dict[str, int] = {}  # an ID defined twice (two "P1" stories) is ambiguous: it gets no link
     unit_at = {(sid, u["b"], u.get("r"), u.get("i")): u for sid, us in units.items() for u in us}
     for s in page["sections"]:
         for rule in id_rules:
@@ -226,13 +258,16 @@ def xrefs(page: dict, info: dict, units: dict) -> tuple[dict, dict]:
             for bi, b in enumerate(s["blocks"]):
                 if rule["kind"] in ("h", "p") and b["type"] == rule["kind"] and (m := re.search(rule["text"], b["text"])):
                     u = unit_at.get((s["id"], bi, None, None))
+                    seen[m.group(1)] = seen.get(m.group(1), 0) + 1
                     where.setdefault(m.group(1), f"row-{s['id']}-{u['n']}" if u else f"h-{s['id']}-{bi}")
                 elif rule["kind"] == "cell" and b["type"] == "table":
                     for ri, row in enumerate(b["rows"]):
                         m = re.search(rule["text"], (row[0] if row else "").strip().strip("`"))
                         u = unit_at.get((s["id"], bi, ri, None))
                         if m and u:
+                            seen[m.group(1)] = seen.get(m.group(1), 0) + 1
                             where.setdefault(m.group(1), f"row-{s['id']}-{u['n']}")
+    where = {k: v for k, v in where.items() if seen.get(k, 0) == 1}
     cov: dict[str, list] = {}
     if covers:
         by = [x.split(":") for x in covers.get("by", [])]

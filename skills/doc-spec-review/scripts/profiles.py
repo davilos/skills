@@ -166,7 +166,9 @@ def detect(targets: list[str], forced: str | None = None, recorded: str | None =
     else:
         files = [p for p in paths if p.is_file()]
         if not files or len(files) != len(paths):
-            raise ProfileError("the generic profile takes Markdown files, not folders")
+            raise ProfileError(f"no profile recognizes the folder {first} (no tlc-spec-lean plan.md, no tlc-spec-driven "
+                               "spec.md / design.md / tasks.md with their sections). Point at its .md files, or pass "
+                               "--profile tlc-spec-driven if the user says it is one")
         if feat and feat == folder and len(paths) == 1:
             out["feature"] = None  # a single file in a feature folder keeps its own state beside it
         out["tabs"] = [{"id": "doc" if len(files) == 1 else f"f{i + 1}", "file": f.name, "path": str(f), "exists": True}

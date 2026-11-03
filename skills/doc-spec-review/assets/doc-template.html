@@ -199,6 +199,24 @@ text.sequenceNumber.mmd-sel { fill: #fff !important; }
 line.mmd-sel, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
 .mmd-detail { border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; position: relative; background: var(--bg); font-size: 14px; }
 .mmd-detail p { margin: 0; }
+/* tabs: one per file */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 18px; border-bottom: 1px solid var(--line); }
+.tab-btn { font: inherit; font-size: 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--fg-2); padding: 8px 10px; cursor: pointer; display: inline-flex; gap: 8px; align-items: baseline; margin-bottom: -1px; }
+.tab-btn[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-btn:disabled { color: var(--muted); cursor: default; opacity: .7; }
+.tab-btn .tab-n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 400; }
+.tab-panel[hidden] { display: none; }
+.tab-head { display: grid; gap: 8px; margin-bottom: 18px; }
+.tab-head h2 { margin: 0; font-size: 20px; }
+/* profile review units: a list item, a heading with its body, a paragraph */
+.row-t.row-li, .row-t.row-h, .row-t.row-p { border-left: 3px solid transparent; padding-left: 8px; margin-left: -11px; }
+.row-t.row-li[data-rs="ok"], .row-t.row-h[data-rs="ok"], .row-t.row-p[data-rs="ok"] { border-left-color: var(--ok); }
+.row-t.row-li[data-rs="rej"], .row-t.row-h[data-rs="rej"], .row-t.row-p[data-rs="rej"] { border-left-color: var(--chg); background: color-mix(in srgb, var(--chg-soft) 50%, transparent); }
+.rv-inline { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: 8px; vertical-align: middle; }
+.row-h > .rv-inline, .row-p > .rv-inline { margin: 4px 0 0; }
+a.xref { color: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
+.covers { display: block; margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+.covers a.xref { margin-right: 6px; }
 .mmd-dh { font-weight: 600; padding-right: 28px; }
 .mmd-tag { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
 .mmd-x { all: unset; cursor: pointer; position: absolute; top: 6px; right: 8px; font-size: 18px; line-height: 1; padding: 4px 6px; color: var(--muted); border-radius: 4px; }
@@ -392,7 +410,8 @@ var STATE = __STATE_JSON__;
       renderFailed: "This diagram did not render, so its source is shown: ", noMermaid: function (m) { return "The drawings need Mermaid, which did not load (" + m + "); the source is shown."; },
       copySourceFailed: "<span>Could not copy. Open the Mermaid source and copy it by hand.</span>",
       zoomAria: "Diagram, full screen", zoomIn: "Zoom in", zoomOut: "Zoom out", fit: "Fit", close: "Close", closeAria: "Close",
-      zoomHint: "Wheel or pinch to zoom, drag to move; click a numbered step to follow it.", intro: "Introduction", sectionsAria: "Document sections"
+      zoomHint: "Wheel or pinch to zoom, drag to move; click a numbered step to follow it.", intro: "Introduction", sectionsAria: "Document sections", tabsAria: "Files of this page",
+      tabMissing: function (f) { return f + " does not exist yet: this tab fills in when it does."; }, coveredBy: "cited by ", tabsTitle: "Files"
     },
     pt: {
       brand: "Revisão de documento", sections: "Seções", review: "Revisão", notReviewed: "Não revisado", changedSince: "Mudou depois de validado",
@@ -425,7 +444,8 @@ var STATE = __STATE_JSON__;
       renderFailed: "Este diagrama não foi desenhado, então a fonte aparece: ", noMermaid: function (m) { return "Os desenhos precisam do Mermaid, que não carregou (" + m + "); a fonte aparece."; },
       copySourceFailed: "<span>Não deu para copiar. Abra a fonte Mermaid e copie à mão.</span>",
       zoomAria: "Diagrama em tela cheia", zoomIn: "Aproximar", zoomOut: "Afastar", fit: "Ajustar", close: "Fechar", closeAria: "Fechar",
-      zoomHint: "Roda ou pinça para zoom, arraste para mover; clique num passo numerado para acompanhá-lo.", intro: "Introdução", sectionsAria: "Seções do documento"
+      zoomHint: "Roda ou pinça para zoom, arraste para mover; clique num passo numerado para acompanhá-lo.", intro: "Introdução", sectionsAria: "Seções do documento", tabsAria: "Arquivos desta página",
+      tabMissing: function (f) { return f + " ainda não existe: esta aba se preenche quando existir."; }, coveredBy: "citado por ", tabsTitle: "Arquivos"
     }
   };
   var L = STR[DOC.lang] || STR.en;
@@ -447,6 +467,11 @@ var STATE = __STATE_JSON__;
      An image loads from beside the page (build_page.py copies it there); a link to a heading of this
      document jumps to it; a link to a local file is not followable from the page, so it stays text. */
   var ANCHORS = DOC.anchors || {};
+  /* IDs the documents define (T1, C2, LEMB-01...) link to where they are defined; `self` is the element
+     being rendered, which does not link to itself. */
+  var XREF = DOC.xref || {}, COVERS = DOC.covers || {};
+  var XREF_RE = Object.keys(XREF).length ? new RegExp("(?<![\\w-])(" + Object.keys(XREF).sort(function (a, b) { return b.length - a.length; })
+    .map(function (k) { return k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|") + ")(?![\\w-])", "g") : null;
   function emph(s) {
     return s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/__([^_]+)__/g, "<b>$1</b>")
       .replace(/~~([^~]+)~~/g, "<s>$1</s>")
@@ -458,7 +483,7 @@ var STATE = __STATE_JSON__;
     if (url.charAt(0) === "#") { var id = ANCHORS[decodeURIComponent(url.slice(1))]; return id ? { url: "#" + id } : null; }
     return null;
   }
-  function md(s) {
+  function md(s, self) {
     var ph = [];
     function hold(html) { ph.push(html); return "\u0000" + (ph.length - 1) + "\u0000"; }
     var t = String(s == null ? "" : s)
@@ -475,6 +500,7 @@ var STATE = __STATE_JSON__;
       })
       .replace(/<(https?:\/\/[^\s>]+)>/g, function (a, url) { return hold('<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(url) + "</a>"); })
       .replace(/<br\s*\/?>/g, function () { return hold(" <br>"); });
+    if (XREF_RE) t = t.replace(XREF_RE, function (a, id) { return XREF[id] === self ? a : hold('<a class="xref" href="#' + esc(XREF[id]) + '">' + esc(id) + "</a>"); });
     t = emph(esc(t));
     for (var k = 0; k < 3; k++) t = t.replace(/\u0000(\d+)\u0000/g, function (a, i) { return ph[+i]; });
     return t;
@@ -494,7 +520,7 @@ var STATE = __STATE_JSON__;
   var DBREV = null, CAN_WRITE = false, ME = null, DB = null;
   var REJ = ST.rejected || [];
   var ROWS = DOC.rows || {}, ROW_OF = {};
-  Object.keys(ROWS).forEach(function (sid) { ROWS[sid].forEach(function (x) { ROW_OF[x.key] = { sid: sid, n: x.n, b: x.b, r: x.r }; }); });
+  Object.keys(ROWS).forEach(function (sid) { ROWS[sid].forEach(function (x) { ROW_OF[x.key] = { sid: sid, n: x.n, b: x.b, r: x.r, i: x.i, kind: x.kind || "table", cite: x.cite }; }); });
   function secRows(sid) { return (ROWS[sid] || []).map(function (x) { return x.key; }); }
   function ownOf(key) {
     var d = DBREV && DBREV[key];
@@ -529,7 +555,15 @@ var STATE = __STATE_JSON__;
     return out;
   }
   function stateOf(key) { var r = fullOf(key); return r.changed && r.st !== "pend" ? "chg" : r.st; }
-  function rowLabel(key) { var x = ROW_OF[key]; return nameOf(x.sid) + " #" + x.n; }
+  function rowLabel(key) { var x = ROW_OF[key]; return x.cite || nameOf(x.sid) + " #" + x.n; }
+  /* The number of a reviewable row: a click copies what the user cites ("Section #N", "P1 AC 2", "T1"). */
+  function rowNum(x) {
+    var ref = rowLabel(x.key), shown = x.cite || x.n;
+    return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="' + esc(L.copyRow(ref)) + '" aria-label="' + esc(L.copyRow(ref)) + '">' + esc(shown) + "</button>";
+  }
+  function unitAt(sec, bi, kind) {
+    return sec ? (ROWS[sec.id] || []).filter(function (x) { return x.b === bi && (x.kind || "table") === kind; }) : [];
+  }
   function rowHref(key) { var x = ROW_OF[key]; return "#row-" + x.sid + "-" + x.n; }
   function reviewSlot(key) {
     return '<span class="rv" data-rk="' + esc(key) + '"><span class="badge"></span>' +
@@ -575,7 +609,7 @@ var STATE = __STATE_JSON__;
         var on = !r.changed && r.st === (m.getAttribute("data-act") === "yes" ? "ok" : "rej");
         m.setAttribute("aria-pressed", String(on));
       });
-      var tr = el.closest("tr"); if (tr) tr.setAttribute("data-rs", st);
+      var tr = el.closest("tr, .row-t"); if (tr) tr.setAttribute("data-rs", st);
     });
     document.querySelectorAll("[data-rk-dot]").forEach(function (el) {
       var k = el.getAttribute("data-rk-dot"), st = stateOf(k);
@@ -590,6 +624,11 @@ var STATE = __STATE_JSON__;
     var pr = document.getElementById("progress"); if (pr) pr.textContent = L.progress(done, TO_REVIEW.length);
     var tp = document.getElementById("top-progress"); if (tp) tp.textContent = L.topProgress(done, TO_REVIEW.length);
     var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = L.railCount(done, TO_REVIEW.length);
+    (DOC.tabs || []).forEach(function (t) {
+      var el = document.querySelector('[data-tab-n="' + t.id + '"]'); if (!el || !t.exists) return;
+      var mine = TO_REVIEW.filter(function (x) { return x.tab === t.id; });
+      el.textContent = mine.filter(function (x) { return stateOf(x.id) === "ok"; }).length + "/" + mine.length;
+    });
     /* Panel: what is left, what changed and what was rejected, in document order. */
     var keys = TO_REVIEW.map(function (s) { return [s.id, s.name, "#s-" + s.id]; });
     function li(k, st) { return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>"; }
@@ -628,9 +667,10 @@ var STATE = __STATE_JSON__;
       return narrow[i] ? "<col>" : '<col style="width:' + Math.max(18, Math.round(x / total * 100)) + '%">';
     }).join("") + (rows ? "<col>" : "") + "</colgroup>" : "";
     var sid = rows && ROW_OF[rows[0].key] ? ROW_OF[rows[0].key].sid : "";
-    function num(x) {
-      var ref = nameOf(sid) + " #" + x.n;
-      return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="' + esc(L.copyRow(ref)) + '" aria-label="' + esc(L.copyRow(ref)) + '">' + esc(x.n) + "</button>";
+    function num(x) { return rowNum(x); }
+    function covers(c) {
+      var id = String(c || "").trim().replace(/^`|`$/g, ""), list = COVERS[id];
+      return list && list.length ? '<span class="covers">' + esc(L.coveredBy) + list.map(function (u) { return '<a class="xref" href="#' + esc(u[1]) + '">' + esc(u[0]) + "</a>"; }).join("") + "</span>" : "";
     }
     return '<div class="tbl"><table>' + cols + "<thead><tr>" + (rows && !reuse ? '<th class="narrow">#</th>' : "") +
       head.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + (rows ? '<th class="narrow">' + L.reviewCol + "</th>" : "") + "</tr></thead><tbody>" +
@@ -639,33 +679,50 @@ var STATE = __STATE_JSON__;
         return "<tr" + (x ? ' class="row-t" id="row-' + esc(sid) + "-" + esc(x.n) + '"' : "") + ">" +
           (x && !reuse ? '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>" : "") + r.map(function (c, i) {
             if (x && reuse && i === 0) return '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>";
-            return "<td" + (narrow[i] || "") + ' data-label="' + esc(head[i] || "") + '">' + md(c) + "</td>";
+            return "<td" + (narrow[i] || "") + ' data-label="' + esc(head[i] || "") + '">' + md(c, x ? "row-" + sid + "-" + x.n : null) + (i === 0 ? covers(c) : "") + "</td>";
           }).join("") + (x ? '<td class="narrow rv-cell" data-label="' + L.reviewCol + '">' + rowSlot(x.key) + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
   function rowsAt(sec, bi) {
-    var list = (ROWS[sec.id] || []).filter(function (x) { return x.b === bi; });
+    var list = (ROWS[sec.id] || []).filter(function (x) { return x.b === bi && (x.kind || "table") === "table"; });
     if (!list.length) return null;
-    return list.slice().sort(function (p, q) { return p.r - q.r; }).map(function (x) { return { key: x.key, n: x.n }; });
+    return list.slice().sort(function (p, q) { return p.r - q.r; }).map(function (x) { return { key: x.key, n: x.n, cite: x.cite }; });
   }
-  function listHtml(b) {
-    var tag = b.type === "ol" ? "ol" : "ul";
+  function listHtml(b, units, sid) {
+    var tag = b.type === "ol" ? "ol" : "ul", at = {};
+    (units || []).forEach(function (x) { at[x.i] = x; });
     var start = b.type === "ol" && b.items.length && b.items[0].n !== 1 ? ' start="' + esc(b.items[0].n) + '"' : "";
-    return "<" + tag + ' class="list"' + start + ">" + b.items.map(function (it) {
+    return "<" + tag + ' class="list"' + start + ">" + b.items.map(function (it, ii) {
+      var x = at[ii], self = x ? "row-" + sid + "-" + x.n : null;
       var box = typeof it.task === "boolean" ? '<input type="checkbox" disabled' + (it.task ? " checked" : "") + "> " : "";
-      return "<li" + (box ? ' class="task"' : "") + (b.type === "ol" ? ' value="' + esc(it.n) + '"' : "") + ">" + box + md(it.text) +
-        (it.sub || []).map(listHtml).join("") + "</li>";
+      var cls = (box ? "task" : "") + (x ? (box ? " " : "") + "row-t row-li" : "");
+      return "<li" + (cls ? ' class="' + cls + '"' : "") + (x ? ' id="' + esc(self) + '"' : "") + (b.type === "ol" ? ' value="' + esc(it.n) + '"' : "") + ">" + box + md(it.text, self) +
+        (x ? '<span class="rv-inline">' + rowNum(x) + rowSlot(x.key) + "</span>" : "") +
+        (it.sub || []).map(function (sub) {
+          // Inside an item: nested lists, and a fenced code block with the paragraphs after it.
+          if (sub.type === "code") return '<div class="code-box">' + (sub.lang ? '<span class="code-lang">' + esc(sub.lang) + "</span>" : "") + '<pre class="code">' + esc(sub.text) + "</pre></div>";
+          if (sub.type === "p") return "<p>" + md(sub.text) + "</p>";
+          return listHtml(sub);
+        }).join("") + "</li>";
     }).join("") + "</" + tag + ">";
   }
   /* `sec`: the section the blocks come from (its tables are reviewed row by row; its subheadings get anchors). */
   function blocks(list, sec) {
     return '<div class="blocks">' + (list || []).map(function (b, bi) {
-      if (b.type === "p") return "<p>" + md(b.text) + "</p>";
-      if (b.type === "h") {
-        var lv = Math.min(6, Math.max(3, b.level - (DOC.level || 2) + 2));
-        return "<h" + lv + ' class="sub-h"' + (sec ? ' id="h-' + esc(sec.id) + "-" + bi + '"' : "") + ">" + md(b.text) + "</h" + lv + ">";
+      if (b.type === "p") {
+        var up = unitAt(sec, bi, "p")[0];
+        if (!up) return "<p>" + md(b.text) + "</p>";
+        var pid = "row-" + sec.id + "-" + up.n;
+        return '<div class="row-t row-p" id="' + esc(pid) + '"><p>' + md(b.text, pid) + '</p><span class="rv-inline">' + rowNum(up) + rowSlot(up.key) + "</span></div>";
       }
-      if (b.type === "ul" || b.type === "ol") return listHtml(b);
+      if (b.type === "h") {
+        var lv = Math.min(6, Math.max(3, b.level - ((sec && sec.lvl) || DOC.level || 2) + 2));
+        var hid = sec ? "h-" + sec.id + "-" + bi : null, uh = unitAt(sec, bi, "h")[0];
+        var hh = "<h" + lv + ' class="sub-h"' + (hid ? ' id="' + esc(hid) + '"' : "") + ">" + md(b.text, uh ? "row-" + sec.id + "-" + uh.n : hid) + "</h" + lv + ">";
+        if (!uh) return hh;
+        return '<div class="row-t row-h" id="row-' + esc(sec.id) + "-" + esc(uh.n) + '">' + hh + '<span class="rv-inline">' + rowNum(uh) + rowSlot(uh.key) + "</span></div>";
+      }
+      if (b.type === "ul" || b.type === "ol") return listHtml(b, unitAt(sec, bi, "li"), sec && sec.id);
       if (b.type === "table") return table(b, sec ? rowsAt(sec, bi) : null);
       if (b.type === "code" && b.lang === "mermaid") return diagram(b.text);
       if (b.type === "code") return '<div class="code-box">' + (b.lang ? '<span class="code-lang">' + esc(b.lang) + "</span>" : "") + '<pre class="code">' + esc(b.text) + "</pre></div>";
@@ -1050,11 +1107,12 @@ var STATE = __STATE_JSON__;
     el.className = "sec"; el.id = "s-" + s.id;
     el.setAttribute("aria-labelledby", "h-" + s.id);
     el.innerHTML = '<div class="sec-head"><h2 id="h-' + esc(s.id) + '">' + md(s.name) + "</h2>" + (s.empty ? NA_BADGE : reviewSlot(s.id)) + "</div>" + blocks(s.blocks, s);
-    main.appendChild(el);
+    if (s.tab) el.setAttribute("data-tab", s.tab);
+    (s.tab ? document.getElementById("tab-" + s.tab) : main).appendChild(el);
   }
   /* Subheadings one level below the sections go in the tree, under their section. */
   function subHeads(s) {
-    return (s.blocks || []).map(function (b, bi) { return [b, bi]; }).filter(function (x) { return x[0].type === "h" && x[0].level === (DOC.level || 2) + 1; });
+    return (s.blocks || []).map(function (b, bi) { return [b, bi]; }).filter(function (x) { return x[0].type === "h" && x[0].level === (s.lvl || DOC.level || 2) + 1; });
   }
 
   /* ---------- page assembly ---------- */
@@ -1075,6 +1133,43 @@ var STATE = __STATE_JSON__;
   }
   document.getElementById("tags").innerHTML = DOC.hash ? '<span class="tag mono" title="' + esc(L.hashTitle) + '">' + esc(docName) + " " + esc(DOC.hash) + (DOC.generated ? L.generatedAt + esc(DOC.generated) : "") + "</span>" : "";
 
+  var TABS = DOC.tabs || null, CUR_TAB = null;
+  if (TABS) {
+    var bar = document.createElement("div");
+    bar.className = "tabs"; bar.setAttribute("role", "tablist"); bar.setAttribute("aria-label", L.tabsAria);
+    bar.innerHTML = TABS.map(function (t) {
+      return '<button type="button" class="tab-btn" role="tab" id="tabbtn-' + esc(t.id) + '" data-tab-btn="' + esc(t.id) + '" aria-controls="tab-' + esc(t.id) + '" aria-selected="false"' +
+        (t.exists ? "" : ' disabled title="' + esc(L.tabMissing(t.file)) + '"') + ">" + esc(t.file) + '<span class="tab-n" data-tab-n="' + esc(t.id) + '">' + (t.exists ? "" : "-") + "</span></button>";
+    }).join("");
+    main.appendChild(bar);
+    TABS.forEach(function (t) {
+      var panel = document.createElement("div");
+      panel.className = "tab-panel"; panel.id = "tab-" + t.id; panel.setAttribute("role", "tabpanel"); panel.setAttribute("data-tab", t.id);
+      panel.setAttribute("aria-labelledby", "tabbtn-" + t.id); panel.hidden = true;
+      panel.innerHTML = t.exists
+        ? '<div class="tab-head" id="s-' + esc(t.id) + '-header"><div class="doc-path">' + esc(t.path) + "</div><h2>" + md(t.title) + "</h2>" +
+          ((t.front || []).length ? '<dl class="front">' + t.front.map(function (q) { return "<dt>" + md(q[0]) + "</dt><dd>" + md(q[1]) + "</dd>"; }).join("") + "</dl>" : "") +
+          '<div class="tags"><span class="tag mono" title="' + esc(L.hashTitle) + '">' + esc(t.file) + " " + esc(t.hash) + "</span></div></div>"
+        : '<p class="note">' + esc(L.tabMissing(t.file)) + "</p>";
+      main.appendChild(panel);
+    });
+  }
+  function showTab(id, first) {
+    if (!TABS || CUR_TAB === id) return;
+    CUR_TAB = id;
+    TABS.forEach(function (t) {
+      var on = t.id === id;
+      document.getElementById("tab-" + t.id).hidden = !on;
+      var b = document.getElementById("tabbtn-" + t.id); b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1;
+    });
+    document.querySelectorAll("nav.toc li[data-tab]").forEach(function (li) { li.hidden = li.getAttribute("data-tab") !== id; });
+    store.set("doc-spec-review:tab:" + (DOC.path || ""), id);
+    // A drawing wired while its tab was hidden measured nothing (no step outlines): draw again the first
+    // time its tab shows. The first tab shown is drawn by the first pass.
+    var panel = document.getElementById("tab-" + id);
+    if (!panel.__seen) { panel.__seen = true; if (!first && panel.querySelector("figure.mmd")) drawDiagrams(); }
+  }
+  function tabOf(el) { var p = el && el.closest && el.closest(".tab-panel"); return p ? p.getAttribute("data-tab") : null; }
   SECTIONS.forEach(section);
   var foot = document.createElement("footer");
   foot.innerHTML = L.mirror + "<code>" + esc(docPath) + "</code>" + (DOC.hash ? " (" + L.hashWord + " " + esc(DOC.hash) + ")" : "") + (DOC.generated ? L.generatedAt + esc(DOC.generated) : "") + L.footerTail;
@@ -1088,7 +1183,7 @@ var STATE = __STATE_JSON__;
 
   document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
     var dot = s.empty ? '<span class="st" data-state="na" title="' + esc(L.nothingToValidate) + '">' + IC.na + "</span>" : '<span class="st" data-rk-dot="' + esc(s.id) + '"></span>';
-    var li = '<li><a href="#s-' + esc(s.id) + '">' + dot + "<span>" + md(s.name) + "</span></a>";
+    var li = "<li" + (s.tab ? ' data-tab="' + esc(s.tab) + '"' : "") + '><a href="#s-' + esc(s.id) + '">' + dot + "<span>" + md(s.name) + "</span></a>";
     var subs = subHeads(s);
     if (subs.length) li += '<ol class="sub">' + subs.map(function (x) { return '<li><a href="#h-' + esc(s.id) + "-" + x[1] + '">' + md(x[0].text) + "</a></li>"; }).join("") + "</ol>";
     return li + "</li>";
@@ -1099,6 +1194,26 @@ var STATE = __STATE_JSON__;
   document.getElementById("rail-meta").innerHTML =
     (DOC.hash ? "<dt>" + esc(docName) + '</dt><dd class="mono">' + esc(DOC.hash) + "</dd>" : "") +
     (DOC.generated ? "<dt>" + L.generated + "</dt><dd>" + esc(DOC.generated) + "</dd>" : "");
+
+  if (TABS) {
+    var firstTab = TABS.filter(function (t) { return t.exists; })[0].id, saved = store.get("doc-spec-review:tab:" + (DOC.path || ""));
+    var fromHash = location.hash ? tabOf(document.getElementById(decodeURIComponent(location.hash.slice(1)))) : null;
+    showTab(fromHash || (TABS.some(function (t) { return t.id === saved && t.exists; }) ? saved : firstTab), true);
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-tab-btn]");
+      if (b && !b.disabled) { showTab(b.getAttribute("data-tab-btn")); return; }
+      var a = e.target.closest && e.target.closest("a[href^='#']");
+      var target = a && document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)));
+      var t = tabOf(target);
+      if (t && t !== CUR_TAB) showTab(t);
+    }, true);
+    document.querySelector(".tabs").addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var on = TABS.filter(function (t) { return t.exists; }).map(function (t) { return t.id; }), at = on.indexOf(CUR_TAB);
+      var next = on[(at + (e.key === "ArrowRight" ? 1 : on.length - 1)) % on.length];
+      showTab(next); document.getElementById("tabbtn-" + next).focus();
+    });
+  }
 
   /* Section menu on phones. */
   var nav = document.getElementById("toc-nav"), menu = document.getElementById("menu-btn");
