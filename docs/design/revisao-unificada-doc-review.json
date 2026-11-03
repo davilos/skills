@@ -1,17 +1,24 @@
 {
   "artifact_url": "https://claude.ai/artifact/NuVnHMx7RAoHeYMAtYKYGL",
-  "published_hash": "446bf71bd488",
-  "published_at": "2026-11-03 17:43",
+  "published_hash": "14a95e7cba77",
+  "published_at": "2026-11-03 18:03",
   "review_fingerprints": {
+    "decisoes": "f1112e87f950",
+    "intro": "216429663ffa",
+    "objetivo": "b7910435ae1d",
     "row:decisoes:1": "0a2176fb2e7b",
     "row:decisoes:2": "b52736ca7228",
-    "row:decisoes:3": "224302b8c097"
+    "row:decisoes:3": "224302b8c097",
+    "row:decisoes:4": "9155d61335cc",
+    "row:decisoes:5": "4ad768fc5f52",
+    "row:decisoes:6": "adf6a27f09fe",
+    "row:decisoes:7": "d2a74b9143fc"
   },
   "published_fingerprints": {
     "intro": "216429663ffa",
     "objetivo": "b7910435ae1d",
     "decisoes": "f1112e87f950",
-    "como-o-formato-e-escolhido": "bb121b3ccb35",
+    "como-o-formato-e-escolhido": "51d25f967ecc",
     "estrutura-da-skill": "d0727b3f4bb7",
     "contrato-de-um-perfil": "6a72512ae725",
     "a-pagina-com-abas": "14fd5ff490c4",
@@ -58,10 +65,15 @@
   },
   "review": {
     "row:decisoes:1": true,
-    "row:decisoes:2": false,
-    "row:decisoes:3": true
+    "row:decisoes:2": true,
+    "row:decisoes:3": true,
+    "decisoes": true,
+    "intro": true,
+    "objetivo": true,
+    "row:decisoes:4": true,
+    "row:decisoes:5": true,
+    "row:decisoes:6": true,
+    "row:decisoes:7": true
   },
-  "rejected": [
-    "row:decisoes:2"
-  ]
+  "rejected": []
 }

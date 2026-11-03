@@ -26,13 +26,17 @@ A skill não escreve nem muda o documento. Ela entra depois de tlc-spec-lean ou 
 
 ```mermaid
 flowchart TD
-    A["1. O usuário disse o formato?"] -->|sim| P["usa esse perfil"]
-    A -->|não| B["2. O estado de revisão já tem um perfil?"]
-    B -->|sim| P2["usa o perfil gravado"]
-    B -->|não| C["3. Algum perfil reconhece o documento?"]
-    C -->|um| P3["usa esse perfil"]
-    C -->|dois empatados| Q["4. Pergunta ao usuário"]
-    C -->|nenhum| G["5. Usa generic"]
+    A["1. O usuário nomeou o formato no pedido? Ex.: revisa como tlc-spec-driven"] -->|sim| P["2. Usa o perfil que o usuário disse. Se a detecção apontar outro, avisa numa linha e segue com o do usuário"]
+    A -->|não| B["3. A página já foi construída antes? O perfil gravado no estado de revisão vale, sem detectar de novo"]
+    B -->|não| C["4. Detecção: cada perfil confere o caminho e os headings obrigatórios; o nome do arquivo sozinho não conta"]
+    C -->|um perfil bate| D["5. Usa esse perfil e anuncia o motivo antes do build. Ex.: tlc-spec-driven 4.x por spec.md com User Stories"]
+    C -->|dois empatados| E["6. Pergunta ao usuário qual perfil usar"]
+    C -->|nenhum bate| G["7. Usa generic: a página espelha o documento seção por seção, sem itens extras"]
+    P --> F["8. Grava o perfil no estado de revisão, faz o build e o check"]
+    B -->|sim| F
+    D --> F
+    E --> F
+    G --> F
 ```
 
 - O agente sempre diz qual perfil vai usar e por quê, antes do build: `Formato: tlc-spec-driven 4.x (detectado por .specs/features/*/spec.md + "## User Stories")`.
