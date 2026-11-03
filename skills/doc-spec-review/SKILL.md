@@ -1,6 +1,6 @@
 ---
 name: doc-spec-review
-description: 'Builds an interactive review page that mirrors a local Markdown document section by section and recognizes its format: a tlc-spec-lean plan.md (Visual views, Where / Why / Proof cards, one-way doors), a tlc-spec-driven feature (spec, design, tasks and verification as tabs, with EARS criteria, tasks and checks reviewed one by one), or any other document such as a TDD, ADR, RFC or PRD. Every section gets Validate, every table row Confirm / Reject, mermaid diagrams are drawn with step by step, and scripts prove nothing from the document is missing. Use when the user says "review page", "plan review page", "make a page for the plan", "review this spec as a page", "página de revisão", "quero revisar esse TDD numa página", "update the review page", or "sync what I validated on the page". Do NOT use for writing, changing or approving the plan, spec or document, or for checking a plan.md structure with validate_plan.py (use tlc-spec-lean or tlc-spec-driven), or for generic diagrams (use mermaid-studio).'
+description: 'Builds an interactive review page that mirrors a local Markdown document section by section and recognizes its format: a tlc-spec-lean plan.md (Visual views, Where / Why / Proof cards, doors, an optional before/after UI preview), a tlc-spec-driven feature (spec, design, tasks and verification as tabs, with EARS criteria, tasks and checks reviewed one by one), or any other document such as a TDD, ADR, RFC or PRD. Every section gets Validate, every table row Confirm / Reject, and scripts prove nothing from the document is missing. Use when the user says "review page", "plan review page", "make a page for the plan", "review this spec as a page", "página de revisão", "quero revisar esse TDD numa página", "update the review page", "UI preview of the plan", or "sync what I validated on the page". Do NOT use for writing, changing or approving the plan, spec or document, or for checking a plan.md structure with validate_plan.py (use tlc-spec-lean or tlc-spec-driven), or for generic diagrams (use mermaid-studio).'
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
@@ -33,6 +33,7 @@ The build picks one and prints it first (`PROFILE tlc-spec-driven 4.x (...)`):
 | `scripts/check_page.cjs` | runs the page in jsdom: everything shown, in place and in order; fakes Mermaid and the db to test clicks | fixed |
 | `scripts/sync_review.py` | brings what the user validated on the page into the review state | fixed |
 | `scripts/extract.py` | shows the profile, tabs and sections the page will have | fixed |
+| `scripts/build_preview.py` + `ui-preview.json` | tlc-spec-lean only, optional: before/after mockups of the screens a plan changes, its own artifact | the script; the mockups you, only when the user wants them |
 | artifact db, collection `review` | validations made on the page | the page's buttons |
 
 The older state files (`review-page.json` from plan-review, `{stem}-doc-review.json` from doc-review) are renamed on first use; the artifact link and validations carry over.
@@ -54,6 +55,7 @@ Run everything from the project root. `{skill-dir}` is the directory holding thi
      - After publishing: `python3 {skill-dir}/scripts/build_page.py {target} --mark-published --url {artifact link}` (the `--url` is only needed the first time). It records the link, the profile and the hash that went live, so the next build knows when the page is stale.
    - **No `Artifact` tool:** give the user the absolute path of `{tmp}/{name}.html` to open in a browser (the images are already beside it). The page works offline without the validate buttons and without drawings (Mermaid comes from a CDN; the source shows instead). Review state then comes from what the user tells you.
 6. **Tell the user** the profile, the link or path, the check result (sections, rows, diagrams, coverage per file) and any `RECHECK`. For tlc-spec-lean, say that Where / Why / Proof are your reading of the code.
+7. **tlc-spec-lean only: offer the UI preview** when the plan changes the screen. `python3 {skill-dir}/scripts/build_preview.py {plan} --detect` says `ui: yes`, `code-only` or `no`; on `yes`, offer it once with its cost (about 20% more tokens), unless the review state has `"ui_preview": false`. Read [references/ui-preview.md](references/ui-preview.md) before drawing it.
 
 ## Validating on the page
 
