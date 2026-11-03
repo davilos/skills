@@ -26,18 +26,35 @@ A skill não escreve nem muda o documento. Ela entra depois de tlc-spec-lean ou 
 
 ```mermaid
 flowchart TD
-    A["1. O usuário nomeou o formato no pedido? Ex.: revisa como tlc-spec-driven"] -->|sim| P["2. Usa o perfil que o usuário disse. Se a detecção apontar outro, avisa numa linha e segue com o do usuário"]
-    A -->|não| B["3. A página já foi construída antes? O perfil gravado no estado de revisão vale, sem detectar de novo"]
-    B -->|não| C["4. Detecção: cada perfil confere o caminho e os headings obrigatórios; o nome do arquivo sozinho não conta"]
-    C -->|um perfil bate| D["5. Usa esse perfil e anuncia o motivo antes do build. Ex.: tlc-spec-driven 4.x por spec.md com User Stories"]
-    C -->|dois empatados| E["6. Pergunta ao usuário qual perfil usar"]
-    C -->|nenhum bate| G["7. Usa generic: a página espelha o documento seção por seção, sem itens extras"]
-    P --> F["8. Grava o perfil no estado de revisão, faz o build e o check"]
-    B -->|sim| F
-    D --> F
-    E --> F
-    G --> F
+    A["1. O usuário disse o formato?"] -->|sim| P["usa esse perfil"]
+    A -->|não| B["2. O estado de revisão já tem um perfil?"]
+    B -->|sim| P2["usa o perfil gravado"]
+    B -->|não| C["3. Algum perfil reconhece o documento?"]
+    C -->|um| P3["usa esse perfil"]
+    C -->|dois empatados| Q["4. Pergunta ao usuário"]
+    C -->|nenhum| G["5. Usa generic"]
 ```
+
+1. O usuário disse o formato?
+   - **Exemplo**: "revisa o spec.md como tlc-spec-driven", "usa o perfil genérico nesse plan.md".
+   - **Se sim**: usa esse perfil, mesmo que a detecção aponte outro; o agente avisa a diferença numa linha e segue com o do usuário.
+   - **Por quê**: a palavra do usuário vale mais que a detecção (decisão 4).
+2. O estado de revisão já tem um perfil?
+   - **Exemplo**: a página já foi publicada e o estado ao lado do documento guarda `"profile": "tlc-spec-lean"`.
+   - **Se sim**: usa o perfil gravado, sem detectar de novo; só uma nova palavra do usuário troca o perfil.
+   - **Por quê**: um rebuild não pode mudar de perfil sozinho, senão as chaves das validações mudam junto.
+3. Algum perfil reconhece o documento?
+   - **Como**: cada perfil confere o caminho e os headings obrigatórios do seu `detect`; o nome do arquivo sozinho não conta.
+   - **Exemplo**: `.specs/features/dunning/spec.md` com `## User Stories` é tlc-spec-driven; um `plan.md` sem `Shape` e `Landing` não é tlc-spec-lean.
+   - **Se um bate**: usa esse perfil e anuncia antes do build: `Formato: tlc-spec-driven 4.x (detectado por .specs/features/*/spec.md + "## User Stories")`.
+4. Pergunta ao usuário
+   - **Quando**: dois perfis reconhecem o documento com a mesma força.
+   - **Exemplo**: um arquivo em `.specs/features/` que tem os headings obrigatórios dos dois perfis tlc.
+   - **Depois**: grava a resposta no estado de revisão, e o passo 2 passa a valer nos próximos builds.
+5. Usa generic
+   - **Quando**: nenhum perfil reconhece o documento.
+   - **Exemplo**: um TDD em `docs/tdd-robo.md`, ou um `plan.md` do plan mode do Claude Code.
+   - **Resultado**: a página espelha o documento seção por seção, sem itens revisáveis além das seções e das linhas de tabela.
 
 - O agente sempre diz qual perfil vai usar e por quê, antes do build: `Formato: tlc-spec-driven 4.x (detectado por .specs/features/*/spec.md + "## User Stories")`.
 - Se o usuário disse um formato e a detecção aponta outro, vale o do usuário; o agente avisa a diferença numa linha.
