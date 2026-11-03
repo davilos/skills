@@ -1,0 +1,1240 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Documentation layout: top bar, section tree on the left (with the review state), the document in
+   file order in the center and the review panel on the right. Below 1180 px the panel goes away
+   (progress moves to the tree); below 860 px the tree becomes a menu that opens from the top. */
+:root {
+  --bg: #ffffff; --bg-subtle: #f6f7f9; --bg-hover: #f0f2f5;
+  --fg: #11141a; --fg-2: #353b47; --muted: #5d6471;
+  --line: #e4e7ec; --line-strong: #cfd4dc;
+  --accent: #3b4fd8; --accent-soft: #eef0fd;
+  --ok: #157347; --ok-soft: #e6f4ec;
+  --pend: #8f5600; --pend-soft: #fcf1de;
+  --chg: #c0291b; --chg-soft: #fdebe8;
+  --shadow: 0 1px 2px rgba(17, 20, 26, .06), 0 4px 12px rgba(17, 20, 26, .06);
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --top: 52px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1013; --bg-subtle: #15181d; --bg-hover: #1c2027; --fg: #e9ebef; --fg-2: #c3c8d1; --muted: #9098a6;
+    --line: #252a32; --line-strong: #353b45; --accent: #8e9bff; --accent-soft: #1c2140;
+    --ok: #55c58f; --ok-soft: #12291e; --pend: #e3ab4a; --pend-soft: #2e2412; --chg: #f2877a; --chg-soft: #351b18;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 16px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1013; --bg-subtle: #15181d; --bg-hover: #1c2027; --fg: #e9ebef; --fg-2: #c3c8d1; --muted: #9098a6;
+  --line: #252a32; --line-strong: #353b45; --accent: #8e9bff; --accent-soft: #1c2140;
+  --ok: #55c58f; --ok-soft: #12291e; --pend: #e3ab4a; --pend-soft: #2e2412; --chg: #f2877a; --chg-soft: #351b18;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 16px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+/* The jump offset lives only in each target's scroll-margin; adding scroll-padding here would double it. */
+html { scroll-behavior: smooth; scrollbar-color: var(--line-strong) transparent; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before { transition: none !important; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss03"; caret-color: var(--accent); }
+::selection { background: var(--accent-soft); color: var(--fg); }
+[hidden] { display: none !important; }
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+h1, h2, h3, h4, h5, h6 { margin: 0; text-wrap: balance; color: var(--fg); }
+h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 23px; line-height: 1.25; font-weight: 650; letter-spacing: -0.015em; }
+h3 { font-size: 17px; line-height: 1.35; font-weight: 620; letter-spacing: -0.01em; }
+h4, h5, h6 { font-size: 15px; line-height: 1.4; font-weight: 600; }
+p { margin: 0; max-width: 72ch; }
+code, pre { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+code { font-family: var(--mono); font-size: 0.84em; background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg); padding: 0 4px; border-radius: 4px; overflow-wrap: anywhere; }
+b { font-weight: 600; }
+.ic { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: -3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* top bar */
+.topbar { position: sticky; top: 0; z-index: 20; height: var(--top); display: flex; align-items: center; gap: 12px; padding: 0 max(20px, env(safe-area-inset-left, 0px)); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.brand { font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; }
+.crumb-sep { color: var(--line-strong); }
+.slug { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.top-right { margin-left: auto; display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+.hash { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.top-progress { font-variant-numeric: tabular-nums; color: var(--fg-2); font-weight: 500; }
+.menu-btn { display: none; }
+
+.page {
+  max-width: 1440px; margin: 0 auto;
+  display: grid; grid-template-columns: 248px minmax(0, 1fr) 232px; gap: 0 48px; align-items: start;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+
+/* section tree */
+nav.toc { position: sticky; top: var(--top); min-height: calc(100vh - var(--top)); max-height: calc(100vh - var(--top)); overflow-y: auto; padding: 28px 4px 40px 0; border-right: 1px solid var(--line); margin-right: -24px; padding-right: 20px; }
+.toc-title { font-size: 13px; font-weight: 600; color: var(--fg); padding: 0 10px 8px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+nav.toc a { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 6px; color: var(--fg-2); text-decoration: none; font-size: 14px; line-height: 1.4; transition: background-color .15s, color .15s; }
+nav.toc a:hover { background: var(--bg-hover); color: var(--fg); }
+nav.toc a[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 550; }
+nav.toc .sub { margin: 2px 0 4px 17px; padding-left: 8px; border-left: 1px solid var(--line); }
+nav.toc .sub a { font-size: 13px; padding: 3px 10px; }
+.toc-progress { margin: 16px 10px 0; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; display: none; }
+/* State icon: validated (check), not reviewed (empty circle), changed since (triangle), rejected (cross), nothing to validate (dash). */
+.st { width: 14px; height: 14px; flex-shrink: 0; display: inline-flex; color: var(--line-strong); }
+.st svg { width: 14px; height: 14px; }
+.st[data-state="ok"] { color: var(--ok); }
+.st[data-state="pend"] { color: var(--pend); }
+.st[data-state="chg"] { color: var(--chg); }
+.st[data-state="na"] { color: var(--muted); }
+.st[data-state="rej"] { color: var(--chg); }
+
+/* review panel */
+aside.rail { position: sticky; top: var(--top); max-height: calc(100vh - var(--top)); overflow-y: auto; padding: 28px 0 40px; display: grid; gap: 22px; align-content: start; font-size: 13px; }
+.rail h2 { font-size: 13px; font-weight: 600; letter-spacing: 0; margin-bottom: 8px; }
+.rail-count { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rail-count span { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.cells { display: grid; grid-template-columns: repeat(auto-fit, minmax(10px, 1fr)); gap: 3px; margin-top: 10px; }
+.cells a { height: 8px; border-radius: 2px; background: var(--line); transition: background-color .25s, transform .15s; }
+.cells a:hover { transform: scaleY(1.5); }
+.cells a[data-state="ok"] { background: var(--ok); }
+.cells a[data-state="pend"] { background: var(--pend-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pend) 45%, transparent); }
+.cells a[data-state="chg"] { background: var(--chg); }
+.cells a[data-state="na"] { background: var(--line); opacity: .5; }
+.cells a[data-state="rej"] { background: repeating-linear-gradient(135deg, var(--chg) 0 3px, var(--chg-soft) 3px 5px); }
+.rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rail li a { display: flex; align-items: center; gap: 8px; color: var(--fg-2); text-decoration: none; padding: 3px 0; }
+.rail li a:hover { color: var(--accent); }
+.rail .empty { color: var(--muted); }
+.rail dl { margin: 0; display: grid; gap: 8px; }
+.rail dt { color: var(--muted); font-size: 12px; }
+.rail dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
+.rail dd.mono { font-family: var(--mono); font-size: 12px; }
+
+main { display: grid; gap: 64px; min-width: 0; padding: 36px 0 96px; }
+
+/* document header */
+.head { display: grid; gap: 14px; }
+.doc-path { font-family: var(--mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12.5px; line-height: 1.4; padding: 3px 9px; border-radius: 999px; background: var(--bg-subtle); border: 1px solid var(--line); color: var(--fg-2); overflow-wrap: anywhere; }
+.tag.mono { font-family: var(--mono); font-size: 12px; }
+.front { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; font-size: 14px; }
+.front dt { color: var(--muted); font-weight: 500; }
+.front dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
+.note { font-size: 13px; color: var(--muted); }
+.note:empty { display: none; }
+
+/* section */
+section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20px); min-width: 0; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.sec-head h2 { margin-right: auto; }
+.blocks { display: grid; gap: 14px; color: var(--fg-2); min-width: 0; }
+.blocks > p { color: var(--fg-2); }
+.blocks > .sub-h { margin-top: 10px; scroll-margin-top: calc(var(--top) + 20px); }
+.blocks > h3.sub-h { padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+blockquote { margin: 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--line-strong); color: var(--fg-2); }
+blockquote .blocks { gap: 10px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; width: 100%; }
+.list { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.list .list { margin-top: 6px; }
+.list li::marker { color: var(--muted); }
+ol.list li::marker { font-weight: 600; font-variant-numeric: tabular-nums; }
+.list li.task { list-style: none; margin-left: -20px; }
+.list li.task input { margin: 0 8px 0 0; vertical-align: -2px; accent-color: var(--ok); }
+.cap { display: block; margin: 4px 0 6px; }
+.cap img { display: block; max-width: min(100%, 640px); height: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-subtle); }
+.cap-name { font-size: 13px; color: var(--muted); }
+.local-link { border-bottom: 1px dotted var(--muted); }
+pre.code { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; color: var(--fg); }
+.code-box { display: grid; gap: 4px; min-width: 0; }
+.code-lang { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+/* mermaid drawings */
+figure.mmd { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.mmd-draw { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; text-align: center; }
+.mmd-draw svg { max-height: 560px; }
+.mmd-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.mmd-hint { font-size: 12.5px; color: var(--muted); margin-right: auto; }
+.mmd-actions { display: inline-flex; gap: 6px; }
+.mmd-btn { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; line-height: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: var(--bg); }
+.mmd-btn:hover { border-color: var(--line-strong); color: var(--fg); }
+.mmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mmd-btn:disabled { opacity: .4; cursor: default; }
+/* Expand sits inside the drawing's box, in its top right corner; it stays put while a wide drawing scrolls. */
+.mmd-frame { position: relative; min-width: 0; }
+.mmd-expand { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; top: 8px; right: 8px; z-index: 1; display: inline-flex; padding: 6px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg-2); background: color-mix(in srgb, var(--bg) 90%, transparent); }
+.mmd-expand:hover { color: var(--accent); border-color: var(--line-strong); }
+.mmd-expand:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mmd-draw[hidden] + .mmd-expand { display: none; }
+/* Step by step: previous, one button per numbered step of the drawing, next. */
+.mmd-steps { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mmd-steps .lbl { font-size: 12.5px; color: var(--muted); margin-right: 2px; }
+.mmd-step { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+.mmd-step[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+/* While a step is on, the other steps' labels and arrows fade, so the current one stands out. */
+svg.mmd-stepping g.edgeLabel:not(.mmd-sel), svg.mmd-stepping path.flowchart-link:not(.mmd-sel), svg.mmd-stepping text.messageText:not(.mmd-sel),
+svg.mmd-stepping [class^="messageLine"]:not(.mmd-sel), svg.mmd-stepping rect.mmd-ring[data-mmd-cue^="step:"]:not(.mmd-sel) { opacity: .25; transition: opacity .2s; }
+/* What a click opens: a dashed outline runs around every numbered step; on hover or selection it holds still. */
+[data-mmd-key] { cursor: pointer; outline: none; }
+[data-mmd-key]:focus { outline: none; }
+/* !important: inside a node the ring is a `rect`, and Mermaid styles `#id .node rect` above any class. */
+rect.mmd-ring { fill: none !important; stroke: var(--accent) !important; stroke-width: 1.5px !important; stroke-dasharray: 5 4 !important; opacity: .85; pointer-events: none; animation: mmd-ring 1.4s linear infinite; }
+@keyframes mmd-ring { to { stroke-dashoffset: -18; } }
+text[data-mmd-key]:hover + rect.mmd-ring, [data-mmd-key]:hover > rect.mmd-ring, [data-mmd-key]:focus-visible > rect.mmd-ring, text[data-mmd-key]:focus-visible + rect.mmd-ring,
+rect.mmd-ring.mmd-sel { stroke-dasharray: none !important; stroke-width: 2px !important; opacity: 1; animation: none; }
+text[data-mmd-key]:hover, [data-mmd-key]:hover text, text[data-mmd-key]:focus-visible { fill: var(--accent) !important; }
+[data-mmd-key]:hover .nodeLabel, [data-mmd-key]:hover foreignObject p, [data-mmd-key]:hover foreignObject span { color: var(--accent) !important; }
+@media (prefers-reduced-motion: reduce) { rect.mmd-ring { animation: none; } }
+i.mmd-ring { display: inline-block; width: 14px; height: 10px; margin-right: 6px; vertical-align: -1px; border: 1.5px dashed var(--accent); border-radius: 3px; }
+text.mmd-sel, .mmd-sel text { fill: var(--accent) !important; font-weight: 600; }
+/* An `autonumber` number sits on a dark disc: it stays light to be read. */
+text.sequenceNumber.mmd-sel { fill: #fff !important; }
+.mmd-sel .nodeLabel, foreignObject.mmd-sel { color: var(--accent) !important; font-weight: 600; }
+.mmd-sel > rect:not(.mmd-ring), .mmd-sel > polygon, .mmd-sel > path, .mmd-sel .label-container { stroke: var(--accent) !important; stroke-width: 2px !important; }
+line.mmd-sel, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
+.mmd-detail { border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; position: relative; background: var(--bg); font-size: 14px; }
+.mmd-detail p { margin: 0; }
+.mmd-dh { font-weight: 600; padding-right: 28px; }
+.mmd-tag { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
+.mmd-x { all: unset; cursor: pointer; position: absolute; top: 6px; right: 8px; font-size: 18px; line-height: 1; padding: 4px 6px; color: var(--muted); border-radius: 4px; }
+.mmd-x:hover { color: var(--fg); background: var(--bg-hover); }
+dialog.mmd-zoom { width: min(96vw, 1600px); height: min(92vh, 1100px); max-width: none; max-height: none; padding: 0; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow); overflow: hidden; }
+dialog.mmd-zoom[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+dialog.mmd-zoom::backdrop { background: rgba(10, 12, 16, .55); }
+.mmd-zbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.mmd-zpct { font-size: 12.5px; color: var(--muted); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.mmd-viewport { position: relative; overflow: hidden; touch-action: none; cursor: grab; background: var(--bg-subtle); }
+.mmd-viewport:active { cursor: grabbing; }
+.mmd-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mmd-stage svg { display: block; }
+.mmd-stage.mmd-glide { transition: transform .35s cubic-bezier(.2, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { .mmd-stage.mmd-glide { transition: none; } }
+.mmd-zdetail { max-height: 34vh; overflow: auto; overscroll-behavior: contain; }
+.mmd-zdetail:has(.mmd-detail:not([hidden])) { border-top: 2px solid var(--accent); }
+.mmd-zdetail .mmd-detail { border: 0; border-radius: 0; }
+/* While the drawing is full screen, the page behind it does not scroll. */
+html.mmd-locked, html.mmd-locked body { overflow: hidden; }
+.mmd-note { margin: 0; font-size: 13px; color: var(--pend); }
+.mmd-src summary { cursor: pointer; font-size: 12.5px; color: var(--muted); width: max-content; }
+.mmd-src[open] summary { margin-bottom: 6px; }
+pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+
+/* review badge and buttons */
+.rv { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 550; line-height: 1; padding: 5px 9px 5px 8px; border-radius: 999px; white-space: nowrap; transition: background-color .25s, color .25s; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.pend { background: var(--pend-soft); color: var(--pend); }
+.badge.stale { background: var(--chg-soft); color: var(--chg); }
+.badge.na { background: var(--bg-hover); color: var(--muted); }
+.badge.rej { background: var(--chg-soft); color: var(--chg); }
+.rv-btn { font: inherit; font-size: 13px; font-weight: 550; line-height: 1; padding: 7px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); box-shadow: 0 1px 1px rgba(17, 20, 26, .04); transition: background-color .15s, border-color .15s; }
+.rv-btn:hover { background: var(--bg-hover); border-color: var(--muted); }
+.rv-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rv-btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+:root[data-theme="dark"] .rv-btn.primary { color: #0e1013; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rv-btn.primary { color: #0e1013; } }
+.rv-btn:disabled { opacity: .55; cursor: progress; }
+/* Row review: Confirm and Reject toggle; pressing the lit one again undoes it. */
+.rv-row { display: inline-grid; gap: 6px; justify-items: start; }
+.rv-row .rv-acts { display: inline-flex; gap: 4px; }
+/* With the buttons on screen, the lit one already says the state: the badge only shows what they cannot (changed since). */
+.rv-row.has-acts .badge:not(.stale) { display: none; }
+.rv-mini { font: inherit; font-size: 12px; font-weight: 550; line-height: 1; padding: 5px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg-2); transition: background-color .15s, border-color .15s, color .15s; }
+.rv-mini:hover { background: var(--bg-hover); border-color: var(--muted); }
+.rv-mini.yes[aria-pressed="true"] { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.rv-mini.no[aria-pressed="true"] { background: var(--chg-soft); border-color: var(--chg); color: var(--chg); }
+.rv-mini:disabled { opacity: .55; cursor: progress; }
+
+/* tables */
+/* No overflow on the table box: with it, the header cannot stick to the page while scrolling.
+   Columns wrap their text and fit the width; code breaks anywhere. */
+.tbl { border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-top: 1px solid var(--line); }
+thead th { border-top: 0; font-size: 12.5px; font-weight: 600; color: var(--muted); background: var(--bg-subtle); white-space: nowrap; }
+/* Sticky header: pinned just below the bar while the table scrolls past; the bottom line is drawn as a shadow, because the border disappears in sticky mode. */
+thead th { position: sticky; top: var(--top); z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
+thead th:first-child { border-top-left-radius: 7px; }
+thead th:last-child { border-top-right-radius: 7px; }
+td { color: var(--fg-2); line-height: 1.55; }
+/* Short-value columns stay narrow; prose columns share the rest. */
+th.narrow, td.narrow { width: 1%; white-space: nowrap; }
+/* Row number: a click copies "Section #N" to cite the row in the conversation. */
+.rn { all: unset; cursor: pointer; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding: 1px 5px; border-radius: 4px; }
+.rn:hover { color: var(--accent); background: var(--accent-soft); }
+.rn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+tr.row-t { scroll-margin-top: calc(var(--top) + 56px); }
+tr.row-t:target td { background: var(--accent-soft); }
+tr[data-rs="rej"] td { background: color-mix(in srgb, var(--chg-soft) 70%, transparent); }
+tr[data-rs="ok"] td.rn-cell { box-shadow: inset 3px 0 0 var(--ok); }
+
+/* Notice after validating: says what to review next. */
+.toast { position: fixed; z-index: 30; right: 20px; bottom: 20px; max-width: min(420px, calc(100vw - 32px)); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 11px 14px; border-radius: 8px; background: var(--fg); color: var(--bg); font-size: 13.5px; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); transform: translateY(0); opacity: 1; transition: transform .25s cubic-bezier(.2, .8, .2, 1), opacity .25s; }
+.toast[hidden] { display: flex !important; transform: translateY(12px); opacity: 0; pointer-events: none; visibility: hidden; }
+.toast a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.toast a:focus-visible { outline: 2px solid var(--bg); outline-offset: 2px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 1180px) {
+  .page { grid-template-columns: 232px minmax(0, 1fr); gap: 0 40px; }
+  aside.rail { display: none; }
+  .toc-progress { display: block; }
+}
+@media (max-width: 860px) {
+  .page { grid-template-columns: minmax(0, 1fr); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .topbar { padding: 0 16px; gap: 10px; }
+  .hash, .crumb-sep, .slug { display: none; }
+  .menu-btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13.5px; font-weight: 500; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); cursor: pointer; }
+  nav.toc { position: fixed; top: var(--top); left: 0; right: 0; z-index: 15; min-height: 0; max-height: min(70vh, 560px); margin: 0; padding: 12px 16px 16px; background: var(--bg); border-right: 0; border-bottom: 1px solid var(--line); box-shadow: var(--shadow); }
+  nav.toc:not(.open) { display: none; }
+  main { padding-top: 24px; gap: 52px; }
+  h1 { font-size: 25px; }
+  h2 { font-size: 21px; }
+}
+@media (max-width: 600px) {
+  .toast { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+  .front { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .front dd { margin-bottom: 6px; }
+  /* The table becomes label/value blocks: no column runs off the screen. */
+  .tbl table, .tbl tbody, .tbl tr, .tbl td { display: block; width: auto; }
+  .tbl thead { display: none; }
+  .tbl tr { padding: 10px 14px; border-top: 1px solid var(--line); }
+  .tbl tr:first-child { border-top: 0; }
+  .tbl td { border: 0; padding: 2px 0; white-space: normal; }
+  .tbl td::before { content: attr(data-label); display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+  .tbl td:empty { display: none; }
+  /* Row number inline ("#2"), and the row state on the whole block. */
+  .tbl td.rn-cell::before { content: "#"; display: inline; font-weight: 600; color: var(--muted); }
+  .tbl td.rn-cell .rn { padding-left: 1px; }
+  .tbl tr[data-rs="ok"] td.rn-cell { box-shadow: none; }
+  .tbl tr[data-rs="ok"] { box-shadow: inset 3px 0 0 var(--ok); }
+  .tbl tr[data-rs="rej"] { background: color-mix(in srgb, var(--chg-soft) 70%, transparent); }
+  .tbl tr[data-rs="rej"] td { background: none; }
+}
+</style>
+
+<div class="topbar">
+  <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="toc-nav"><span id="menu-label"></span></button>
+  <span class="brand" id="brand"></span><span class="crumb-sep">/</span><span class="slug" id="slug"></span>
+  <div class="top-right"><span class="hash" id="top-hash"></span><span class="top-progress" id="top-progress"></span></div>
+</div>
+<div class="page">
+  <nav class="toc" id="toc-nav">
+    <div class="toc-title" id="toc-title"></div>
+    <ol id="toc"></ol>
+    <div class="toc-progress" id="progress"></div>
+  </nav>
+  <main id="main">
+    <header class="head">
+      <div class="doc-path" id="doc-path"></div>
+      <h1 id="doc-title"></h1>
+      <dl class="front" id="front" hidden></dl>
+      <div class="tags" id="tags"></div>
+      <div class="note" id="review-note" role="status"></div>
+    </header>
+  </main>
+  <aside class="rail" id="rail">
+    <div><h2 id="rail-h-review"></h2><div class="rail-count" id="rail-count"></div><div class="cells" id="rail-cells"></div></div>
+    <div><h2 id="rail-h-todo"></h2><ul id="rail-todo"></ul></div>
+    <div id="rail-chg-box" hidden><h2 id="rail-h-chg"></h2><ul id="rail-chg"></ul></div>
+    <div id="rail-rej-box" hidden><h2 id="rail-h-rej"></h2><ul id="rail-rej"></ul></div>
+    <div><h2 id="rail-h-meta"></h2><dl id="rail-meta"></dl></div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+/* Generated by the doc-review skill: do not edit by hand. Data comes from the document (DOC) and its review state (STATE). */
+var DOC = __DOC_JSON__;
+var STATE = __STATE_JSON__;
+(function () {
+  window.__DOC_PAGE__ = { DOC: DOC, STATE: STATE };
+  var ST = STATE || {};
+  var REVIEW = ST.review || {};
+  document.documentElement.lang = DOC.lang === "pt" ? "pt-BR" : "en";
+
+  /* ---------- interface text ---------- */
+  var STR = {
+    en: {
+      brand: "Document review", sections: "Sections", review: "Review", notReviewed: "Not reviewed", changedSince: "Changed since validated",
+      rejectedRows: "Rejected rows", thisPage: "This page", generated: "Generated", validate: "Validate", validateAgain: "Validate again", undo: "Undo",
+      confirm: "Confirm", reject: "Reject", validated: "validated", changedTail: " · changed since", notReviewedBadge: "not reviewed",
+      rowsRejected: function (n) { return n + (n === 1 ? " row rejected" : " rows rejected"); },
+      rowsConfirmed: function (a, n) { return a + " of " + n + " rows confirmed"; },
+      confirmed: "confirmed", rejected: "rejected", notConfirmed: "not confirmed", nothingToValidate: "nothing to validate",
+      nothingTitle: "The document says this section does not apply",
+      progress: function (d, t) { return d + " of " + t + " sections validated"; }, topProgress: function (d, t) { return d + "/" + t + " validated"; },
+      railCount: function (d, t) { return d + " <span>of " + t + " sections validated</span>"; },
+      allDone: "Nothing left: everything is validated.", nothingLeft: "Nothing left to review.", reviewCol: "Review",
+      changedTitle: "The text changed after it was marked", markedAt: "Marked on this page at ",
+      undoTitle: function (n) { return "Back to not reviewed, with its " + n + (n === 1 ? " row" : " rows"); },
+      validateTitle: function (n) { return "Validates the section and confirms its " + n + (n === 1 ? " row" : " rows"); },
+      copyRow: function (r) { return "Copy \"" + r + "\" to cite this row"; },
+      done: function (x) { return x + " validated."; }, nextReview: "Next to review: ", allReviewed: " Everything is reviewed.",
+      rowRejected: function (r) { return "<span>" + r + " rejected.</span><span>Cite <b>" + r + "</b> in the conversation to say what is wrong.</span>"; },
+      copied: function (r) { return "<span>Copied <b>" + r + "</b>: paste it in the conversation to discuss this row.</span>"; },
+      citeAs: function (r) { return "<span>Cite this row as <b>" + r + "</b>.</span>"; },
+      copyFailed: "<span>Could not copy. Select the text and copy it by hand.</span>",
+      saveFailed: function (c) { return "Could not save (" + c + "). Try again."; },
+      loadFailed: "The validations for this page could not be loaded right now.",
+      savedHere: "What you validate or confirm here is saved on this page.", onlyEditors: "Only editors of this page can validate.",
+      hashTitle: "Hash of the document this page was generated from. If the current document has a different hash, the page is out of date.",
+      generatedAt: " · generated ", mirror: "Mirror of ", hashWord: "hash", footerTail: ". The text comes from the document as written; the page adds nothing of its own.",
+      localLink: "Link to a local file: ", stepByStep: "Step by step", prev: "← Previous", next: "Next →", step: "Step ",
+      copySource: "Copy source", copiedShort: "Copied", source: "Mermaid source", expandAria: "Open the diagram full screen, with zoom", expandTitle: "Expand",
+      hint: "Numbered steps with a moving outline open with a click.", stepTip: function (n) { return "Step " + n + ": click to follow it"; },
+      renderFailed: "This diagram did not render, so its source is shown: ", noMermaid: function (m) { return "The drawings need Mermaid, which did not load (" + m + "); the source is shown."; },
+      copySourceFailed: "<span>Could not copy. Open the Mermaid source and copy it by hand.</span>",
+      zoomAria: "Diagram, full screen", zoomIn: "Zoom in", zoomOut: "Zoom out", fit: "Fit", close: "Close", closeAria: "Close",
+      zoomHint: "Wheel or pinch to zoom, drag to move; click a numbered step to follow it.", intro: "Introduction", sectionsAria: "Document sections"
+    },
+    pt: {
+      brand: "Revisão de documento", sections: "Seções", review: "Revisão", notReviewed: "Não revisado", changedSince: "Mudou depois de validado",
+      rejectedRows: "Linhas rejeitadas", thisPage: "Esta página", generated: "Gerada em", validate: "Validar", validateAgain: "Validar de novo", undo: "Desfazer",
+      confirm: "Confirmar", reject: "Rejeitar", validated: "validada", changedTail: " · mudou desde então", notReviewedBadge: "não revisada",
+      rowsRejected: function (n) { return n + (n === 1 ? " linha rejeitada" : " linhas rejeitadas"); },
+      rowsConfirmed: function (a, n) { return a + " de " + n + " linhas confirmadas"; },
+      confirmed: "confirmada", rejected: "rejeitada", notConfirmed: "não confirmada", nothingToValidate: "nada a validar",
+      nothingTitle: "O documento diz que esta seção não se aplica",
+      progress: function (d, t) { return d + " de " + t + " seções validadas"; }, topProgress: function (d, t) { return d + "/" + t + " validadas"; },
+      railCount: function (d, t) { return d + " <span>de " + t + " seções validadas</span>"; },
+      allDone: "Nada pendente: tudo validado.", nothingLeft: "Nada pendente para revisar.", reviewCol: "Revisão",
+      changedTitle: "O texto mudou depois de marcado", markedAt: "Marcado nesta página em ",
+      undoTitle: function (n) { return "Volta para não revisada, com suas " + n + (n === 1 ? " linha" : " linhas"); },
+      validateTitle: function (n) { return "Valida a seção e confirma suas " + n + (n === 1 ? " linha" : " linhas"); },
+      copyRow: function (r) { return "Copiar \"" + r + "\" para citar esta linha"; },
+      done: function (x) { return x + " validada."; }, nextReview: "Próxima a revisar: ", allReviewed: " Tudo revisado.",
+      rowRejected: function (r) { return "<span>" + r + " rejeitada.</span><span>Cite <b>" + r + "</b> na conversa para dizer o que está errado.</span>"; },
+      copied: function (r) { return "<span><b>" + r + "</b> copiado: cole na conversa para discutir esta linha.</span>"; },
+      citeAs: function (r) { return "<span>Cite esta linha como <b>" + r + "</b>.</span>"; },
+      copyFailed: "<span>Não deu para copiar. Selecione o texto e copie à mão.</span>",
+      saveFailed: function (c) { return "Não deu para salvar (" + c + "). Tente de novo."; },
+      loadFailed: "As validações desta página não puderam ser carregadas agora.",
+      savedHere: "O que você valida ou confirma aqui fica salvo nesta página.", onlyEditors: "Só quem edita esta página pode validar.",
+      hashTitle: "Hash do documento que gerou esta página. Se o documento atual tiver outro hash, a página está desatualizada.",
+      generatedAt: " · gerada em ", mirror: "Espelho de ", hashWord: "hash", footerTail: ". O texto vem do documento como está escrito; a página não acrescenta nada.",
+      localLink: "Link para um arquivo local: ", stepByStep: "Passo a passo", prev: "← Anterior", next: "Próximo →", step: "Passo ",
+      copySource: "Copiar fonte", copiedShort: "Copiado", source: "Fonte Mermaid", expandAria: "Abrir o diagrama em tela cheia, com zoom", expandTitle: "Expandir",
+      hint: "Passos numerados com contorno animado abrem com um clique.", stepTip: function (n) { return "Passo " + n + ": clique para acompanhar"; },
+      renderFailed: "Este diagrama não foi desenhado, então a fonte aparece: ", noMermaid: function (m) { return "Os desenhos precisam do Mermaid, que não carregou (" + m + "); a fonte aparece."; },
+      copySourceFailed: "<span>Não deu para copiar. Abra a fonte Mermaid e copie à mão.</span>",
+      zoomAria: "Diagrama em tela cheia", zoomIn: "Aproximar", zoomOut: "Afastar", fit: "Ajustar", close: "Fechar", closeAria: "Fechar",
+      zoomHint: "Roda ou pinça para zoom, arraste para mover; clique num passo numerado para acompanhá-lo.", intro: "Introdução", sectionsAria: "Seções do documento"
+    }
+  };
+  var L = STR[DOC.lang] || STR.en;
+
+  /* Icons (single-stroke SVG, 16 px). */
+  function svg(d, cls) { return '<svg class="' + (cls || "ic") + '" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + "</svg>"; }
+  var IC = {
+    ok: svg('<circle cx="8" cy="8" r="6.25"/><path d="M5.3 8.2l1.8 1.8 3.6-3.8"/>'),
+    pend: svg('<circle cx="8" cy="8" r="6.25" stroke-dasharray="2.4 2.2"/>'),
+    chg: svg('<path d="M8 2.2l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.6v.1"/>'),
+    na: svg('<path d="M5 8h6"/>'),
+    rej: svg('<circle cx="8" cy="8" r="6.25"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/>'),
+    expand: svg('<path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5L9 7M2.5 13.5L7 9"/>')
+  };
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  /* Inline Markdown: code, escapes, images, links, autolinks, <br>, bold, strikethrough, italics (never
+     inside a word). coverage.py's rendered_form mirrors this exactly: change both together.
+     An image loads from beside the page (build_page.py copies it there); a link to a heading of this
+     document jumps to it; a link to a local file is not followable from the page, so it stays text. */
+  var ANCHORS = DOC.anchors || {};
+  function emph(s) {
+    return s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/__([^_]+)__/g, "<b>$1</b>")
+      .replace(/~~([^~]+)~~/g, "<s>$1</s>")
+      .replace(/(^|[^\w*])\*(?=\S)([^*]*?\S)\*(?![\w*])/g, "$1<i>$2</i>")
+      .replace(/(^|[^\w_])_(?=\S)([^_]*?\S)_(?![\w_])/g, "$1<i>$2</i>");
+  }
+  function href(url) {
+    if (/^(https?:|mailto:)/i.test(url)) return { url: url, ext: true };
+    if (url.charAt(0) === "#") { var id = ANCHORS[decodeURIComponent(url.slice(1))]; return id ? { url: "#" + id } : null; }
+    return null;
+  }
+  function md(s) {
+    var ph = [];
+    function hold(html) { ph.push(html); return "\u0000" + (ph.length - 1) + "\u0000"; }
+    var t = String(s == null ? "" : s)
+      .replace(/`([^`]+)`/g, function (a, c) { return hold("<code>" + esc(c) + "</code>"); })
+      .replace(/\\([\\`*_{}\[\]()#+\-.!|~<>])/g, function (a, c) { return hold(esc(c)); })
+      .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (a, alt, src) {
+        var ok = /^https?:\/\//i.test(src) || /^[\w.\/-]+$/.test(src);
+        return hold((ok ? '<span class="cap"><img src="' + esc(src) + '" alt="' + esc(alt) + '" loading="lazy"></span>' : "") + '<span class="cap-name">' + esc(alt) + "</span>");
+      })
+      .replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (a, text, url) {
+        var h = href(url), inner = emph(esc(text));
+        if (!h) return hold('<span class="local-link" title="' + esc(L.localLink + url) + '">' + inner + "</span>");
+        return hold('<a href="' + esc(h.url) + '"' + (h.ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + inner + "</a>");
+      })
+      .replace(/<(https?:\/\/[^\s>]+)>/g, function (a, url) { return hold('<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(url) + "</a>"); })
+      .replace(/<br\s*\/?>/g, function () { return hold(" <br>"); });
+    t = emph(esc(t));
+    for (var k = 0; k < 3; k++) t = t.replace(/\u0000(\d+)\u0000/g, function (a, i) { return ph[+i]; });
+    return t;
+  }
+  var store = {
+    get: function (k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  /* ---------- review state ----------
+     Comes from the artifact db (review/<key>) when it exists; otherwise from the review state file.
+     Each mark stores the fingerprint of the text the user saw (fp): if the document changes, it becomes "changed since".
+     Keys: a section id, or `row:<section>:<n>` for a table row (DOC.rows).
+     States: ok (validated / confirmed), rej (rejected: the user wants to discuss it), pend. */
+  var FP = DOC.fingerprints || {};
+  var STALE = DOC.stale || {};
+  var DBREV = null, CAN_WRITE = false, ME = null, DB = null;
+  var REJ = ST.rejected || [];
+  var ROWS = DOC.rows || {}, ROW_OF = {};
+  Object.keys(ROWS).forEach(function (sid) { ROWS[sid].forEach(function (x) { ROW_OF[x.key] = { sid: sid, n: x.n, b: x.b, r: x.r }; }); });
+  function secRows(sid) { return (ROWS[sid] || []).map(function (x) { return x.key; }); }
+  function ownOf(key) {
+    var d = DBREV && DBREV[key];
+    if (d) {
+      var st = d.state === "validated" ? "ok" : d.state === "rejected" ? "rej" : "pend";
+      return { st: st, changed: st !== "pend" && d.fp !== FP[key], src: "page", at: d.at };
+    }
+    if (REJ.indexOf(key) !== -1) return { st: "rej", changed: !!STALE[key], src: "json" };
+    if (REVIEW[key]) return { st: "ok", changed: !!STALE[key], src: "json" };
+    return key in REVIEW ? { st: "pend", changed: false, src: "json" } : null;
+  }
+  /* A table row with no state of its own takes its section's: validating the section confirms its rows. */
+  function reviewOf(key) {
+    var own = ownOf(key), row = ROW_OF[key];
+    if (!own && row) {
+      var sec = ownOf(row.sid);
+      if (sec && sec.st === "ok") return { st: "ok", changed: sec.src === "json" ? !!STALE[key] : sec.changed, src: sec.src, at: sec.at };
+    }
+    return own || { st: "pend", changed: false, src: "json" };
+  }
+  /* A section with rows is validated only when the section and every row are; one rejected row makes it rejected. */
+  function fullOf(key) {
+    var keys = secRows(key), own = reviewOf(key);
+    if (!keys.length) return own;
+    var rows = keys.map(reviewOf);
+    var nOk = rows.filter(function (r) { return r.st === "ok"; }).length;
+    var nRej = rows.filter(function (r) { return r.st === "rej" && !r.changed; }).length;
+    var out = { n: keys.length, nOk: nOk, nRej: nRej, src: own.src, at: own.at };
+    if (nRej) { out.st = "rej"; out.changed = false; }
+    else if (own.st === "ok" && nOk === keys.length) { out.st = "ok"; out.changed = own.changed || rows.some(function (r) { return r.changed; }); }
+    else { out.st = "pend"; out.changed = false; }
+    return out;
+  }
+  function stateOf(key) { var r = fullOf(key); return r.changed && r.st !== "pend" ? "chg" : r.st; }
+  function rowLabel(key) { var x = ROW_OF[key]; return nameOf(x.sid) + " #" + x.n; }
+  function rowHref(key) { var x = ROW_OF[key]; return "#row-" + x.sid + "-" + x.n; }
+  function reviewSlot(key) {
+    return '<span class="rv" data-rk="' + esc(key) + '"><span class="badge"></span>' +
+      '<button type="button" class="rv-btn" data-rk-btn="' + esc(key) + '" hidden></button></span>';
+  }
+  function rowSlot(key) {
+    return '<span class="rv-row" data-rk-row="' + esc(key) + '"><span class="badge"></span><span class="rv-acts" hidden>' +
+      '<button type="button" class="rv-mini yes" data-rk-row-btn="' + esc(key) + '" data-act="yes" aria-pressed="false">' + L.confirm + "</button>" +
+      '<button type="button" class="rv-mini no" data-rk-row-btn="' + esc(key) + '" data-act="no" aria-pressed="false">' + L.reject + "</button></span></span>";
+  }
+  var NA_BADGE = '<span class="badge na" title="' + esc(L.nothingTitle) + '">' + L.nothingToValidate + "</span>";
+  function nameOf(key) {
+    var s = SECTIONS.filter(function (x) { return x.id === key; })[0];
+    return s ? s.name : key;
+  }
+  var STATE_LABEL = { ok: L.validated, chg: L.changedSince, rej: L.rejectedRows, pend: L.notReviewedBadge };
+  var ROW_LABEL = { ok: L.confirmed, chg: L.changedTitle, rej: L.rejected, pend: L.notConfirmed };
+  function markedTitle(r, changedText) { return r.changed ? changedText : (r.src === "page" && r.at ? L.markedAt + String(r.at).slice(0, 16).replace("T", " ") : ""); }
+  function paintReview() {
+    document.querySelectorAll("[data-rk]").forEach(function (el) {
+      var key = el.getAttribute("data-rk"), r = fullOf(key), st = stateOf(key);
+      var b = el.querySelector(".badge");
+      b.className = "badge " + (st === "chg" ? "stale" : st);
+      b.textContent = r.st === "ok" ? L.validated + (r.changed ? L.changedTail : "")
+        : r.st === "rej" ? L.rowsRejected(r.nRej)
+        : r.nOk ? L.rowsConfirmed(r.nOk, r.n) : L.notReviewedBadge;
+      b.title = markedTitle(r, L.changedTitle);
+      var btn = el.querySelector(".rv-btn");
+      btn.hidden = !CAN_WRITE;
+      btn.textContent = r.st !== "ok" ? L.validate : (r.changed ? L.validateAgain : L.undo);
+      btn.title = r.n ? (r.st === "ok" && !r.changed ? L.undoTitle(r.n) : L.validateTitle(r.n)) : "";
+      btn.classList.toggle("primary", r.st !== "ok" || r.changed);
+    });
+    document.querySelectorAll("[data-rk-row]").forEach(function (el) {
+      var key = el.getAttribute("data-rk-row"), r = reviewOf(key), st = stateOf(key);
+      var b = el.querySelector(".badge");
+      b.className = "badge " + (st === "chg" ? "stale" : st);
+      b.textContent = (r.st === "ok" ? L.confirmed : r.st === "rej" ? L.rejected : L.notConfirmed) + (r.changed ? L.changedTail : "");
+      b.title = markedTitle(r, L.changedTitle);
+      el.querySelector(".rv-acts").hidden = !CAN_WRITE;
+      el.classList.toggle("has-acts", CAN_WRITE);
+      el.querySelectorAll(".rv-mini").forEach(function (m) {
+        var on = !r.changed && r.st === (m.getAttribute("data-act") === "yes" ? "ok" : "rej");
+        m.setAttribute("aria-pressed", String(on));
+      });
+      var tr = el.closest("tr"); if (tr) tr.setAttribute("data-rs", st);
+    });
+    document.querySelectorAll("[data-rk-dot]").forEach(function (el) {
+      var k = el.getAttribute("data-rk-dot"), st = stateOf(k);
+      if (el.getAttribute("data-state") === st) return;
+      el.setAttribute("data-state", st);
+      var label = (ROW_OF[k] ? ROW_LABEL : STATE_LABEL)[st];
+      el.setAttribute("aria-label", label);
+      el.title = label;
+      if (el.classList.contains("st")) el.innerHTML = IC[st];
+    });
+    var done = TO_REVIEW.filter(function (s) { return stateOf(s.id) === "ok"; }).length;
+    var pr = document.getElementById("progress"); if (pr) pr.textContent = L.progress(done, TO_REVIEW.length);
+    var tp = document.getElementById("top-progress"); if (tp) tp.textContent = L.topProgress(done, TO_REVIEW.length);
+    var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = L.railCount(done, TO_REVIEW.length);
+    /* Panel: what is left, what changed and what was rejected, in document order. */
+    var keys = TO_REVIEW.map(function (s) { return [s.id, s.name, "#s-" + s.id]; });
+    function li(k, st) { return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>"; }
+    function items(st) { return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) { return li(k, st); }).join(""); }
+    var todo = document.getElementById("rail-todo");
+    if (todo) {
+      var t = items("pend");
+      todo.innerHTML = t || '<li class="empty">' + (keys.length && keys.every(function (k) { return stateOf(k[0]) === "ok"; }) ? L.allDone : L.nothingLeft) + "</li>";
+    }
+    var chg = document.getElementById("rail-chg");
+    if (chg) { var c = items("chg"); chg.innerHTML = c; document.getElementById("rail-chg-box").hidden = !c; }
+    var rej = document.getElementById("rail-rej");
+    if (rej) {
+      var rr = Object.keys(ROW_OF).filter(function (k) { return stateOf(k) === "rej"; }).map(function (k) { return li([k, rowLabel(k), rowHref(k)], "rej"); }).join("");
+      rej.innerHTML = rr; document.getElementById("rail-rej-box").hidden = !rr;
+    }
+  }
+
+  /* ---------- document blocks ---------- */
+  /* `rows` (from DOC.rows): the key and number of each row, when the user reviews this table row by row.
+     The table then gets a "#" column (a click copies "Section #N" to cite the row) and a Review column.
+     A table whose first column already is "#" with the same numbers keeps it as the number. */
+  function table(b, rows) {
+    var reuse = !!rows && String(b.header[0] || "").trim() === "#" && b.rows.every(function (r, i) { return String(r[0] || "").trim() === String(rows[i].n); });
+    var width = Math.max(b.header.length, b.rows.reduce(function (n, r) { return Math.max(n, r.length); }, 0));
+    var head = b.header.slice(); while (head.length < width) head.push("");
+    var narrow = head.map(function (h, i) { return b.rows.every(function (r) { return String(r[i] || "").length <= 12; }) && String(h).length <= 14 ? ' class="narrow"' : ""; });
+    /* Text columns share the width by the root mean square of their cell lengths (minimum 18%). */
+    var avg = head.map(function (h, i) {
+      if (narrow[i]) return 0;
+      var sq = b.rows.reduce(function (n, r) { var l = String(r[i] || "").replace(/[`*]/g, "").length; return n + l * l; }, 0);
+      return Math.sqrt(sq / Math.max(b.rows.length, 1));
+    });
+    var total = avg.reduce(function (n, x) { return n + x; }, 0);
+    var cols = total ? "<colgroup>" + (rows && !reuse ? "<col>" : "") + avg.map(function (x, i) {
+      return narrow[i] ? "<col>" : '<col style="width:' + Math.max(18, Math.round(x / total * 100)) + '%">';
+    }).join("") + (rows ? "<col>" : "") + "</colgroup>" : "";
+    var sid = rows && ROW_OF[rows[0].key] ? ROW_OF[rows[0].key].sid : "";
+    function num(x) {
+      var ref = nameOf(sid) + " #" + x.n;
+      return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="' + esc(L.copyRow(ref)) + '" aria-label="' + esc(L.copyRow(ref)) + '">' + esc(x.n) + "</button>";
+    }
+    return '<div class="tbl"><table>' + cols + "<thead><tr>" + (rows && !reuse ? '<th class="narrow">#</th>' : "") +
+      head.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + (rows ? '<th class="narrow">' + L.reviewCol + "</th>" : "") + "</tr></thead><tbody>" +
+      b.rows.map(function (r, ri) {
+        var x = rows ? rows[ri] : null;
+        return "<tr" + (x ? ' class="row-t" id="row-' + esc(sid) + "-" + esc(x.n) + '"' : "") + ">" +
+          (x && !reuse ? '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>" : "") + r.map(function (c, i) {
+            if (x && reuse && i === 0) return '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>";
+            return "<td" + (narrow[i] || "") + ' data-label="' + esc(head[i] || "") + '">' + md(c) + "</td>";
+          }).join("") + (x ? '<td class="narrow rv-cell" data-label="' + L.reviewCol + '">' + rowSlot(x.key) + "</td>" : "") + "</tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+  function rowsAt(sec, bi) {
+    var list = (ROWS[sec.id] || []).filter(function (x) { return x.b === bi; });
+    if (!list.length) return null;
+    return list.slice().sort(function (p, q) { return p.r - q.r; }).map(function (x) { return { key: x.key, n: x.n }; });
+  }
+  function listHtml(b) {
+    var tag = b.type === "ol" ? "ol" : "ul";
+    var start = b.type === "ol" && b.items.length && b.items[0].n !== 1 ? ' start="' + esc(b.items[0].n) + '"' : "";
+    return "<" + tag + ' class="list"' + start + ">" + b.items.map(function (it) {
+      var box = typeof it.task === "boolean" ? '<input type="checkbox" disabled' + (it.task ? " checked" : "") + "> " : "";
+      return "<li" + (box ? ' class="task"' : "") + (b.type === "ol" ? ' value="' + esc(it.n) + '"' : "") + ">" + box + md(it.text) +
+        (it.sub || []).map(listHtml).join("") + "</li>";
+    }).join("") + "</" + tag + ">";
+  }
+  /* `sec`: the section the blocks come from (its tables are reviewed row by row; its subheadings get anchors). */
+  function blocks(list, sec) {
+    return '<div class="blocks">' + (list || []).map(function (b, bi) {
+      if (b.type === "p") return "<p>" + md(b.text) + "</p>";
+      if (b.type === "h") {
+        var lv = Math.min(6, Math.max(3, b.level - (DOC.level || 2) + 2));
+        return "<h" + lv + ' class="sub-h"' + (sec ? ' id="h-' + esc(sec.id) + "-" + bi + '"' : "") + ">" + md(b.text) + "</h" + lv + ">";
+      }
+      if (b.type === "ul" || b.type === "ol") return listHtml(b);
+      if (b.type === "table") return table(b, sec ? rowsAt(sec, bi) : null);
+      if (b.type === "code" && b.lang === "mermaid") return diagram(b.text);
+      if (b.type === "code") return '<div class="code-box">' + (b.lang ? '<span class="code-lang">' + esc(b.lang) + "</span>" : "") + '<pre class="code">' + esc(b.text) + "</pre></div>";
+      if (b.type === "quote") return "<blockquote>" + blocks(b.blocks, null) + "</blockquote>";
+      if (b.type === "hr") return "<hr>";
+      return "";
+    }).join("") + "</div>";
+  }
+
+  /* ---------- mermaid drawings ----------
+     Each mermaid block is drawn by Mermaid, loaded from the CDN, with its source under it. The source
+     stays open until the drawing exists: offline, or when the diagram does not parse, the page shows
+     the source and says why. Drawn again when the theme changes. */
+  var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js";
+  var mmd = { loading: null, gen: 0 };
+  function diagram(text) {
+    return '<figure class="mmd"><div class="mmd-bar" hidden><span class="mmd-steps" role="group" aria-label="' + esc(L.stepByStep) + '" hidden></span>' +
+      '<span class="mmd-hint" hidden><i class="mmd-ring"></i>' + L.hint + '</span><span class="mmd-actions">' +
+      '<button type="button" class="mmd-btn mmd-copy" data-copy="' + esc(text) + '">' + L.copySource + "</button></span></div>" +
+      '<div class="mmd-frame"><div class="mmd-draw" hidden></div><button type="button" class="mmd-expand" aria-label="' + esc(L.expandAria) + '" title="' + esc(L.expandTitle) + '">' + IC.expand + "</button></div>" +
+      '<div class="mmd-detail" hidden></div><p class="mmd-note" hidden></p>' +
+      '<details class="mmd-src" open><summary>' + L.source + '</summary><pre class="mermaid">' + esc(text) + "</pre></details></figure>";
+  }
+  function isDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t) return t === "dark";
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function loadMermaid() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (!mmd.loading) mmd.loading = new Promise(function (ok, no) {
+      var sc = document.createElement("script");
+      sc.src = MERMAID_SRC; sc.async = true;
+      sc.onload = function () { if (window.mermaid) ok(window.mermaid); else no(new Error("Mermaid did not start")); };
+      sc.onerror = function () { no(new Error("could not load " + MERMAID_SRC)); };
+      document.head.appendChild(sc);
+    });
+    return mmd.loading;
+  }
+  function diagramNote(fig, msg) {
+    var n = fig.querySelector(".mmd-note");
+    n.textContent = msg; n.hidden = !msg;
+  }
+  function diagramFailed(fig, msg) {
+    fig.classList.remove("drawn"); fig.classList.add("failed");
+    fig.querySelector(".mmd-draw").hidden = true;
+    fig.querySelector(".mmd-bar").hidden = true;
+    fig.querySelector(".mmd-detail").hidden = true;
+    fig.querySelector(".mmd-src").open = true;
+    diagramNote(fig, msg);
+  }
+  function drawDiagrams() {
+    var figs = [].slice.call(document.querySelectorAll("figure.mmd"));
+    if (!figs.length) return Promise.resolve();
+    var gen = ++mmd.gen;
+    closeZoom();
+    // Mermaid sizes every label with the page font: drawing before it loads clips the labels.
+    var fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    return fontsReady.then(loadMermaid).then(function (m) {
+      m.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
+        theme: isDark() ? "dark" : "neutral", fontFamily: getComputedStyle(document.body).fontFamily,
+        // A sequence or a flowchart keeps its size and scrolls sideways: shrunk to fit the column, a wide one
+        // packs its blocks together and its labels become unreadable. rankSpacing: room for the labels on the arrows.
+        sequence: { useMaxWidth: false }, flowchart: { useMaxWidth: false, rankSpacing: 90 } });
+      return figs.reduce(function (chain, fig, i) {
+        return chain.then(function () {
+          if (gen !== mmd.gen) return;  // the theme changed: a newer pass draws everything again
+          var id = "mmd-" + gen + "-" + i;
+          return Promise.resolve().then(function () { return m.render(id, fig.querySelector("pre.mermaid").textContent); }).then(function (r) {
+            var box = fig.querySelector(".mmd-draw");
+            box.innerHTML = r.svg; box.hidden = false;
+            if (r.bindFunctions) r.bindFunctions(box);
+            fig.classList.remove("failed"); fig.classList.add("drawn");
+            fig.querySelector(".mmd-bar").hidden = false;
+            wireDiagram(fig);
+            fig.querySelector(".mmd-src").open = false;
+            diagramNote(fig, "");
+          }, function (e) {
+            var left = document.getElementById("d" + id); if (left) left.remove();
+            diagramFailed(fig, L.renderFailed + String((e && e.message) || e).split("\n")[0]);
+          });
+        });
+      }, Promise.resolve());
+    }, function (e) {
+      figs.forEach(function (f) { diagramFailed(f, L.noMermaid(e.message)); });
+    });
+  }
+  /* ---------- numbered steps ----------
+     A label that starts with a number ("1. ...", "2) ...") is a step: clicking it lights the label, its arrow
+     and the blocks at its ends, and the panel under the drawing repeats it. With two steps or more the
+     drawing gets "Step by step". Steps come only from the numbers the document wrote. */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function stepOf(text) { var m = /^\s*(\d+)[.)]\s+\S/.exec(text); return m ? +m[1] : null; }
+  function wireDiagram(fig) {
+    var svgEl = fig.querySelector(".mmd-draw svg"); if (!svgEl) return;
+    var seen = [], labels = {}, found = [];
+    [].slice.call(svgEl.querySelectorAll("text, foreignObject")).forEach(function (el) {
+      if (el.tagName.toLowerCase() === "text" && el.closest("foreignObject")) return;
+      var cls = el.getAttribute("class") || "";
+      // `autonumber` in a sequence: Mermaid draws the number apart, right after its message's text and arrow.
+      if (/\bsequenceNumber\b/.test(cls)) {
+        var msg = el.previousElementSibling;
+        while (msg && !/\b(messageText|sequenceNumber)\b/.test(msg.getAttribute("class") || "")) msg = msg.previousElementSibling;
+        var num = +el.textContent.trim();
+        if (msg && /\bmessageText\b/.test(msg.getAttribute("class")) && num) found.push([msg, num, num + ". " + msg.textContent.replace(/\s+/g, " ").trim(), el]);
+        return;
+      }
+      var text = el.textContent.replace(/\s+/g, " ").trim(), n = text ? stepOf(text) : null;
+      if (n != null) found.push([el, n, text, null]);
+    });
+    found.forEach(function (f) {
+      var el = f[0], n = f[1], text = f[2];
+      var target = el.closest("g.node, g.edgeLabel") || el;
+      if (seen.indexOf(target) !== -1) return;
+      seen.push(target);
+      var key = "step:" + n;
+      if (!(n in labels)) labels[n] = text;
+      target.setAttribute("data-mmd-key", key);
+      target.setAttribute("tabindex", "0");
+      target.setAttribute("role", "button");
+      target.setAttribute("aria-label", text);
+      var tip = document.createElementNS(SVGNS, "title");
+      tip.textContent = L.stepTip(n);
+      target.insertBefore(tip, target.firstChild);
+      // A message's arrow is the line drawn right after its text: it lights with it.
+      var ln = el.nextElementSibling;
+      if (/messageLine/.test((ln && ln.getAttribute("class")) || "")) ln.setAttribute("data-mmd-line", key);
+      if (f[3]) f[3].setAttribute("data-mmd-line", key);
+      // A flowchart's arrow is the path whose data-id its label names.
+      var lid = target.querySelector && target.querySelector(":scope > g.label[data-id]");
+      if (lid) {
+        var edge = svgEl.querySelector('path[data-id="' + lid.getAttribute("data-id") + '"]');
+        if (edge) edge.setAttribute("data-mmd-line", key);
+      }
+      cue(target, key);
+    });
+    fig.__labels = labels;
+    fig.__steps = Object.keys(labels).map(Number).sort(function (a, b) { return a - b; });
+    fig.querySelector(".mmd-hint").hidden = !fig.__steps.length;
+    fillSteps(fig.querySelector(".mmd-steps"), fig);
+    if (fig.__sel) markSel(fig, fig.__sel);
+  }
+  function fillSteps(bar, fig) {
+    var steps = fig.__steps || [];
+    bar.hidden = steps.length < 2;
+    bar.innerHTML = bar.hidden ? "" : '<span class="lbl">' + L.stepByStep + '</span><button type="button" class="mmd-btn" data-step="prev">' + L.prev + "</button>" +
+      steps.map(function (n) { return '<button type="button" class="mmd-btn mmd-step" data-step="' + n + '" aria-pressed="false" aria-label="' + esc(L.step + n) + '" title="' + esc(fig.__labels[n]) + '">' + n + "</button>"; }).join("") +
+      '<button type="button" class="mmd-btn" data-step="next">' + L.next + "</button>";
+    syncSteps(fig);
+  }
+  function selStep(fig) { var m = /^step:(\d+)$/.exec(fig.__sel || ""); return m ? +m[1] : null; }
+  function syncSteps(fig) {
+    var steps = fig.__steps || [], cur = selStep(fig), i = cur == null ? -1 : steps.indexOf(cur);
+    var bars = [fig.querySelector(".mmd-steps")];
+    if (zoom && zoom.fig === fig) bars.push(zoom.dlg.querySelector(".mmd-steps"));
+    bars.forEach(function (bar) {
+      if (!bar || bar.hidden) return;
+      [].slice.call(bar.querySelectorAll(".mmd-step")).forEach(function (b) { b.setAttribute("aria-pressed", String(cur != null && b.getAttribute("data-step") === String(cur))); });
+      bar.querySelector('[data-step="prev"]').disabled = i <= 0;
+      bar.querySelector('[data-step="next"]').disabled = i === steps.length - 1;
+    });
+  }
+  function stepTo(fig, a) {
+    var steps = fig.__steps || [], cur = selStep(fig), i = cur == null ? -1 : steps.indexOf(cur);
+    var n = a === "next" ? steps[i + 1] : a === "prev" ? (i > 0 ? steps[i - 1] : null) : +a;
+    if (n == null || steps.indexOf(n) === -1) return;
+    if (fig.__sel !== "step:" + n) selectKey(fig, "step:" + n);
+    if (zoom && zoom.fig === fig) zoom.show(selRect(zoom.stage), true);
+  }
+  /* The box around what is selected in a drawing, in screen coordinates. A flowchart arrow takes along the
+     blocks at its two ends, so a step shows where it starts and lands. */
+  function selRect(root) {
+    var box = null, els = [].slice.call(root.querySelectorAll(".mmd-sel")).filter(function (x) { return x.getBoundingClientRect; });
+    els.filter(function (x) { return x.tagName.toLowerCase() === "path" && typeof x.getTotalLength === "function"; }).forEach(function (p) {
+      var len, m; try { len = p.getTotalLength(); m = p.getScreenCTM(); } catch (e) { return; }
+      if (!m) return;
+      [0, len].forEach(function (at) {
+        var q = p.getPointAtLength(at), sx = m.a * q.x + m.c * q.y + m.e, sy = m.b * q.x + m.d * q.y + m.f;
+        [].slice.call(root.querySelectorAll("g.node")).forEach(function (n) {
+          var r = n.getBoundingClientRect();
+          if (els.indexOf(n) === -1 && sx >= r.left - 8 && sx <= r.right + 8 && sy >= r.top - 8 && sy <= r.bottom + 8) els.push(n);
+        });
+      });
+    });
+    els.forEach(function (x) {
+      var r = x.getBoundingClientRect(); if (!r.width && !r.height) return;
+      box = box ? { left: Math.min(box.left, r.left), top: Math.min(box.top, r.top), right: Math.max(box.right, r.right), bottom: Math.max(box.bottom, r.bottom) } :
+        { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    });
+    if (box) { box.width = box.right - box.left; box.height = box.bottom - box.top; }
+    return box;
+  }
+  /* A dashed outline runs around each step label, drawn in the drawing's own coordinates, under the label so it never takes the click. */
+  function cue(target, key) {
+    var shape = target.tagName.toLowerCase() === "text" ? null : target.querySelector(":scope > rect, :scope > polygon, :scope > .label-container, :scope > path");
+    var box = shape || target, bb;
+    if (!box.getBBox) return;
+    try { bb = box.getBBox(); } catch (e) { return; }
+    if (!bb || !bb.width) return;
+    var pad = shape ? 3 : 4;
+    var r = document.createElementNS(SVGNS, "rect");
+    r.setAttribute("class", "mmd-ring");
+    r.setAttribute("data-mmd-cue", key);
+    r.setAttribute("x", bb.x - pad); r.setAttribute("y", bb.y - pad);
+    r.setAttribute("width", bb.width + pad * 2); r.setAttribute("height", bb.height + pad * 2);
+    r.setAttribute("rx", 6);
+    if (shape) {
+      if (shape.getAttribute("transform")) r.setAttribute("transform", shape.getAttribute("transform"));
+      target.insertBefore(r, shape.nextSibling);
+    } else {
+      if (target.getAttribute("transform")) r.setAttribute("transform", target.getAttribute("transform"));
+      target.parentNode.insertBefore(r, target.nextSibling);
+    }
+  }
+  /* A wide drawing scrolls sideways inside its box: bring what is selected into view, without moving the page. */
+  function reveal(box, r) {
+    if (!box || !r || box.scrollWidth <= box.clientWidth) return;
+    var b = box.getBoundingClientRect();
+    if (r.left >= b.left && r.right <= b.right) return;
+    var to = box.scrollLeft + (r.left + r.width / 2) - (b.left + b.width / 2);
+    if (box.scrollTo) box.scrollTo({ left: to, behavior: "smooth" }); else box.scrollLeft = to;
+  }
+  function markSel(fig, key) {
+    var root = zoom && zoom.fig === fig ? zoom.stage : fig;
+    [].slice.call(fig.querySelectorAll(".mmd-sel")).concat([].slice.call(root.querySelectorAll(".mmd-sel"))).forEach(function (x) { x.classList.remove("mmd-sel"); });
+    if (key) [].slice.call(root.querySelectorAll('[data-mmd-key="' + key + '"], [data-mmd-line="' + key + '"], [data-mmd-cue="' + key + '"]')).forEach(function (x) { x.classList.add("mmd-sel"); });
+    var s = root.querySelector("svg"); if (s) s.classList.toggle("mmd-stepping", !!key);
+    if (key && root === fig) reveal(fig.querySelector(".mmd-draw"), selRect(fig));
+    if (key && zoom && zoom.fig === fig) zoom.show(selRect(zoom.stage), false);
+  }
+  function detailOf(fig) { return zoom && zoom.fig === fig ? zoom.dlg.querySelector(".mmd-detail") : fig.querySelector(".mmd-detail"); }
+  function selectKey(fig, key) {
+    var box = detailOf(fig);
+    if (!key || fig.__sel === key) { fig.__sel = null; box.hidden = true; box.innerHTML = ""; markSel(fig, null); syncSteps(fig); return; }
+    fig.__sel = key;
+    var n = +key.slice(5), label = (fig.__labels || {})[n] || "";
+    box.innerHTML = '<button type="button" class="mmd-x" aria-label="' + esc(L.closeAria) + '">×</button><div class="mmd-dh"><span class="mmd-tag">' + esc(L.step + n) + "</span></div><p>" +
+      esc(label.replace(/^\s*\d+[.)]\s+/, "")) + "</p>";
+    box.hidden = false;
+    markSel(fig, key);
+    syncSteps(fig);
+  }
+  function figOf(el) { return el.closest("figure.mmd") || (zoom && zoom.dlg.contains(el) ? zoom.fig : null); }
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t.closest) return;
+    var fig = figOf(t); if (!fig) return;
+    if (zoom && zoom.dragged) { zoom.dragged = false; if (zoom.stage.contains(t)) return; }
+    var hot = t.closest("[data-mmd-key]");
+    if (hot) return selectKey(fig, hot.getAttribute("data-mmd-key"));
+    if (t.closest(".mmd-x")) return selectKey(fig, null);
+    var st = t.closest("[data-step]");
+    if (st) return stepTo(fig, st.getAttribute("data-step"));
+    if (t.closest(".mmd-expand")) return openZoom(fig);
+    var cp = t.closest(".mmd-copy");
+    if (cp) copyText(cp.getAttribute("data-copy")).then(function () { cp.textContent = L.copiedShort; setTimeout(function () { cp.textContent = L.copySource; }, 1500); },
+      function () { toast(L.copySourceFailed); });
+  });
+  document.addEventListener("keydown", function (e) {
+    // ← → on a step button of a drawing on the page walk the steps; full screen, anywhere in the dialog.
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && e.target.closest && (e.target.closest(".mmd-steps") || (zoom && zoom.fig && zoom.dlg.contains(e.target)))) {
+      var sf = figOf(e.target);
+      if (sf && (sf.__steps || []).length > 1) { e.preventDefault(); stepTo(sf, e.key === "ArrowRight" ? "next" : "prev"); }
+      return;
+    }
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var hot = e.target.closest && e.target.closest("[data-mmd-key]"); if (!hot) return;
+    e.preventDefault(); hot.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
+  /* ---------- full screen: zoom with the wheel, the buttons or a pinch, drag to move ---------- */
+  var zoom = null;
+  function buildZoom() {
+    var dlg = document.createElement("dialog");
+    dlg.className = "mmd-zoom"; dlg.setAttribute("aria-label", L.zoomAria);
+    dlg.innerHTML = '<div class="mmd-zbar"><button type="button" class="mmd-btn" data-z="out" aria-label="' + esc(L.zoomOut) + '">−</button><span class="mmd-zpct"></span>' +
+      '<button type="button" class="mmd-btn" data-z="in" aria-label="' + esc(L.zoomIn) + '">+</button><button type="button" class="mmd-btn" data-z="fit">' + L.fit + "</button>" +
+      '<span class="mmd-steps" role="group" aria-label="' + esc(L.stepByStep) + '" hidden></span>' +
+      '<span class="mmd-hint">' + L.zoomHint + '</span><button type="button" class="mmd-btn" data-z="close">' + L.close + "</button></div>" +
+      '<div class="mmd-viewport"><div class="mmd-stage"></div></div><div class="mmd-zdetail"></div>';
+    document.body.appendChild(dlg);
+    var z = { dlg: dlg, stage: dlg.querySelector(".mmd-stage"), view: dlg.querySelector(".mmd-viewport"), pct: dlg.querySelector(".mmd-zpct"), s: 1, x: 0, y: 0, pts: {}, dragged: false };
+    z.apply = function () { z.stage.style.transform = "translate(" + z.x + "px," + z.y + "px) scale(" + z.s + ")"; z.pct.textContent = Math.round(z.s * 100) + "%"; };
+    z.at = function (f, px, py) {
+      var ns = Math.min(8, Math.max(0.1, z.s * f));
+      z.x = px - (px - z.x) * (ns / z.s); z.y = py - (py - z.y) * (ns / z.s); z.s = ns; z.apply();
+    };
+    z.center = function (f) { var r = z.view.getBoundingClientRect(); z.at(f, r.width / 2, r.height / 2); };
+    z.fitScale = function () { var r = z.view.getBoundingClientRect(); return Math.min(8, Math.max(0.1, Math.min((r.width - 32) / (z.w || 1), (r.height - 32) / (z.h || 1)))) || 1; };
+    z.fit = function () {
+      var r = z.view.getBoundingClientRect();
+      z.s = z.fitScale();
+      z.x = (r.width - (z.w || 1) * z.s) / 2; z.y = (r.height - (z.h || 1) * z.s) / 2; z.apply();
+    };
+    /* Bring a box of the drawing (screen coordinates) to the middle of the view. `frame`: also zoom so it
+       fills the view, readable but no closer than 125% and no farther than the whole drawing (a step);
+       otherwise only move, and only when part of it is out of view (a click). */
+    z.show = function (b, frame) {
+      var v = z.view.getBoundingClientRect();
+      if (!b || !v.width || !v.height) return;
+      if (!frame && b.left >= v.left && b.right <= v.right && b.top >= v.top && b.bottom <= v.bottom) return;
+      var st = z.stage.getBoundingClientRect(), k = st.width / (z.w || 1) || z.s;
+      var x = (b.left - st.left) / k, y = (b.top - st.top) / k, w = b.width / k, h = b.height / k;
+      if (frame) z.s = Math.max(z.fitScale(), Math.min(1.25, (v.width - 96) / (w || 1), (v.height - 96) / (h || 1)));
+      z.x = v.width / 2 - (x + w / 2) * z.s; z.y = v.height / 2 - (y + h / 2) * z.s;
+      z.stage.classList.add("mmd-glide"); clearTimeout(z.glide);
+      z.glide = setTimeout(function () { z.stage.classList.remove("mmd-glide"); }, 400);
+      z.apply();
+    };
+    dlg.querySelector(".mmd-zbar").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-z]"); if (!b) return;
+      var a = b.getAttribute("data-z");
+      if (a === "in") z.center(1.25); else if (a === "out") z.center(0.8); else if (a === "fit") z.fit(); else closeZoom();
+    });
+    z.view.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      var r = z.view.getBoundingClientRect();
+      z.at(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
+    // Pointer capture only once it is a drag: a plain click must still reach the label under it.
+    z.view.addEventListener("pointerdown", function (e) { z.pts[e.pointerId] = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; z.moved = false; });
+    z.view.addEventListener("pointermove", function (e) {
+      var pt = z.pts[e.pointerId]; if (!pt) return;
+      var ids = Object.keys(z.pts);
+      if (!z.moved && Math.abs(e.clientX - pt.x0) + Math.abs(e.clientY - pt.y0) > 4) { z.moved = true; if (z.view.setPointerCapture) z.view.setPointerCapture(e.pointerId); }
+      if (!z.moved) return;
+      if (ids.length === 2) {
+        var o = z.pts[ids[0] === String(e.pointerId) ? ids[1] : ids[0]];
+        var before = Math.hypot(pt.x - o.x, pt.y - o.y), after = Math.hypot(e.clientX - o.x, e.clientY - o.y);
+        var r = z.view.getBoundingClientRect();
+        if (before > 0) z.at(after / before, (e.clientX + o.x) / 2 - r.left, (e.clientY + o.y) / 2 - r.top);
+      } else {
+        z.x += e.clientX - pt.x; z.y += e.clientY - pt.y; z.apply();
+      }
+      pt.x = e.clientX; pt.y = e.clientY;
+    });
+    function up(e) { if (z.moved) z.dragged = true; delete z.pts[e.pointerId]; }
+    z.view.addEventListener("pointerup", up);
+    z.view.addEventListener("pointercancel", up);
+    dlg.addEventListener("keydown", function (e) {
+      if (e.target.closest && e.target.closest("[data-mmd-key]")) return;
+      if (e.key === "+" || e.key === "=") z.center(1.25); else if (e.key === "-") z.center(0.8); else if (e.key === "0") z.fit(); else return;
+      e.preventDefault();
+    });
+    dlg.addEventListener("close", function () { closeZoom(); });
+    return z;
+  }
+  function openZoom(fig) {
+    var box = fig.querySelector(".mmd-draw"), s = box.querySelector("svg"); if (!s) return;
+    if (!zoom) zoom = buildZoom();
+    closeZoom();
+    var vb = (s.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
+    zoom.w = vb[2] || s.getBoundingClientRect().width; zoom.h = vb[3] || s.getBoundingClientRect().height;
+    zoom.fig = fig; zoom.svg = s;
+    zoom.saved = { style: s.getAttribute("style"), width: s.getAttribute("width"), height: s.getAttribute("height") };
+    s.setAttribute("width", zoom.w); s.setAttribute("height", zoom.h);
+    s.style.maxWidth = "none"; s.style.maxHeight = "none";
+    zoom.stage.appendChild(s);
+    zoom.dlg.querySelector(".mmd-zdetail").appendChild(fig.querySelector(".mmd-detail"));
+    fillSteps(zoom.dlg.querySelector(".mmd-steps"), fig);
+    document.documentElement.classList.add("mmd-locked");
+    if (zoom.dlg.showModal) zoom.dlg.showModal(); else zoom.dlg.setAttribute("open", "");
+    zoom.fit();
+  }
+  function closeZoom() {
+    if (!zoom || !zoom.fig) return;
+    var fig = zoom.fig, s = zoom.svg, box = fig.querySelector(".mmd-draw");
+    zoom.fig = null; zoom.svg = null;
+    ["style", "width", "height"].forEach(function (a) { if (zoom.saved[a] == null) s.removeAttribute(a); else s.setAttribute(a, zoom.saved[a]); });
+    box.appendChild(s);
+    var frame = box.parentNode, det = zoom.dlg.querySelector(".mmd-detail"); if (det) frame.parentNode.insertBefore(det, frame.nextSibling);
+    document.documentElement.classList.remove("mmd-locked");
+    if (zoom.dlg.open && zoom.dlg.close) zoom.dlg.close(); else zoom.dlg.removeAttribute("open");
+  }
+
+  /* ---------- sections ---------- */
+  var main = document.getElementById("main");
+  var SECTIONS = DOC.sections;
+  var TO_REVIEW = SECTIONS.filter(function (s) { return !s.empty; });
+  function section(s) {
+    var el = document.createElement("section");
+    el.className = "sec"; el.id = "s-" + s.id;
+    el.setAttribute("aria-labelledby", "h-" + s.id);
+    el.innerHTML = '<div class="sec-head"><h2 id="h-' + esc(s.id) + '">' + md(s.name) + "</h2>" + (s.empty ? NA_BADGE : reviewSlot(s.id)) + "</div>" + blocks(s.blocks, s);
+    main.appendChild(el);
+  }
+  /* Subheadings one level below the sections go in the tree, under their section. */
+  function subHeads(s) {
+    return (s.blocks || []).map(function (b, bi) { return [b, bi]; }).filter(function (x) { return x[0].type === "h" && x[0].level === (DOC.level || 2) + 1; });
+  }
+
+  /* ---------- page assembly ---------- */
+  function text(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+  text("brand", L.brand); text("menu-label", L.sections); text("toc-title", L.sections);
+  document.getElementById("toc-nav").setAttribute("aria-label", L.sectionsAria);
+  document.getElementById("rail").setAttribute("aria-label", L.review);
+  text("rail-h-review", L.review); text("rail-h-todo", L.notReviewed); text("rail-h-chg", L.changedSince); text("rail-h-rej", L.rejectedRows); text("rail-h-meta", L.thisPage);
+  var docPath = DOC.path || "", docName = docPath.split("/").pop();
+  text("slug", docName);
+  text("top-hash", DOC.hash ? docName + " " + DOC.hash : "");
+  text("doc-path", docPath);
+  document.getElementById("doc-title").innerHTML = md(DOC.title);
+  if ((DOC.front || []).length) {
+    var fr = document.getElementById("front");
+    fr.innerHTML = DOC.front.map(function (p) { return "<dt>" + md(p[0]) + "</dt><dd>" + md(p[1]) + "</dd>"; }).join("");
+    fr.hidden = false;
+  }
+  document.getElementById("tags").innerHTML = DOC.hash ? '<span class="tag mono" title="' + esc(L.hashTitle) + '">' + esc(docName) + " " + esc(DOC.hash) + (DOC.generated ? L.generatedAt + esc(DOC.generated) : "") + "</span>" : "";
+
+  SECTIONS.forEach(section);
+  var foot = document.createElement("footer");
+  foot.innerHTML = L.mirror + "<code>" + esc(docPath) + "</code>" + (DOC.hash ? " (" + L.hashWord + " " + esc(DOC.hash) + ")" : "") + (DOC.generated ? L.generatedAt + esc(DOC.generated) : "") + L.footerTail;
+  main.appendChild(foot);
+  drawDiagrams();
+  if (window.matchMedia) {
+    var darkMq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (darkMq.addEventListener) darkMq.addEventListener("change", drawDiagrams);
+  }
+  if (window.MutationObserver) new MutationObserver(drawDiagrams).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
+    var dot = s.empty ? '<span class="st" data-state="na" title="' + esc(L.nothingToValidate) + '">' + IC.na + "</span>" : '<span class="st" data-rk-dot="' + esc(s.id) + '"></span>';
+    var li = '<li><a href="#s-' + esc(s.id) + '">' + dot + "<span>" + md(s.name) + "</span></a>";
+    var subs = subHeads(s);
+    if (subs.length) li += '<ol class="sub">' + subs.map(function (x) { return '<li><a href="#h-' + esc(s.id) + "-" + x[1] + '">' + md(x[0].text) + "</a></li>"; }).join("") + "</ol>";
+    return li + "</li>";
+  }).join("");
+  document.getElementById("rail-cells").innerHTML = SECTIONS.map(function (s) {
+    return '<a href="#s-' + esc(s.id) + '" ' + (s.empty ? 'data-state="na" title="' + esc(s.name + ": " + L.nothingToValidate) + '"' : 'data-rk-dot="' + esc(s.id) + '" title="' + esc(s.name) + '"') + "></a>";
+  }).join("");
+  document.getElementById("rail-meta").innerHTML =
+    (DOC.hash ? "<dt>" + esc(docName) + '</dt><dd class="mono">' + esc(DOC.hash) + "</dd>" : "") +
+    (DOC.generated ? "<dt>" + L.generated + "</dt><dd>" + esc(DOC.generated) + "</dd>" : "");
+
+  /* Section menu on phones. */
+  var nav = document.getElementById("toc-nav"), menu = document.getElementById("menu-btn");
+  function setMenu(open) { nav.classList.toggle("open", open); menu.setAttribute("aria-expanded", String(open)); }
+  menu.addEventListener("click", function () { setMenu(!nav.classList.contains("open")); });
+  nav.addEventListener("click", function (e) { if (e.target.closest("a")) setMenu(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && nav.classList.contains("open")) { setMenu(false); menu.focus(); } });
+
+  /* Current section in the tree: the last section (and subheading) whose top has passed the line just below
+     the bar. At the bottom of the page, the last section that starts in the top two thirds of the screen.
+     A click on an internal link marks the target at once and holds it until scrolling stops. */
+  var tocLinks = {};
+  document.querySelectorAll("nav.toc a[href^='#']").forEach(function (a) { tocLinks[a.getAttribute("href").slice(1)] = a; });
+  var spyLock = false, spyTimer = null, spyFrame = 0;
+  function markToc(ids) { Object.keys(tocLinks).forEach(function (k) { tocLinks[k].setAttribute("aria-current", String(ids.indexOf(k) !== -1)); }); }
+  function spy() {
+    spyFrame = 0;
+    if (spyLock) return;
+    var bar = document.querySelector(".topbar"), line = (bar ? bar.offsetHeight : 52) + 80;
+    var secs = [].slice.call(document.querySelectorAll("section.sec"));
+    if (!secs.length) return;
+    var cur = secs[0];
+    secs.forEach(function (sec) { if (sec.getBoundingClientRect().top <= line) cur = sec; });
+    var doc = document.documentElement;
+    if (window.innerHeight + window.scrollY >= doc.scrollHeight - 4) {
+      secs.forEach(function (sec) { if (sec.getBoundingClientRect().top < window.innerHeight * 2 / 3) cur = sec; });
+    }
+    var ids = [cur.id], sub = null;
+    cur.querySelectorAll(".sub-h[id]").forEach(function (x) { if (tocLinks[x.id] && x.getBoundingClientRect().top <= line) sub = x; });
+    if (sub) ids.push(sub.id);
+    markToc(ids);
+  }
+  function releaseSpy() { spyLock = false; spyTimer = null; }
+  window.addEventListener("scroll", function () {
+    if (spyLock) { clearTimeout(spyTimer); spyTimer = setTimeout(releaseSpy, 200); return; }
+    if (!spyFrame) spyFrame = (window.requestAnimationFrame || setTimeout)(spy);
+  }, { passive: true });
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("a[href^='#']"); if (!a) return;
+    var target = document.getElementById(a.getAttribute("href").slice(1)); if (!target) return;
+    var sec = target.closest("section.sec"); if (!sec) return;
+    markToc(target === sec ? [sec.id] : [sec.id, target.id]);
+    spyLock = true; clearTimeout(spyTimer); spyTimer = setTimeout(releaseSpy, 1000);
+  });
+  spy();
+
+  paintReview();
+  var note = document.getElementById("review-note");
+  function say(t) { if (note) note.textContent = t; }
+  var api = window.claude && typeof window.claude.use === "function" ? window.claude : null;
+  if (api) {
+    api.use("db").then(function (db) {
+      if (!db) return;
+      DB = db;
+      db.collection("review").onSnapshot(function (snap) {
+        var m = {};
+        snap.docs.forEach(function (d) { if (d.exists) m[d.id] = d.data(); });
+        DBREV = m;
+        paintReview();
+      }, function () { say(L.loadFailed); });
+      return api.use("user").then(function (user) {
+        if (!user) return;
+        return Promise.all([user.canEdit(), user.id()]).then(function (v) {
+          CAN_WRITE = !!v[0]; ME = v[1];
+          paintReview();
+          say(CAN_WRITE ? L.savedHere : L.onlyEditors);
+        });
+      });
+    }).catch(function () {});
+  }
+  var toastTimer = null;
+  function toast(html) {
+    var t = document.getElementById("toast"); if (!t) return;
+    t.innerHTML = html; t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 8000);
+  }
+  /* After validating: points to the next pending section, starting from the one just validated. */
+  function nextToast(key) {
+    var order = TO_REVIEW.map(function (s) { return [s.id, s.name, "#s-" + s.id]; }), at = order.map(function (o) { return o[0]; }).indexOf(key);
+    var done = order[at] ? order[at][1] : key;
+    for (var i = 1; i < order.length; i++) {
+      var o = order[(at + i) % order.length];
+      if (stateOf(o[0]) !== "ok") {
+        toast("<span>" + esc(L.done(done)) + "</span><span>" + L.nextReview + '<a href="' + esc(o[2]) + '">' + esc(o[1]) + "</a></span>");
+        return;
+      }
+    }
+    toast("<span>" + esc(L.done(done)) + L.allReviewed + "</span>");
+  }
+  document.addEventListener("click", function (e) { if (e.target.closest && e.target.closest("#toast a")) document.getElementById("toast").hidden = true; });
+  /* Copy: the clipboard may be blocked in the artifact iframe; the legacy method covers that case. */
+  function legacyCopy(t) {
+    var ta = document.createElement("textarea"), ok = false;
+    ta.value = t; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+    document.body.removeChild(ta);
+    return ok ? Promise.resolve() : Promise.reject(new Error("copy"));
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).catch(function () { return legacyCopy(t); });
+    return legacyCopy(t);
+  }
+  function mark(keys, state) {
+    var at = new Date().toISOString();
+    return Promise.all(keys.map(function (k) { return DB.doc("review/" + k).set({ state: state, fp: FP[k] || null, doc: DOC.hash || null, by: ME, at: at }); }));
+  }
+  function failed(err) { say(L.saveFailed((err && err.code) || "error")); }
+  /* Section: Validate also confirms every row of the section (rejected ones included); Undo takes them all back to pending. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".rv-btn");
+    if (!b || !DB || !CAN_WRITE) return;
+    var key = b.getAttribute("data-rk-btn"), r = fullOf(key);
+    var next = r.st === "ok" && !r.changed ? "pending" : "validated";
+    b.disabled = true;
+    mark([key].concat(secRows(key)), next)
+      .then(function () { b.disabled = false; say(""); if (next === "validated") nextToast(key); })
+      .catch(function (err) { b.disabled = false; failed(err); });
+  });
+  /* Table row: Confirm / Reject; pressing the one already lit takes it back to pending. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".rv-mini");
+    if (!b || !DB || !CAN_WRITE) return;
+    var key = b.getAttribute("data-rk-row-btn"), yes = b.getAttribute("data-act") === "yes", r = reviewOf(key);
+    var next = !r.changed && r.st === (yes ? "ok" : "rej") ? "pending" : yes ? "validated" : "rejected";
+    b.disabled = true;
+    mark([key], next)
+      .then(function () { b.disabled = false; say(""); if (next === "rejected") toast(L.rowRejected(esc(rowLabel(key)))); })
+      .catch(function (err) { b.disabled = false; failed(err); });
+  });
+  /* Row number: copies "Section #N", to cite the row in the conversation. */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".rn"); if (!b) return;
+    var ref = b.getAttribute("data-ref");
+    copyText(ref).then(function () { toast(L.copied(esc(ref))); }, function () { toast(L.citeAs(esc(ref))); });
+  });
+})();
+</script>
