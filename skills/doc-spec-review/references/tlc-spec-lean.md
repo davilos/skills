@@ -1,12 +1,52 @@
-# review-page.json
+# tlc-spec-lean profile
 
-Lives at `.specs/features/{slug}/review-page.json`. It holds what the page needs and `plan.md` does not have. Every field is optional unless stated; without `problem_visual`, `flow_visual` or `impact_visual`, the matching section shows only the plan text. `flow_visual` and `impact_visual` both go on `## Shape` (on `## Flow` and `## Impact` in older plans).
+Read this before writing or changing the review state of a tlc-spec-lean plan. The plan is tlc-spec-lean 2.x: `**Approved**:` under the title, then `Problem`, `Shape` (the numbered path, its mermaid drawings, the `Changes underneath` table, the `erDiagram` and `New:` line), `Surface`, `Landing`, `Criteria`, `Out of scope`, `Assumptions`, `Differences from the source` and `Sources`. Older plans (`**Status**:`, `Flow`, `Impact`, `Relations`, `Observable`) still build: the path visual goes on `Flow` and the cards on `Impact`.
+
+## What you write
+
+The review state (`.specs/features/{slug}/doc-spec-review.json`; the old `review-page.json` is renamed on the first build) holds what the page needs and `plan.md` does not have. Unlike the other profiles, you write part of it:
+
+1. **Code-derived fields** (`changes`, `flow_visual`, `impact_visual`, `problem_visual`, `landing_visual`): they require reading the code. Every `where` is a `file:line` you actually checked; to sweep many files, delegate to a search subagent and keep only the conclusions. **Never invent a line number**; when unsure, cite the file without the line. `landing_visual` is required whenever the Landing has doors. If the file exists, start from it and change only what the plan changed.
+2. **Review state** (`review`, `doors_confirmed`, `rejected`, `tags`) comes only from what the user said or marked on the page. Validating sections is not approving the plan: approval is the user's word, which tlc-spec-lean writes as `**Approved**:` under the title. The tag says "plan in review" until the plan carries that line; never write `**Approved**:` from the badges. An older plan with a `**Status**:` line takes the sync summary into that line.
+3. Changing only code-derived fields touches no validation, so it skips bringing the validations in first.
+
+Tell the user what is **not** plan: Where / Why / Proof, symptoms, cards and paths are a reading of the code and the plan by whoever built the page.
+
+**Build errors that point at your data** (exit 1): a criterion that does not exist, a `Changes underneath` row without a card, a path hop without a `flow_visual` path, a Landing door without a `landing_visual` entry, a new name the plan does not have and is not marked `tbd`, a Where with prose, a line range that diverges from the same range in the plan. Fix the review state; a `coverage: plan.md:N` failure is a defect in `lean_extract.py`, not in your data. On a `RECHECK` for a derived item (`change:2`, `flow:1`...), re-read the code and the plan and update the field.
+
+## Page rules (this profile)
+
+- **Visual | Plan text tabs.** Each section carries the exact plan text; visual sections open on "Visual" and keep the text in "Plan text", which is the binding text the check proves. Shape's Visual shows "The drawing" (the `sequenceDiagram` or `flowchart`), "Changes underneath" (`impact_visual`), "The data" (`erDiagram`) and "States" (`stateDiagram-v2`). The cards of `flow_visual` open from the drawing; they show as a "The path" list only when the plan has no path drawing or it could not be drawn.
+- **Diagrams show what changes.** A block is green when the plan changes it, grey otherwise: a node with `o` or `note` in `flow_visual`, a module the path marks `(new)` or `(door N)`, what the `New:` line adds, and the term of each `domain` row of `Changes underneath`.
+- **Diagrams answer clicks with the plan.** A numbered step shows that hop's line of the path and its `flow_visual` cards, whose changed nodes open their Where / Why / Proof; a name the path, the cards or `Changes underneath` use shows the hops it is on, its cards and rows; `door N` links to the door. Steps come only from the `N.` labels the plan wrote.
+- **Path: one card per node, each with its own Where.** The same node in several paths carries `change` only the first time (the build rejects repeats). Different nodes share a `change` only when Where / Why / Proof really are the same (`shared: true` when deliberate).
+- **Struck-through → new is a rename.** When only part of a file moves, say what moves (`old`: "exceptions in `a.py`" → `neu`: "exceptions in `b.py`").
+- **Landing for people.** The Landing's Visual tab explains each door in plain language (`landing_visual`): what is decided, what we chose, why it is hard to undo, what happens on deploy, what was rejected and why. Nothing new: everything comes from the plan.
+- **A name the plan does not fix is "not defined".** The node, change or card takes `tbd: true`, and its name field describes what it will be. Never invent the name.
+- **Plan nomenclature is not translated:** "One-way door N", section names, slice ids, hop, Literal shape, Alternative rejected.
+- **Proof as links.** `AC N`, `AC N to M`, `AC N–M`, `AC N, M` link to each criterion; `door N` to the door; `S1` to the slice.
+- **The page is checked against the plan, not the code.** The build does not read git. It rejects what the page claims against the plan and warns on a repeated Where.
+- **Rows and doors.** Every table row of a section gets a number and Confirm / Reject; in Landing, the rows are the doors, and a door never inherits its section's state. Criteria slices, ACs and path hops are already numbered and stay as they are.
+
+## Troubleshooting (this profile)
+
+- **`ERROR ... is not in the plan; a name the plan does not fix takes tbd: true`**: use the plan's name, or mark the item `tbd: true` and describe it.
+- **`WARN ... has backticks, which the page shows literally`**: a name field (`neu`, `old`, `n`, `o`, `before`, `after`) already renders as code; write the name without backticks.
+- **`ERROR ... where has prose`**: Where takes only `file[:lines]` or `folder/`, separated by `·`; move the explanation to `why`.
+- **`ERROR door N is cited, but the Landing has 0 door(s)`**: the Landing table's first header is not `One-way door`. Fix the header in the plan (tlc-spec-lean's form), or drop the door citations.
+- **`WARN plan.md:N shows captures/x.png, which does not exist beside plan.md`**: the plan is wrong (tlc-spec-lean's `validate_plan.py` also flags it); tell the user.
+- **`ERROR coverage: plan.md:N did not reach the page data` on several `**Approved**:` lines**: `lean_extract.py` reads only the first approval line under the title. Report it; do not rewrite the plan to get around it unless the user wants to.
+- **check: `internal links without a target`**: a Proof cites a door, slice or criterion that does not exist on the page; fix the Proof text.
+
+## The review state
+
+Every field is optional unless stated; without `problem_visual`, `flow_visual` or `impact_visual`, the matching section shows only the plan text. `flow_visual` and `impact_visual` both go on `## Shape` (on `## Flow` and `## Impact` in older plans).
 
 Text with backticks (`` `x` ``) and `**bold**` renders as code and bold in fields marked _(md)_; other fields render as written. Write prose fields (`why`, `today`, `decide`, `hard`...) in the language the plan's reviewers read.
 
 Proof fields (`changes[].proof`, `impact_visual.cards[].proof`, `problem_visual.symptoms[].fix.proof`, `landing_visual.doors[].proof`) become links: in `AC 10 to 12`, `AC 1–3`, `AC 10, 12` or `AC 5 and 6`, every number written links to its criterion (`#ac-N`), so list a criterion explicitly when it needs its own link; `door N` to the One-way door (`#door-N`); `S5` to the slice (`#slice-S5`). Every criterion cited after `AC` must exist in the plan; the build rejects otherwise and the check rejects a link with no target.
 
-## Contents
+### Contents
 
 - Header and review
 - Changes (Criteria)
@@ -16,7 +56,7 @@ Proof fields (`changes[].proof`, `impact_visual.cards[].proof`, `problem_visual.
 - impact_visual
 - Minimal example
 
-## Header and review
+### Header and review
 
 | Field                    | Type              | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,7 +75,7 @@ Proof fields (`changes[].proof`, `impact_visual.cards[].proof`, `problem_visual.
 
 Doors are the rows of the first `## Landing` table whose first header is `One-way door` (the tlc-spec-lean form), numbered by row (first row = door 1), the same numbering the plan uses in "(door N)". A first cell written as `1. name` also works. A Landing table with any other header is plain text, with no doors.
 
-## Changes (Criteria)
+### Changes (Criteria)
 
 `changes`: a list; each item becomes a clickable row under its slice.
 
@@ -56,7 +96,7 @@ Doors are the rows of the first `## Landing` table whose first header is `One-wa
 `warn_kinds`: kinds of `k` painted amber (e.g. `["contract"]`).
 `slice_notes`: `{"S5": "text"}` for a slice with no changes (e.g. guarantees only).
 
-## problem_visual
+### problem_visual
 
 | Field             | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -67,7 +107,7 @@ Doors are the rows of the first `## Landing` table whose first header is `One-wa
 | `why_now`         | string (md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `outcome`         | string (md): what changes once it ships                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-## flow_visual
+### flow_visual
 
 `paths`: `[{title, when, hop, nodes}]`. When Shape draws the path (a `sequenceDiagram` or `flowchart`), these cards open from the drawing: a click on step N shows the paths of hop N, a click on a module the paths it is on; they only show as a list without a drawing. A node with `o` or `note` also paints its block green in the drawings. `hop` = the number of the Shape path line the path represents (the `## Flow` item in older plans) (every hop in the plan needs at least one path; two paths may share a hop).
 
@@ -75,7 +115,7 @@ Each node: `{k, n, o?, d?, note?, change?, tbd?, shared?}`: `k` = kind (job, tas
 
 **One card per node:** when the same node (same `n`) appears in more than one path, only the first occurrence, in `paths` order, carries `change`; the others keep `o`/`d`/`note` (still green) and have no `change`. Every copy opens the same card (the page takes the `change` from the occurrence that has it); while it is open, the page highlights the other copies and dims every other node. The build rejects the same `n` with `change` twice. Different nodes point to the same `change` only when Where / Why / Proof really are the same (e.g. modules of the same renamed package that change in the same place). If each node touches different lines or is proven by different criteria (e.g. the email counter and the SMS counter), each gets its own entry in `changes`.
 
-## landing_visual
+### landing_visual
 
 The plan's Landing is written for the agent (Literal shape, Alternative rejected); people do the validating. `landing_visual` is required when the Landing has doors (the build refuses to run without it): the Visual tab explains each door in plain language, and the plan's table stays in the "Plan text" tab. Each door's "Confirm" button lives in the Visual tab.
 
@@ -95,7 +135,7 @@ The plan's Landing is written for the agent (Literal shape, Alternative rejected
 
 Nothing here is a new decision: everything comes from the plan's Landing, Shape and criteria.
 
-## impact_visual
+### impact_visual
 
 | Field       | What it is                                                                                                                                                    |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -107,7 +147,7 @@ Nothing here is a new decision: everything comes from the plan's Landing, Shape 
 
 Card: `{g, row, title, before?, after?, tbd?, who, risk?, where, why, proof, keep?, tree?}`. `tbd: true` = the name in `after` is not fixed in the plan yet: `after` carries the description, and the card shows "not defined". `row` = 0-based index of the `Changes underneath` row (the table whose first header is `Front`); its text appears in the open card. `where` (Where), `why` (Why) and `proof` (Proof) are required; on a card with `keep: true` Where is optional (the list is the content; do not write "the list below").
 
-## Minimal example
+### Minimal example
 
 For a plan with one slice, one Shape path line, one `Changes underneath` row and one door:
 

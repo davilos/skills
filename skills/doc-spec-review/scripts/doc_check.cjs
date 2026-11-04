@@ -77,11 +77,29 @@ if (data) {
   const refs = new Set([...d.querySelectorAll('.rn')].map((b) => b.getAttribute('data-ref')))
   const names = Object.fromEntries(D.sections.map((s) => [s.id, s.name]))
   for (const x of rowList) {
-    if (!refs.has(`${names[x.sid]} #${x.n}`)) fail.push(`row ${x.key}: no "#${x.n}" number on the page`)
+    const ref = x.cite || `${names[x.sid]} #${x.n}`
+    if (!refs.has(ref)) fail.push(`row ${x.key}: no number citing "${ref}" on the page`)
     if (d.querySelectorAll(`[id="row-${x.sid}-${x.n}"]`).length !== 1) fail.push(`row ${x.key}: expected one #row-${x.sid}-${x.n} anchor`)
   }
   if (refs.size !== rowList.length) fail.push(`row numbers: expected ${rowList.length}, the page shows ${refs.size}`)
   if (rowList.length) expected.reviewRows = rowList.length
+  // Tabs: one panel per file, a button per tab (a missing file's switched off), only one panel shown.
+  if (D.tabs) {
+    const panels = [...d.querySelectorAll('.tab-panel')]
+    if (panels.length !== D.tabs.length) fail.push(`tabs: expected ${D.tabs.length} panels, the page shows ${panels.length}`)
+    if (panels.filter((x) => !x.hidden).length !== 1) fail.push('tabs: exactly one tab must be shown at a time')
+    for (const t of D.tabs) {
+      const b = d.querySelector(`[data-tab-btn="${t.id}"]`)
+      if (!b) fail.push(`tabs: no button for ${t.file}`)
+      else if (!t.exists !== b.disabled) fail.push(`tabs: the ${t.file} button should be ${t.exists ? 'on' : 'switched off'}`)
+    }
+    const stray = D.sections.filter((x) => { const el = d.getElementById('s-' + x.id); return !el || !el.closest(`.tab-panel[data-tab="${x.tab}"]`) })
+    if (stray.length) fail.push(`tabs: ${stray.length} section(s) outside their file's tab: ${stray.slice(0, 3).map((x) => x.id).join(', ')}`)
+    expected.tabs = D.tabs.map((t) => t.exists ? t.id : `${t.id} (missing)`).join(', ')
+  }
+  // IDs linked across tabs: each link the page draws has its target; each "cited by" points to a reviewable row.
+  const xrefs = [...d.querySelectorAll('a.xref')]
+  if (xrefs.length) expected.links = `${xrefs.length} links between IDs`
   // Every internal link has a target on the page.
   const broken = [...d.querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute('href')).filter((h) => h.length > 1 && !d.getElementById(h.slice(1)))
   if (broken.length) fail.push('internal links without a target: ' + [...new Set(broken)].join(', '))
@@ -125,6 +143,12 @@ if (data) {
   for (const p of problems.slice(0, 10)) fail.push('coverage: ' + p)
   if (problems.length > 10) fail.push(`coverage: ${problems.length - 10} more problems`)
   expected.docCoverage = `${shown}/${cov.length} (in the right section and in order)`
+  if (D.tabs) {
+    const per = {}
+    for (const c of cov) per[c[4]] = (per[c[4]] || 0) + 1
+    const bad = new Set(problems.map((x) => (x.match(/section (\S+?)-/) || [])[1]).filter(Boolean))
+    expected.coverageByFile = D.tabs.filter((t) => t.exists).map((t) => `${t.id} ${per[t.id] || 0}/${per[t.id] || 0}${bad.has(t.id) ? ' (problems)' : ''}`).join(' · ')
+  }
   if (!D.hash) fail.push('the page does not carry the document hash')
   // A "$1" the document does not have is a replace() with the wrong group.
   let rest = visible.replace(/\s+/g, ' ')
@@ -168,8 +192,10 @@ async function checkReviewFlow() {
     out.push('review: the validate button does not show for an editor')
     return { out, errs }
   }
+  const before = writes.length
   btn.click(); await tick()
-  const wr = writes[writes.length - 1]
+  // Validate writes the section and then each of its rows: find the section's own write.
+  const wr = writes.slice(before).find((x) => x.path === `review/${key}`)
   if (!wr || wr.path !== `review/${key}` || wr.data.state !== 'validated') out.push(`review: clicking Validate did not write review/${key} as validated`)
   else if (wr.data.fp !== D2.fingerprints[key]) out.push('review: the stored fingerprint is not the one of the current text')
   if (badgeOf(key) !== 'ok') out.push(`review: after validating, the badge is "${badgeOf(key)}"`)
@@ -184,8 +210,12 @@ async function checkReviewFlow() {
   if (!other) { store[old] = { state: 'pending', fp: null }; listener(snap()); await tick() }
   // Rows: Confirm, Reject, Reject again (undo), then the section's Validate confirms them all and Undo clears them.
   if (rsid) {
+    // Start the rows from pending (the section too): a row already marked in the review state would make Confirm undo it.
+    store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    for (const r of data.DOC.rows[rsid]) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    listener(snap()); await tick()
     const keys = D2.rows[rsid].map((x) => x.key), rk = keys[0]
-    const rowState = (k) => d2.querySelector(`[data-rk-row="${k}"]`).closest('tr').getAttribute('data-rs')
+    const rowState = (k) => d2.querySelector(`[data-rk-row="${k}"]`).closest('tr, .row-t').getAttribute('data-rs')
     const press = async (k, act) => { d2.querySelector(`.rv-mini.${act}[data-rk-row-btn="${k}"]`).click(); await tick() }
     const last = () => writes[writes.length - 1] || {}
     await press(rk, 'yes')
@@ -210,6 +240,25 @@ async function checkReviewFlow() {
     d2.querySelector(`.rv-btn[data-rk-btn="${rsid}"]`).click(); await tick()
     if (badgeOf(rsid) !== 'pend' || keys.some((k) => rowState(k) !== 'pend')) out.push("review: the section's Undo did not take it and its rows back to pending")
   }
+  // A profile's units that are not table rows (an EARS item, a task heading, a check paragraph): Confirm and take it back.
+  const kinds = {}
+  for (const [sid, us] of Object.entries(D2.rows || {})) for (const u of us) if (u.kind && u.kind !== 'table' && !kinds[u.kind]) kinds[u.kind] = { sid, u }
+  for (const [kind, { sid, u }] of Object.entries(kinds)) {
+    store[sid] = { state: 'pending', fp: null }
+    store[u.key] = { state: 'pending', fp: null }
+    listener(snap()); await tick()
+    const el = d2.querySelector(`[data-rk-row="${u.key}"]`)
+    const holder = el && el.closest('.row-t')
+    if (!holder || !holder.classList.contains('row-' + kind)) { out.push(`review: the ${kind} unit ${u.key} has no Confirm / Reject on it`); continue }
+    const yes = d2.querySelector(`.rv-mini.yes[data-rk-row-btn="${u.key}"]`)
+    yes.click(); await tick()
+    const w = writes[writes.length - 1] || {}
+    if (w.path !== `review/${u.key}` || w.data.state !== 'validated' || w.data.fp !== D2.fingerprints[u.key]) out.push(`review: Confirm on the ${kind} unit ${u.key} did not write it with its fingerprint`)
+    if (holder.getAttribute('data-rs') !== 'ok') out.push(`review: after Confirm, the ${kind} unit is "${holder.getAttribute('data-rs')}"`)
+    yes.click(); await tick()
+    if (holder.getAttribute('data-rs') !== 'pend') out.push(`review: pressing Confirm again on the ${kind} unit did not undo it`)
+  }
+  if (Object.keys(kinds).length) out.kinds = Object.keys(kinds)
   return { out, errs, writes: writes.length }
 }
 
@@ -332,7 +381,7 @@ async function checkDiagrams() {
     const r = await checkReviewFlow()
     for (const m of r.out) fail.push(m)
     for (const e of r.errs) fail.push('runtime error (with fake db): ' + e)
-    expected.reviewFlow = r.out.length ? 'failed' : `ok (${r.writes} simulated writes)`
+    expected.reviewFlow = r.out.length ? "failed" : `ok (${r.writes} simulated writes${r.out.kinds ? "; units " + r.out.kinds.join(", ") + " exercised" : ""})`
   }
   console.log(JSON.stringify({ ok: fail.length === 0, expected, fail }, null, 2))
   process.exit(fail.length ? 1 : 0)

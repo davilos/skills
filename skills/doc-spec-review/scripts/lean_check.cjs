@@ -232,7 +232,7 @@ async function checkReviewFlow() {
     writes = []
   // An empty section (no content, or only `None - <why>`) has nothing to validate: no button, a "nothing to validate" badge.
   const toReview = data.PLAN.sections.filter((s) => !s.empty)
-  // Exercise one section with content (starting as pending on the page, whatever review-page.json says) and another for "changed since".
+  // Exercise one section with content (starting as pending on the page, whatever doc-spec-review.json says) and another for "changed since".
   const [key, other] = toReview.map((s) => s.id)
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   // A section with table rows, also starting as pending (a row with no state of its own takes its section's).
@@ -318,6 +318,10 @@ async function checkReviewFlow() {
     out.push(`review: a validation of an old text shows as "${badgeOf(other)}"`)
   // Rows: Confirm, Reject, Reject again (undo), then the section's Validate confirms them all and Undo clears them.
   if (rsid) {
+    // Start the rows from pending (the section too): a row already marked in the review state would make Confirm undo it.
+    store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    for (const r of data.PLAN.rows[rsid]) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    listener(snap()); await tick()
     const keys = P2.rows[rsid].map((x) => x.key)
     const rk = keys.find((k) => k.startsWith('row:'))
     const rowBadge = (k) => d2.querySelector(`[data-rk-row="${k}"] .badge`).textContent
