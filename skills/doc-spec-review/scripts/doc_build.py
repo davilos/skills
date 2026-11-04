@@ -113,6 +113,10 @@ def page_data(info: dict, lang: str | None) -> tuple[dict, list[str], list[str]]
         page["tabs"] = tabs
         page["path"] = str(Path(first["path"]).parent)
         page["front"] = []  # each tab shows its own front matter, under its own title
+        if info["profile"] == "tlc-spec-driven":
+            # The page is the feature; "Lembrete Specification" stays the title of the spec tab.
+            page["title"] = re.sub(r"\s+(?:Specification|Spec|Design|Tasks|Context|Validation|Verification)\s*$", "",
+                                   first["title"], flags=re.I) or Path(page["path"]).name
     if not page["sections"]:
         errors.append("the document has no sections (no headings and no text)")
     return page, errors, warns

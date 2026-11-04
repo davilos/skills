@@ -205,8 +205,10 @@ line.mmd-sel, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5
 .tab-btn[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
 .tab-btn:disabled { color: var(--muted); cursor: default; opacity: .7; }
 .tab-btn .tab-n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 400; }
+.tab-panel { display: grid; gap: 64px; min-width: 0; }
 .tab-panel[hidden] { display: none; }
-.tab-head { display: grid; gap: 8px; margin-bottom: 18px; }
+.tabs { margin-bottom: -40px; }  /* main's 64px gap between blocks is too much between the tabs and their panel */
+.tab-head { display: grid; gap: 8px; margin-bottom: -32px; }
 .tab-head h2 { margin: 0; font-size: 20px; }
 /* profile review units: a list item, a heading with its body, a paragraph */
 .row-t.row-li, .row-t.row-h, .row-t.row-p { border-left: 3px solid transparent; padding-left: 8px; margin-left: -11px; }
@@ -483,6 +485,8 @@ var STATE = __STATE_JSON__;
     if (url.charAt(0) === "#") { var id = ANCHORS[decodeURIComponent(url.slice(1))]; return id ? { url: "#" + id } : null; }
     return null;
   }
+  /* `self`: the element being rendered (an ID does not link to itself); `self === false`: no ID links at all
+     (inside a link already, such as the tree of sections). */
   function md(s, self) {
     var ph = [];
     function hold(html) { ph.push(html); return "\u0000" + (ph.length - 1) + "\u0000"; }
@@ -500,7 +504,7 @@ var STATE = __STATE_JSON__;
       })
       .replace(/<(https?:\/\/[^\s>]+)>/g, function (a, url) { return hold('<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(url) + "</a>"); })
       .replace(/<br\s*\/?>/g, function () { return hold(" <br>"); });
-    if (XREF_RE) t = t.replace(XREF_RE, function (a, id) { return XREF[id] === self ? a : hold('<a class="xref" href="#' + esc(XREF[id]) + '">' + esc(id) + "</a>"); });
+    if (XREF_RE && self !== false) t = t.replace(XREF_RE, function (a, id) { return XREF[id] === self ? a : hold('<a class="xref" href="#' + esc(XREF[id]) + '">' + esc(id) + "</a>"); });
     t = emph(esc(t));
     for (var k = 0; k < 3; k++) t = t.replace(/\u0000(\d+)\u0000/g, function (a, i) { return ph[+i]; });
     return t;
@@ -558,7 +562,8 @@ var STATE = __STATE_JSON__;
   function rowLabel(key) { var x = ROW_OF[key]; return x.cite || nameOf(x.sid) + " #" + x.n; }
   /* The number of a reviewable row: a click copies what the user cites ("Section #N", "P1 AC 2", "T1"). */
   function rowNum(x) {
-    var ref = rowLabel(x.key), shown = x.cite || x.n;
+    // A table row shows its number (the column is narrow); other units show what they are cited as.
+    var ref = rowLabel(x.key), shown = (x.kind || "table") === "table" ? x.n : x.cite || x.n;
     return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="' + esc(L.copyRow(ref)) + '" aria-label="' + esc(L.copyRow(ref)) + '">' + esc(shown) + "</button>";
   }
   function unitAt(sec, bi, kind) {
@@ -630,7 +635,8 @@ var STATE = __STATE_JSON__;
       el.textContent = mine.filter(function (x) { return stateOf(x.id) === "ok"; }).length + "/" + mine.length;
     });
     /* Panel: what is left, what changed and what was rejected, in document order. */
-    var keys = TO_REVIEW.map(function (s) { return [s.id, s.name, "#s-" + s.id]; });
+    // With tabs, the panel lists what is left in the open tab (the count above covers every tab).
+    var keys = TO_REVIEW.filter(function (s) { return !CUR_TAB || s.tab === CUR_TAB; }).map(function (s) { return [s.id, s.name, "#s-" + s.id]; });
     function li(k, st) { return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>"; }
     function items(st) { return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) { return li(k, st); }).join(""); }
     var todo = document.getElementById("rail-todo");
@@ -1147,7 +1153,7 @@ var STATE = __STATE_JSON__;
       panel.className = "tab-panel"; panel.id = "tab-" + t.id; panel.setAttribute("role", "tabpanel"); panel.setAttribute("data-tab", t.id);
       panel.setAttribute("aria-labelledby", "tabbtn-" + t.id); panel.hidden = true;
       panel.innerHTML = t.exists
-        ? '<div class="tab-head" id="s-' + esc(t.id) + '-header"><div class="doc-path">' + esc(t.path) + "</div><h2>" + md(t.title) + "</h2>" +
+        ? '<div class="tab-head" id="s-' + esc(t.id) + '-header"><h2>' + md(t.title) + "</h2>" +
           ((t.front || []).length ? '<dl class="front">' + t.front.map(function (q) { return "<dt>" + md(q[0]) + "</dt><dd>" + md(q[1]) + "</dd>"; }).join("") + "</dl>" : "") +
           '<div class="tags"><span class="tag mono" title="' + esc(L.hashTitle) + '">' + esc(t.file) + " " + esc(t.hash) + "</span></div></div>"
         : '<p class="note">' + esc(L.tabMissing(t.file)) + "</p>";
@@ -1164,6 +1170,7 @@ var STATE = __STATE_JSON__;
     });
     document.querySelectorAll("nav.toc li[data-tab]").forEach(function (li) { li.hidden = li.getAttribute("data-tab") !== id; });
     store.set("doc-spec-review:tab:" + (DOC.path || ""), id);
+    if (!first) paintReview();
     // A drawing wired while its tab was hidden measured nothing (no step outlines): draw again the first
     // time its tab shows. The first tab shown is drawn by the first pass.
     var panel = document.getElementById("tab-" + id);
@@ -1183,9 +1190,9 @@ var STATE = __STATE_JSON__;
 
   document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
     var dot = s.empty ? '<span class="st" data-state="na" title="' + esc(L.nothingToValidate) + '">' + IC.na + "</span>" : '<span class="st" data-rk-dot="' + esc(s.id) + '"></span>';
-    var li = "<li" + (s.tab ? ' data-tab="' + esc(s.tab) + '"' : "") + '><a href="#s-' + esc(s.id) + '">' + dot + "<span>" + md(s.name) + "</span></a>";
+    var li = "<li" + (s.tab ? ' data-tab="' + esc(s.tab) + '"' : "") + '><a href="#s-' + esc(s.id) + '">' + dot + "<span>" + md(s.name, false) + "</span></a>";
     var subs = subHeads(s);
-    if (subs.length) li += '<ol class="sub">' + subs.map(function (x) { return '<li><a href="#h-' + esc(s.id) + "-" + x[1] + '">' + md(x[0].text) + "</a></li>"; }).join("") + "</ol>";
+    if (subs.length) li += '<ol class="sub">' + subs.map(function (x) { return '<li><a href="#h-' + esc(s.id) + "-" + x[1] + '">' + md(x[0].text, false) + "</a></li>"; }).join("") + "</ol>";
     return li + "</li>";
   }).join("");
   document.getElementById("rail-cells").innerHTML = SECTIONS.map(function (s) {
