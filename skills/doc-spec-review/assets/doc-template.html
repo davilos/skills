@@ -133,11 +133,11 @@ main { display: grid; gap: 64px; min-width: 0; padding: 36px 0 96px; }
 section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20px); min-width: 0; }
 .sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .sec-head h2 { margin-right: auto; }
-.blocks { display: grid; gap: 14px; color: var(--fg-2); min-width: 0; }
+.blocks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; color: var(--fg-2); min-width: 0; overflow-wrap: break-word; }
 .blocks > p { color: var(--fg-2); }
 .blocks > .sub-h { margin-top: 10px; scroll-margin-top: calc(var(--top) + 20px); }
 .blocks > h3.sub-h { padding-bottom: 6px; border-bottom: 1px solid var(--line); }
-blockquote { margin: 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--line-strong); color: var(--fg-2); }
+blockquote { margin: 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--line-strong); color: var(--fg-2); min-width: 0; overflow-wrap: break-word; }
 blockquote .blocks { gap: 10px; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; width: 100%; }
 .list { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
