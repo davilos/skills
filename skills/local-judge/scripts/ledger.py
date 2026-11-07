@@ -63,6 +63,18 @@ def render(meta, data, round_n):
         data["summary"].strip(),
         "",
     ]
+    rows = data.get("spec_coverage") or []
+    if rows:
+        reqs = {r["id"]: r for r in load(meta["spec"]["requirements"], {}).get("requirements", [])}
+        lines += ["## Spec coverage details", "", f"Spec: `{meta['spec']['path']}`"
+                  + (f" (section `{meta['spec']['section']}`)" if meta["spec"].get("section") else ""), "",
+                  "| ID | Status | Spec line | Evidence | Note |", "|---|---|---|---|---|"]
+        for row in rows:
+            ev = ", ".join(f"`{e['ref']}`" for e in row.get("evidence") or [])
+            status = row["status"] + (f" ({EMOJI[row['severity']]})" if row.get("severity") else "")
+            note = (row.get("note") or "").replace("|", "\\|").replace("\n", " ")
+            lines.append(f"| {row['id']} | {status} | {reqs.get(row['id'], {}).get('line', '')} | {ev} | {note} |")
+        lines.append("")
     if data["findings"]:
         lines += ["## Details", ""]
         for f in data["findings"]:
@@ -113,6 +125,8 @@ def record(a):
         "base": meta["base"],
         "merge_base": meta["merge_base"],
         "verdict": data["verdict"],
+        "spec": {"path": meta["spec"]["path"], "section": meta["spec"].get("section")} if meta.get("spec") else None,
+        "spec_gaps": {r["id"]: r["status"] for r in data.get("spec_coverage") or [] if r["status"] != "implemented"},
         "report": report,
     })
     save(meta["ledger"], ledger)

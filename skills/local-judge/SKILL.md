@@ -1,15 +1,15 @@
 ---
 name: local-judge
-description: Evidence-first code review of the current git branch before any PR exists, diffed against its base (origin/main by default) with uncommitted and untracked files included. Runs the repo's own checks, researches official docs before claims about libraries, and reviews correctness, security, structure, AI slop, commit-message claims and bypasses; every finding needs file:line or URL evidence and passes a deterministic gate, a per-branch ledger makes re-runs verify fixes, and it offers to apply the fixes you pick. Use when there is no PR yet and the user says review my code, review my branch before I open the PR, review my local changes, run local-judge, "revise meu código", "revise minha branch antes do PR", "julgue minhas mudanças", "code review local". Do NOT use for an already open GitHub PR (use the-judge), verifying a tlc-spec-lean feature, reviewing prose, or fixing CI.
+description: Evidence-first code review of the current git branch before any PR exists, diffed against its base (origin/main by default) with uncommitted and untracked files included. Runs the repo's checks, researches official docs, and reviews correctness, security, structure, AI slop, commit-message claims and bypasses, and, given a spec (plan, PRD, issue), checks each requirement it states was implemented; every finding needs file:line or URL evidence and passes a deterministic gate, a per-branch ledger makes re-runs verify fixes, and it applies the fixes you pick. Use when there is no PR yet and the user says review my code, review my branch before I open the PR, review my local changes, run local-judge, "revise meu código", "revise minha branch antes do PR", "julgue minhas mudanças", "code review local", "check my branch against the plan", "revise contra a spec". Do NOT use for an already open GitHub PR (use the-judge), running a tlc-spec-lean Verifier (proofs, mutations), reviewing prose, or fixing CI.
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos (adapted from the-judge by Felipe Rodrigues - github.com/felipfr)
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Local Judge
 
-Review the current branch like a senior engineer with a high conviction bar, before it becomes a PR: few findings, every one backed by evidence, delivered as one gated report, then the fixes the user picks. This is the-judge with local inputs and outputs: the diff comes from git, not GitHub, and the review lands in a report and a ledger instead of a posted review.
+Review the current branch like a senior engineer with a high conviction bar, before it becomes a PR: few findings, every one backed by evidence, delivered as one gated report, then the fixes the user picks. Given a spec, the review also answers "did this branch build what the spec asked for", requirement by requirement. This is the-judge with local inputs and outputs: the diff comes from git, not GitHub, and the review lands in a report and a ledger instead of a posted review.
 
 `<skill-dir>` below is the base directory this skill was loaded from. Every script is stdlib Python and writes only under `<git-dir>/local-judge/<branch>/` (the "workdir"), so nothing it produces can be committed by accident.
 
@@ -45,10 +45,12 @@ Verdict: any 🔴 (new or still open from a previous round) is BLOCKED; otherwis
 Work from the repo or worktree the user means. If the current directory is not inside a git repo (for example a workspace folder that holds several repos) and the user did not name one, ask which repo or worktree before going further.
 
 ```bash
-python3 <skill-dir>/scripts/collect_diff.py --repo <repo-or-worktree> [--base <ref>] [--fresh]
+python3 <skill-dir>/scripts/collect_diff.py --repo <repo-or-worktree> [--base <ref>] [--fresh] [--spec <file> [--spec-section <regex>]]
 ```
 
 It prints `meta.json` (also saved in the workdir): `branch`, `head`, `dirty`, `base`, `merge_base`, `commits`, `files` (with `mechanical_hint`), `branch_patch` (merge-base vs working tree, untracked files as new), `round`, `previous_open`, `next_finding_id`, and on round 2+ `since_patch` (last reviewed snapshot vs working tree). Default base is the first of `origin/main`, `main`, `origin/master`, `master` that exists; when the user says the branch came from another branch (`staging`, a feature branch), pass `--base`. It never fetches, so state the base commit in the report. `--fresh` moves the ledger and reports into `archive-<timestamp>/` and restarts at round 1; use it only when the user asks or the branch was rewritten so the old findings no longer map.
+
+Pass `--spec` when the user names a spec, or when the repo's instructions say where the branch's spec lives (for example a plan found by branch name). It runs `scripts/extract_requirements.py`, writes `<workdir>/requirements.json` (one entry per requirement: `id`, spec `line`, `text`, `heading`) and adds `spec` to `meta.json`. Requirements are numbered or checkbox items under a criteria label (Acceptance Criteria, Requirements, Critérios, Requisitos) and any list item with SHALL, MUST or DEVE; indented bullets are examples of the item above. `--spec-section` keeps only requirements whose heading chain matches the regex, for a spec that covers other repos or slices (`'\[api\]'`). Round 2+ reuses the last round's spec when `--spec` is omitted. When `count` is 0, read the spec and write `requirements.json` by hand in the same shape, one entry per testable requirement, `line` pointing at the spec; the next rounds keep it.
 
 Then:
 - Empty `files`: say there is nothing to review against that base and stop.
@@ -77,7 +79,7 @@ List every external surface the branch touches: dependencies added or bumped (ma
 
 ### Step 3: Review passes
 
-**Read `references/review-standards.md` now.** Run six passes over the core files: A correctness, B security, C structure, D AI slop and useless comments, E commit-message claims, F bypasses, duplication and gambiarras. Round 1 covers every core file in depth. Withhold nits inside a block that a 🔴 or 🟠 asks to restructure, and say so in the summary.
+**Read `references/review-standards.md` now.** Run six passes over the core files: A correctness, B security, C structure, D AI slop and useless comments, E commit-message claims, F bypasses, duplication and gambiarras. With `meta.spec`, also run Pass G, spec conformance, over every entry of `requirements.json`. Round 1 covers every core file in depth. Withhold nits inside a block that a 🔴 or 🟠 asks to restructure, and say so in the summary.
 
 ### Step 4: Verification
 
@@ -104,11 +106,17 @@ Re-read the code at every candidate's location and confirm the claim holds; re-a
       "evidence": [{"type": "internal", "ref": "src/billing/invoice.ts:142"}]
     }
   ],
-  "resolution": []
+  "resolution": [],
+  "spec_coverage": [
+    {"id": "AC1", "status": "implemented", "evidence": [{"type": "internal", "ref": "src/billing/invoice.ts:120"}]},
+    {"id": "AC2", "status": "missing", "severity": "should-fix", "note": "nenhum caminho devolve 409 sem instância configurada"}
+  ]
 }
 ```
 
 Rules the gate enforces, so write to them from the start: `round` equals `meta.json`'s; new ids start at `next_finding_id` and never reuse an old one; `title` is one line up to 100 chars; `path` is relative to the repo root and `line` is the line in the working-tree file; blocker, should-fix and nit must sit on a file changed by this branch (otherwise it is pre-existing); blocker and should-fix need evidence; internal evidence must point at an existing line; body starts with the severity emoji; the summary has a TL;DR containing the verdict token and a lint-rule section. In round 2+, `resolution` maps every id in `previous_open` to `resolved`, `open` or `declined-accepted` (with the reason in `note`), and `findings` holds new blockers only.
+
+With `meta.spec`, `spec_coverage` has exactly one row per id in `requirements.json`, every round: `status` is `implemented`, `partial`, `missing`, `contradicted` or `not-applicable`; `implemented`, `partial` and `contradicted` carry internal evidence on an existing line (any file of the repo, changed or not); every status other than `implemented` carries a `note`; `partial`, `missing` and `contradicted` carry `severity` `blocker` or `should-fix`, which weighs on the verdict like a finding; the summary has a Spec coverage section. A gap is a row, not a finding, so it needs no anchor on a changed file. Code that no requirement asked for is an ordinary finding (🟡 by default) on the changed line.
 
 ### Step 6: Gate
 
@@ -149,6 +157,9 @@ One to three sentences: what the branch does and the verdict with its reason. Co
 | ID | Status | Note |
 |---|---|---|
 
+## Spec coverage (only with --spec)
+Spec path, then counts per status and one line per row that is not implemented: id, status, what is missing or wrong. ledger.py appends the full per-requirement table to round-N.md.
+
 ## Promote to lint rule
 Deterministic findings (banned pattern, naming rule) with a one-line sketch of the lint rule each one needs. "none" if empty.
 
@@ -173,6 +184,8 @@ Round N (N >= 2) does exactly two things:
 1. **Resolution check.** For every id in `previous_open`, look at the current code: `resolved` (say what changed), `open`, or `declined-accepted` when the user gave a reason that holds on code-health grounds. `fixed-locally` in the ledger only means a fix was applied; it still has to be verified here.
 2. **New blockers only.** Read `since_patch` solely for 🔴 introduced since the last round. No new 🟠, 🟡 or 🟣. Code visible in round 1 and not flagged then is forfeited; the single exception is a genuine 🔴 discovered late, labeled as missed in round 1.
 
+With a spec, `spec_coverage` is re-emitted in full. Re-examine the rows that were not `implemented` in the last round (the ledger keeps them in `spec_gaps`) and the rows whose evidence lines `since_patch` touches; carry the other rows over with their evidence. A row that turns from `implemented` into a gap is a regression introduced since the last round and follows the new-blockers rule: report it only as `blocker`, otherwise keep it `implemented`.
+
 A declined finding is re-argued at most once with new evidence; after that it stays `open` and is not raised again. By round 3 every open finding is fixed, accepted as a follow-up by the user, or left open by explicit decision. Approve (READY) as soon as the branch improves code health; open nits never block READY.
 
 ## Examples
@@ -195,7 +208,21 @@ User says: "review my local changes, this branch came off staging".
 Actions: collect_diff with `--base origin/staging`; the header states the base and merge-base so the user can see what was compared.
 Result: a review of only this branch's work, without staging's commits mixed in.
 
+### Example 4: review against the plan
+
+User says: "revise minha branch e veja se o plan foi implementado" in an api worktree whose feature plan has `[api]` and `[front]` slices.
+Actions: collect_diff with `--spec <path>/plan.md --spec-section '\[api\]'`; 12 requirements extracted as AC1..AC12. Pass G finds AC1 to AC10 implemented with `path:line`, AC11 missing (the 409 path does not exist, should-fix) and AC12 not-applicable (needs the front, note says so). One 🟡 flags a retry loop no requirement asked for. The gate passes with NEEDS_WORK because of AC11.
+Result: the report lists the gap with the spec line, round-1.md carries the full coverage table, and the fix question includes AC11.
+
 ## Troubleshooting
+
+### `spec: no requirements recognized`
+Cause: the spec has no criteria label and no list item with SHALL, MUST or DEVE (a prose PRD, an issue body).
+Solution: read the spec and write `<workdir>/requirements.json` by hand (`id`, `line`, `text`, `heading` per requirement), then continue; the gate refuses an empty list.
+
+### Gate says a requirement has no spec_coverage row
+Cause: a requirement was skipped, or `--spec-section` was too broad.
+Solution: add the row; if the requirement belongs to another repo or slice, mark it `not-applicable` with the reason, or re-run collect_diff with a narrower `--spec-section`.
 
 ### `base ref not found`
 Cause: no `origin/main`, `main`, `origin/master` or `master`, or a wrong `--base`.
