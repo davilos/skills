@@ -1,0 +1,36 @@
+{
+  "name": "tlc-spec-driven",
+  "engine": "doc",
+  "about": "A tlc-spec-driven feature folder: one tab per file, EARS criteria, tasks and checks reviewed one by one, IDs linked across tabs.",
+  "detect": {
+    "files": {
+      "spec.md": { "any": ["User Stories", "Requirement Traceability"] },
+      "design.md": { "any": ["Architecture Overview", "Components"] },
+      "tasks.md": { "any": ["Task Breakdown"] },
+      "verification.md": { "any": ["Checks", "Findings"] },
+      "validation.md": { "any": ["Checks", "Findings"] }
+    }
+  },
+  "tabs": [
+    { "id": "spec", "file": "spec.md", "expected": true },
+    { "id": "context", "file": "context.md" },
+    { "id": "design", "file": "design.md", "expected": true },
+    { "id": "tasks", "file": "tasks.md", "expected": true },
+    { "id": "verification", "file": "verification.md", "versions": ["4.x"], "expected": true },
+    { "id": "validation", "file": "validation.md", "versions": ["3.x"], "expected": true },
+    { "id": "screens", "file": "screens.md", "versions": ["4.x"] }
+  ],
+  "items": [
+    { "tab": "spec", "kind": "li", "list": "ol", "under": "^(P\\d+)\\b", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{under} AC {n}", "ac": true },
+    { "tab": "spec", "kind": "li", "list": "ul", "section": "^Edge Cases$", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{section} #{i}", "ac": true },
+    { "tab": "tasks", "kind": "h", "text": "^(T\\d+)\\s*:", "cite": "{1}" },
+    { "tab": "tasks", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*", "cite": "{1}" }
+  ],
+  "ids": [
+    { "tab": "tasks", "kind": "h", "text": "^(T\\d+)\\s*:" },
+    { "tab": "tasks", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*" },
+    { "tab": "spec", "kind": "cell", "section": "^Requirement Traceability$", "text": "^([A-Z][A-Z0-9]*-\\d+)$" },
+    { "tab": "spec", "kind": "h", "text": "^(P\\d+)\\s*:" }
+  ],
+  "covers": { "ids": "^[A-Z][A-Z0-9]*-\\d+$", "by": ["tasks:h", "tasks:p"] }
+}

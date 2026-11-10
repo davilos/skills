@@ -216,12 +216,31 @@ def parse_list(lines: list[str], i: int) -> tuple[dict, int]:
             sub, i = parse_list(lines, i)
             items[-1].setdefault("sub", []).append(sub)
             continue
+        fm = FENCE.match(ln) if items and indent_of(ln) > base else None
+        if fm:
+            # A fenced code block inside an item is the item's own block: folded into its text, the fences
+            # would pair the item's backticks differently from the document.
+            fence, ind, body = fm[1][0] * 3, indent_of(ln), []
+            i += 1
+            while i < len(lines) and not (lines[i].strip().startswith(fence) and not lines[i].strip()[len(fence):].strip("`~")):
+                body.append(lines[i][ind:] if not lines[i][:ind].strip() else lines[i].strip())
+                i += 1
+            i += 1  # the closing fence
+            items[-1].setdefault("sub", []).append({"type": "code", "lang": fm[2].strip(), "text": "\n".join(body)})
+            continue
         if indent_of(ln) > base and items:
-            # A wrapped line continues the last item (or the last item of its sublist).
+            # A wrapped line continues the last item (or the last item of its sublist). After a code block
+            # inside the item, it is a paragraph of the item, under the code.
             target = items[-1]
-            while target.get("sub"):
+            while target.get("sub") and target["sub"][-1]["type"] in ("ul", "ol"):
                 target = target["sub"][-1]["items"][-1]
-            target["text"] += " " + ln.strip()
+            last = (target.get("sub") or [None])[-1]
+            if last and last["type"] == "code":
+                target["sub"].append({"type": "p", "text": ln.strip()})
+            elif last and last["type"] == "p":
+                last["text"] += " " + ln.strip()
+            else:
+                target["text"] += " " + ln.strip()
             i += 1
             continue
         if li and li[0] < base:

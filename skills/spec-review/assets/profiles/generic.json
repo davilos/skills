@@ -1,0 +1,5 @@
+{
+  "name": "generic",
+  "engine": "doc",
+  "about": "Any Markdown document (TDD, ADR, RFC, PRD, runbook, a plan.md that is not tlc-spec-lean): the page mirrors it section by section. Several files the user lists become one tab each."
+}

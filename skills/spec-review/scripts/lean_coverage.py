@@ -18,7 +18,7 @@ import json
 import re
 from pathlib import Path
 
-from extract_plan import OPEN_Q_RE, SLICE_RE, section_id, split_row
+from lean_extract import OPEN_Q_RE, SLICE_RE, section_id, split_row
 
 LABELS = ("**Approved**:", "**Status**:", "**Independent test:**", "**Open questions:**")
 # A capture shown in the plan: `![name](captures/file.png)`. The page shows the image and its name.
@@ -54,7 +54,7 @@ def plan_pieces(plan_path: Path) -> list[dict]:
         if s.startswith("```"):
             in_code = not in_code
             continue
-        if not s or SEPARATOR.fullmatch(s) or s == "**Acceptance Criteria**":
+        if not s or SEPARATOR.fullmatch(s) or s.lower() == "**acceptance criteria**":
             continue
 
         def add(text, kind="text"):

@@ -1,0 +1,9 @@
+{
+  "name": "tlc-spec-lean",
+  "engine": "lean",
+  "about": "A tlc-spec-lean plan.md: Visual views, Where / Why / Proof cards, one-way doors. The agent writes the code-derived fields into the review state (references/tlc-spec-lean.md).",
+  "detect": {
+    "file": "plan.md",
+    "headings": [{ "all": ["Shape", "Landing"] }, { "all": ["Flow", "Impact"] }]
+  }
+}
