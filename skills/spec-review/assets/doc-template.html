@@ -133,11 +133,11 @@ main { display: grid; gap: 64px; min-width: 0; padding: 36px 0 96px; }
 section.sec { display: grid; gap: 20px; scroll-margin-top: calc(var(--top) + 20px); min-width: 0; }
 .sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .sec-head h2 { margin-right: auto; }
-.blocks { display: grid; gap: 14px; color: var(--fg-2); min-width: 0; }
+.blocks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; color: var(--fg-2); min-width: 0; overflow-wrap: break-word; }
 .blocks > p { color: var(--fg-2); }
 .blocks > .sub-h { margin-top: 10px; scroll-margin-top: calc(var(--top) + 20px); }
 .blocks > h3.sub-h { padding-bottom: 6px; border-bottom: 1px solid var(--line); }
-blockquote { margin: 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--line-strong); color: var(--fg-2); }
+blockquote { margin: 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--line-strong); color: var(--fg-2); min-width: 0; overflow-wrap: break-word; }
 blockquote .blocks { gap: 10px; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; width: 100%; }
 .list { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
@@ -199,6 +199,26 @@ text.sequenceNumber.mmd-sel { fill: #fff !important; }
 line.mmd-sel, path.mmd-sel { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
 .mmd-detail { border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; position: relative; background: var(--bg); font-size: 14px; }
 .mmd-detail p { margin: 0; }
+/* tabs: one per file */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 18px; border-bottom: 1px solid var(--line); }
+.tab-btn { font: inherit; font-size: 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--fg-2); padding: 8px 10px; cursor: pointer; display: inline-flex; gap: 8px; align-items: baseline; margin-bottom: -1px; }
+.tab-btn[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-btn:disabled { color: var(--muted); cursor: default; opacity: .7; }
+.tab-btn .tab-n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 400; }
+.tab-panel { display: grid; gap: 64px; min-width: 0; }
+.tab-panel[hidden] { display: none; }
+.tabs { margin-bottom: -40px; }  /* main's 64px gap between blocks is too much between the tabs and their panel */
+.tab-head { display: grid; gap: 8px; margin-bottom: -32px; }
+.tab-head h2 { margin: 0; font-size: 20px; }
+/* profile review units: a list item, a heading with its body, a paragraph */
+.row-t.row-li, .row-t.row-h, .row-t.row-p { border-left: 3px solid transparent; padding-left: 8px; margin-left: -11px; }
+.row-t.row-li[data-rs="ok"], .row-t.row-h[data-rs="ok"], .row-t.row-p[data-rs="ok"] { border-left-color: var(--ok); }
+.row-t.row-li[data-rs="rej"], .row-t.row-h[data-rs="rej"], .row-t.row-p[data-rs="rej"] { border-left-color: var(--chg); background: color-mix(in srgb, var(--chg-soft) 50%, transparent); }
+.rv-inline { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: 8px; vertical-align: middle; }
+.row-h > .rv-inline, .row-p > .rv-inline { margin: 4px 0 0; }
+a.xref { color: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
+.covers { display: block; margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+.covers a.xref { margin-right: 6px; }
 .mmd-dh { font-weight: 600; padding-right: 28px; }
 .mmd-tag { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
 .mmd-x { all: unset; cursor: pointer; position: absolute; top: 6px; right: 8px; font-size: 18px; line-height: 1; padding: 4px 6px; color: var(--muted); border-radius: 4px; }
@@ -231,6 +251,24 @@ pre.mermaid { margin: 0; font-family: var(--mono); font-size: 13px; line-height:
 .badge.ok { background: var(--ok-soft); color: var(--ok); }
 .badge.pend { background: var(--pend-soft); color: var(--pend); }
 .badge.stale { background: var(--chg-soft); color: var(--chg); }
+/* Acceptance criteria that changed since the reviewer last saw them: a flag, the text before, the ones removed. */
+.ac-flag { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-left: 6px; }
+.ac-flag[hidden], .ac-removed[hidden], .ac-banner[hidden] { display: none; }
+.ac-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--chg-soft); color: var(--chg); white-space: nowrap; }
+.ac-chip.new { background: var(--accent-soft); color: var(--accent); }
+.ac-was summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.ac-diff { margin: 6px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--bg-subtle); font-size: 13.5px; overflow-wrap: anywhere; }
+.ac-diff del, .ac-removed del { color: var(--chg); background: var(--chg-soft); text-decoration: line-through; }
+.ac-diff ins { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+.ac-removed { margin-top: 14px; padding: 10px 14px; border-left: 3px solid var(--chg); background: color-mix(in srgb, var(--chg-soft) 50%, transparent); border-radius: 0 6px 6px 0; }
+.ac-removed ul { margin: 6px 0 0; padding-left: 18px; }
+.ac-rm-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; }
+.ac-banner { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--chg); border-radius: 8px; background: color-mix(in srgb, var(--chg-soft) 60%, transparent); font-size: 14px; }
+.ac-banner ul { margin: 6px 0 0; padding-left: 18px; }
+/* "Seen" has its own class: the Confirm / Reject handler listens to every .rv-mini. */
+.ac-seen { font: inherit; font-size: 12px; font-weight: 550; line-height: 1; padding: 5px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg-2); }
+.ac-seen:hover { background: var(--bg-hover); border-color: var(--muted); }
+.ac-seen[hidden] { display: none; }
 .badge.na { background: var(--bg-hover); color: var(--muted); }
 .badge.rej { background: var(--chg-soft); color: var(--chg); }
 .rv-btn { font: inherit; font-size: 13px; font-weight: 550; line-height: 1; padding: 7px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--bg); color: var(--fg); box-shadow: 0 1px 1px rgba(17, 20, 26, .04); transition: background-color .15s, border-color .15s; }
@@ -337,6 +375,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <dl class="front" id="front" hidden></dl>
       <div class="tags" id="tags"></div>
       <div class="note" id="review-note" role="status"></div>
+      <div class="ac-banner" id="ac-banner" role="status" hidden></div>
     </header>
   </main>
   <aside class="rail" id="rail">
@@ -350,7 +389,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
-/* Generated by the doc-review skill: do not edit by hand. Data comes from the document (DOC) and its review state (STATE). */
+/* Generated by the spec-review skill: do not edit by hand. Data comes from the document (DOC) and its review state (STATE). */
 var DOC = __DOC_JSON__;
 var STATE = __STATE_JSON__;
 (function () {
@@ -392,7 +431,13 @@ var STATE = __STATE_JSON__;
       renderFailed: "This diagram did not render, so its source is shown: ", noMermaid: function (m) { return "The drawings need Mermaid, which did not load (" + m + "); the source is shown."; },
       copySourceFailed: "<span>Could not copy. Open the Mermaid source and copy it by hand.</span>",
       zoomAria: "Diagram, full screen", zoomIn: "Zoom in", zoomOut: "Zoom out", fit: "Fit", close: "Close", closeAria: "Close",
-      zoomHint: "Wheel or pinch to zoom, drag to move; click a numbered step to follow it.", intro: "Introduction", sectionsAria: "Document sections"
+      zoomHint: "Wheel or pinch to zoom, drag to move; click a numbered step to follow it.", intro: "Introduction", sectionsAria: "Document sections", tabsAria: "Files of this page",
+      tabMissing: function (f) { return f + " does not exist yet: this tab fills in when it does."; }, coveredBy: "cited by ", tabsTitle: "Files",
+      acNew: "new criterion", acChanged: "criterion changed", acBefore: "See before", acSeen: "Seen",
+      acRemoved: function (n) { return n === 1 ? "1 criterion removed since you last reviewed" : n + " criteria removed since you last reviewed"; },
+      acBanner: function (n) { return n === 1 ? "1 acceptance criterion changed since you last reviewed it:" : n + " acceptance criteria changed since you last reviewed them:"; },
+      acBannerTail: "Confirm each one again (or validate its section) and its flag goes away.",
+      acGoneIn: function (g) { return "removed from " + g; }
     },
     pt: {
       brand: "Revisão de documento", sections: "Seções", review: "Revisão", notReviewed: "Não revisado", changedSince: "Mudou depois de validado",
@@ -425,7 +470,13 @@ var STATE = __STATE_JSON__;
       renderFailed: "Este diagrama não foi desenhado, então a fonte aparece: ", noMermaid: function (m) { return "Os desenhos precisam do Mermaid, que não carregou (" + m + "); a fonte aparece."; },
       copySourceFailed: "<span>Não deu para copiar. Abra a fonte Mermaid e copie à mão.</span>",
       zoomAria: "Diagrama em tela cheia", zoomIn: "Aproximar", zoomOut: "Afastar", fit: "Ajustar", close: "Fechar", closeAria: "Fechar",
-      zoomHint: "Roda ou pinça para zoom, arraste para mover; clique num passo numerado para acompanhá-lo.", intro: "Introdução", sectionsAria: "Seções do documento"
+      zoomHint: "Roda ou pinça para zoom, arraste para mover; clique num passo numerado para acompanhá-lo.", intro: "Introdução", sectionsAria: "Seções do documento", tabsAria: "Arquivos desta página",
+      tabMissing: function (f) { return f + " ainda não existe: esta aba se preenche quando existir."; }, coveredBy: "citado por ", tabsTitle: "Arquivos",
+      acNew: "critério novo", acChanged: "critério mudou", acBefore: "Ver antes", acSeen: "Visto",
+      acRemoved: function (n) { return n === 1 ? "1 critério removido desde a sua última revisão" : n + " critérios removidos desde a sua última revisão"; },
+      acBanner: function (n) { return n === 1 ? "1 critério de aceite mudou desde a sua última revisão:" : n + " critérios de aceite mudaram desde a sua última revisão:"; },
+      acBannerTail: "Confirme cada um de novo (ou valide a seção) e o aviso sai.",
+      acGoneIn: function (g) { return "removido de " + g; }
     }
   };
   var L = STR[DOC.lang] || STR.en;
@@ -447,6 +498,11 @@ var STATE = __STATE_JSON__;
      An image loads from beside the page (build_page.py copies it there); a link to a heading of this
      document jumps to it; a link to a local file is not followable from the page, so it stays text. */
   var ANCHORS = DOC.anchors || {};
+  /* IDs the documents define (T1, C2, LEMB-01...) link to where they are defined; `self` is the element
+     being rendered, which does not link to itself. */
+  var XREF = DOC.xref || {}, COVERS = DOC.covers || {};
+  var XREF_RE = Object.keys(XREF).length ? new RegExp("(?<![\\w-])(" + Object.keys(XREF).sort(function (a, b) { return b.length - a.length; })
+    .map(function (k) { return k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|") + ")(?![\\w-])", "g") : null;
   function emph(s) {
     return s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/__([^_]+)__/g, "<b>$1</b>")
       .replace(/~~([^~]+)~~/g, "<s>$1</s>")
@@ -458,14 +514,23 @@ var STATE = __STATE_JSON__;
     if (url.charAt(0) === "#") { var id = ANCHORS[decodeURIComponent(url.slice(1))]; return id ? { url: "#" + id } : null; }
     return null;
   }
-  function md(s) {
+  /* `self`: the element being rendered (an ID does not link to itself); `self === false`: no ID links at all
+     (inside a link already, such as the tree of sections). */
+  /* The folder of the file being rendered, relative to the page (a tab's `dir`): its images were copied there. */
+  var IMG_DIR = "";
+  function tabDir(id) {
+    for (var i = 0; i < (DOC.tabs || []).length; i++) if (DOC.tabs[i].id === id) return DOC.tabs[i].dir || "";
+    return "";
+  }
+  function md(s, self) {
     var ph = [];
     function hold(html) { ph.push(html); return "\u0000" + (ph.length - 1) + "\u0000"; }
     var t = String(s == null ? "" : s)
       .replace(/`([^`]+)`/g, function (a, c) { return hold("<code>" + esc(c) + "</code>"); })
       .replace(/\\([\\`*_{}\[\]()#+\-.!|~<>])/g, function (a, c) { return hold(esc(c)); })
       .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (a, alt, src) {
-        var ok = /^https?:\/\//i.test(src) || /^[\w.\/-]+$/.test(src);
+        var remote = /^https?:\/\//i.test(src), ok = remote || /^[\w.\/-]+$/.test(src);
+        if (!remote && IMG_DIR) src = IMG_DIR + "/" + src;
         return hold((ok ? '<span class="cap"><img src="' + esc(src) + '" alt="' + esc(alt) + '" loading="lazy"></span>' : "") + '<span class="cap-name">' + esc(alt) + "</span>");
       })
       .replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (a, text, url) {
@@ -475,6 +540,7 @@ var STATE = __STATE_JSON__;
       })
       .replace(/<(https?:\/\/[^\s>]+)>/g, function (a, url) { return hold('<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(url) + "</a>"); })
       .replace(/<br\s*\/?>/g, function () { return hold(" <br>"); });
+    if (XREF_RE && self !== false) t = t.replace(XREF_RE, function (a, id) { return XREF[id] === self ? a : hold('<a class="xref" href="#' + esc(XREF[id]) + '">' + esc(id) + "</a>"); });
     t = emph(esc(t));
     for (var k = 0; k < 3; k++) t = t.replace(/\u0000(\d+)\u0000/g, function (a, i) { return ph[+i]; });
     return t;
@@ -494,7 +560,7 @@ var STATE = __STATE_JSON__;
   var DBREV = null, CAN_WRITE = false, ME = null, DB = null;
   var REJ = ST.rejected || [];
   var ROWS = DOC.rows || {}, ROW_OF = {};
-  Object.keys(ROWS).forEach(function (sid) { ROWS[sid].forEach(function (x) { ROW_OF[x.key] = { sid: sid, n: x.n, b: x.b, r: x.r }; }); });
+  Object.keys(ROWS).forEach(function (sid) { ROWS[sid].forEach(function (x) { ROW_OF[x.key] = { sid: sid, n: x.n, b: x.b, r: x.r, i: x.i, kind: x.kind || "table", cite: x.cite }; }); });
   function secRows(sid) { return (ROWS[sid] || []).map(function (x) { return x.key; }); }
   function ownOf(key) {
     var d = DBREV && DBREV[key];
@@ -528,8 +594,62 @@ var STATE = __STATE_JSON__;
     else { out.st = "pend"; out.changed = false; }
     return out;
   }
+  /* ---------- acceptance criteria that changed (DOC.acChanges) ----------
+     The build already left out what the review state acknowledges; here a mark made on the page on the
+     current text (the criterion, or its section) clears the flag too. Removed criteria clear when their
+     section is validated again, or with "Seen". */
+  var ACC = DOC.acChanges || { items: {}, removed: {} };
+  function markedNow(k) { var d = DBREV && DBREV[k]; return !!d && d.state !== "pending" && d.fp === FP[k]; }
+  function acAck(key) { var x = ACC.items[key]; return !x || markedNow(key) || markedNow(x.group); }
+  function goneAck(g) {
+    var d = DBREV && DBREV["gone:" + g], x = ACC.removed[g];
+    return !x || markedNow(g) || (!!d && d.state === "validated" && d.fp === x.fp);
+  }
+  function acDiff(parts) {
+    return (parts || []).map(function (p) { return p[0] === "-" ? "<del>" + esc(p[1]) + "</del>" : p[0] === "+" ? "<ins>" + esc(p[1]) + "</ins>" : esc(p[1]); }).join("");
+  }
+  function acFlag(key) {
+    var x = ACC.items[key]; if (!x) return "";
+    return '<span class="ac-flag" data-ac="' + esc(key) + '"><span class="ac-chip' + (x.st === "new" ? " new" : "") + '">' + (x.st === "new" ? L.acNew : L.acChanged) + "</span>" +
+      (x.st === "changed" ? '<details class="ac-was"><summary>' + L.acBefore + '</summary><p class="ac-diff">' + acDiff(x.diff) + "</p></details>" : "") + "</span>";
+  }
+  function acRemoved(g) {
+    var x = ACC.removed[g]; if (!x) return "";
+    return '<div class="ac-was ac-removed" data-ac-rm="' + esc(g) + '"><div class="ac-rm-head"><b>' + esc(L.acRemoved(x.texts.length)) + "</b>" +
+      '<button type="button" class="ac-seen" data-ac-seen="' + esc(g) + '" hidden>' + L.acSeen + "</button></div><ul>" +
+      x.texts.map(function (t) { return "<li><del>" + esc(t) + "</del></li>"; }).join("") + "</ul></div>";
+  }
+  function paintAc() {
+    document.querySelectorAll("[data-ac]").forEach(function (el) { el.hidden = acAck(el.getAttribute("data-ac")); });
+    document.querySelectorAll("[data-ac-rm]").forEach(function (el) { el.hidden = goneAck(el.getAttribute("data-ac-rm")); });
+    document.querySelectorAll("[data-ac-seen]").forEach(function (el) { el.hidden = !CAN_WRITE || !DB; });
+    var ban = document.getElementById("ac-banner"); if (!ban) return;
+    var keys = Object.keys(ACC.items).filter(function (k) { return !acAck(k); });
+    var gone = Object.keys(ACC.removed).filter(function (g) { return !goneAck(g); });
+    var n = keys.length + gone.reduce(function (a, g) { return a + ACC.removed[g].texts.length; }, 0);
+    ban.hidden = !n;
+    if (!n) { ban.innerHTML = ""; return; }
+    var known = {}; SECTIONS.forEach(function (s) { known[s.id] = 1; });
+    ban.innerHTML = "<b>" + esc(L.acBanner(n)) + "</b><ul>" +
+      keys.map(function (k) { var x = ACC.items[k]; return '<li><a href="' + esc(ROW_OF[k] ? rowHref(k) : "#") + '">' + esc(x.cite || k) + "</a> · " + (x.st === "new" ? L.acNew : L.acChanged) + "</li>"; }).join("") +
+      gone.map(function (g) {
+        var x = ACC.removed[g];
+        return known[g] ? '<li><a href="#s-' + esc(g) + '">' + esc(x.name || g) + "</a> · " + esc(L.acRemoved(x.texts.length)) + "</li>"
+          : "<li>" + esc(L.acGoneIn(x.name || g)) + ": " + x.texts.map(function (t) { return "<del>" + esc(t) + "</del>"; }).join(" · ") +
+            ' <button type="button" class="ac-seen" data-ac-seen="' + esc(g) + '"' + (CAN_WRITE && DB ? "" : " hidden") + ">" + L.acSeen + "</button></li>";
+      }).join("") + "</ul><span class=\"note\">" + esc(L.acBannerTail) + "</span>";
+  }
   function stateOf(key) { var r = fullOf(key); return r.changed && r.st !== "pend" ? "chg" : r.st; }
-  function rowLabel(key) { var x = ROW_OF[key]; return nameOf(x.sid) + " #" + x.n; }
+  function rowLabel(key) { var x = ROW_OF[key]; return x.cite || nameOf(x.sid) + " #" + x.n; }
+  /* The number of a reviewable row: a click copies what the user cites ("Section #N", "P1 AC 2", "T1"). */
+  function rowNum(x) {
+    // A table row shows its number (the column is narrow); other units show what they are cited as.
+    var ref = rowLabel(x.key), shown = (x.kind || "table") === "table" ? x.n : x.cite || x.n;
+    return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="' + esc(L.copyRow(ref)) + '" aria-label="' + esc(L.copyRow(ref)) + '">' + esc(shown) + "</button>";
+  }
+  function unitAt(sec, bi, kind) {
+    return sec ? (ROWS[sec.id] || []).filter(function (x) { return x.b === bi && (x.kind || "table") === kind; }) : [];
+  }
   function rowHref(key) { var x = ROW_OF[key]; return "#row-" + x.sid + "-" + x.n; }
   function reviewSlot(key) {
     return '<span class="rv" data-rk="' + esc(key) + '"><span class="badge"></span>' +
@@ -575,7 +695,7 @@ var STATE = __STATE_JSON__;
         var on = !r.changed && r.st === (m.getAttribute("data-act") === "yes" ? "ok" : "rej");
         m.setAttribute("aria-pressed", String(on));
       });
-      var tr = el.closest("tr"); if (tr) tr.setAttribute("data-rs", st);
+      var tr = el.closest("tr, .row-t"); if (tr) tr.setAttribute("data-rs", st);
     });
     document.querySelectorAll("[data-rk-dot]").forEach(function (el) {
       var k = el.getAttribute("data-rk-dot"), st = stateOf(k);
@@ -590,8 +710,14 @@ var STATE = __STATE_JSON__;
     var pr = document.getElementById("progress"); if (pr) pr.textContent = L.progress(done, TO_REVIEW.length);
     var tp = document.getElementById("top-progress"); if (tp) tp.textContent = L.topProgress(done, TO_REVIEW.length);
     var rc = document.getElementById("rail-count"); if (rc) rc.innerHTML = L.railCount(done, TO_REVIEW.length);
+    (DOC.tabs || []).forEach(function (t) {
+      var el = document.querySelector('[data-tab-n="' + t.id + '"]'); if (!el || !t.exists) return;
+      var mine = TO_REVIEW.filter(function (x) { return x.tab === t.id; });
+      el.textContent = mine.filter(function (x) { return stateOf(x.id) === "ok"; }).length + "/" + mine.length;
+    });
     /* Panel: what is left, what changed and what was rejected, in document order. */
-    var keys = TO_REVIEW.map(function (s) { return [s.id, s.name, "#s-" + s.id]; });
+    // With tabs, the panel lists what is left in the open tab (the count above covers every tab).
+    var keys = TO_REVIEW.filter(function (s) { return !CUR_TAB || s.tab === CUR_TAB; }).map(function (s) { return [s.id, s.name, "#s-" + s.id]; });
     function li(k, st) { return '<li><a href="' + esc(k[2]) + '"><span class="st" data-state="' + st + '">' + IC[st] + "</span>" + esc(k[1]) + "</a></li>"; }
     function items(st) { return keys.filter(function (k) { return stateOf(k[0]) === st; }).map(function (k) { return li(k, st); }).join(""); }
     var todo = document.getElementById("rail-todo");
@@ -606,6 +732,7 @@ var STATE = __STATE_JSON__;
       var rr = Object.keys(ROW_OF).filter(function (k) { return stateOf(k) === "rej"; }).map(function (k) { return li([k, rowLabel(k), rowHref(k)], "rej"); }).join("");
       rej.innerHTML = rr; document.getElementById("rail-rej-box").hidden = !rr;
     }
+    paintAc();
   }
 
   /* ---------- document blocks ---------- */
@@ -628,9 +755,10 @@ var STATE = __STATE_JSON__;
       return narrow[i] ? "<col>" : '<col style="width:' + Math.max(18, Math.round(x / total * 100)) + '%">';
     }).join("") + (rows ? "<col>" : "") + "</colgroup>" : "";
     var sid = rows && ROW_OF[rows[0].key] ? ROW_OF[rows[0].key].sid : "";
-    function num(x) {
-      var ref = nameOf(sid) + " #" + x.n;
-      return '<button type="button" class="rn" data-ref="' + esc(ref) + '" title="' + esc(L.copyRow(ref)) + '" aria-label="' + esc(L.copyRow(ref)) + '">' + esc(x.n) + "</button>";
+    function num(x) { return rowNum(x); }
+    function covers(c) {
+      var id = String(c || "").trim().replace(/^`|`$/g, ""), list = COVERS[id];
+      return list && list.length ? '<span class="covers">' + esc(L.coveredBy) + list.map(function (u) { return '<a class="xref" href="#' + esc(u[1]) + '">' + esc(u[0]) + "</a>"; }).join("") + "</span>" : "";
     }
     return '<div class="tbl"><table>' + cols + "<thead><tr>" + (rows && !reuse ? '<th class="narrow">#</th>' : "") +
       head.map(function (c, i) { return "<th" + narrow[i] + ">" + md(c) + "</th>"; }).join("") + (rows ? '<th class="narrow">' + L.reviewCol + "</th>" : "") + "</tr></thead><tbody>" +
@@ -639,33 +767,50 @@ var STATE = __STATE_JSON__;
         return "<tr" + (x ? ' class="row-t" id="row-' + esc(sid) + "-" + esc(x.n) + '"' : "") + ">" +
           (x && !reuse ? '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>" : "") + r.map(function (c, i) {
             if (x && reuse && i === 0) return '<td class="narrow rn-cell" data-label="#">' + num(x) + "</td>";
-            return "<td" + (narrow[i] || "") + ' data-label="' + esc(head[i] || "") + '">' + md(c) + "</td>";
+            return "<td" + (narrow[i] || "") + ' data-label="' + esc(head[i] || "") + '">' + md(c, x ? "row-" + sid + "-" + x.n : null) + (i === 0 ? covers(c) : "") + "</td>";
           }).join("") + (x ? '<td class="narrow rv-cell" data-label="' + L.reviewCol + '">' + rowSlot(x.key) + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
   function rowsAt(sec, bi) {
-    var list = (ROWS[sec.id] || []).filter(function (x) { return x.b === bi; });
+    var list = (ROWS[sec.id] || []).filter(function (x) { return x.b === bi && (x.kind || "table") === "table"; });
     if (!list.length) return null;
-    return list.slice().sort(function (p, q) { return p.r - q.r; }).map(function (x) { return { key: x.key, n: x.n }; });
+    return list.slice().sort(function (p, q) { return p.r - q.r; }).map(function (x) { return { key: x.key, n: x.n, cite: x.cite }; });
   }
-  function listHtml(b) {
-    var tag = b.type === "ol" ? "ol" : "ul";
+  function listHtml(b, units, sid) {
+    var tag = b.type === "ol" ? "ol" : "ul", at = {};
+    (units || []).forEach(function (x) { at[x.i] = x; });
     var start = b.type === "ol" && b.items.length && b.items[0].n !== 1 ? ' start="' + esc(b.items[0].n) + '"' : "";
-    return "<" + tag + ' class="list"' + start + ">" + b.items.map(function (it) {
+    return "<" + tag + ' class="list"' + start + ">" + b.items.map(function (it, ii) {
+      var x = at[ii], self = x ? "row-" + sid + "-" + x.n : null;
       var box = typeof it.task === "boolean" ? '<input type="checkbox" disabled' + (it.task ? " checked" : "") + "> " : "";
-      return "<li" + (box ? ' class="task"' : "") + (b.type === "ol" ? ' value="' + esc(it.n) + '"' : "") + ">" + box + md(it.text) +
-        (it.sub || []).map(listHtml).join("") + "</li>";
+      var cls = (box ? "task" : "") + (x ? (box ? " " : "") + "row-t row-li" : "");
+      return "<li" + (cls ? ' class="' + cls + '"' : "") + (x ? ' id="' + esc(self) + '"' : "") + (b.type === "ol" ? ' value="' + esc(it.n) + '"' : "") + ">" + box + md(it.text, self) +
+        (x ? '<span class="rv-inline">' + rowNum(x) + rowSlot(x.key) + "</span>" + acFlag(x.key) : "") +
+        (it.sub || []).map(function (sub) {
+          // Inside an item: nested lists, and a fenced code block with the paragraphs after it.
+          if (sub.type === "code") return '<div class="code-box">' + (sub.lang ? '<span class="code-lang">' + esc(sub.lang) + "</span>" : "") + '<pre class="code">' + esc(sub.text) + "</pre></div>";
+          if (sub.type === "p") return "<p>" + md(sub.text) + "</p>";
+          return listHtml(sub);
+        }).join("") + "</li>";
     }).join("") + "</" + tag + ">";
   }
   /* `sec`: the section the blocks come from (its tables are reviewed row by row; its subheadings get anchors). */
   function blocks(list, sec) {
     return '<div class="blocks">' + (list || []).map(function (b, bi) {
-      if (b.type === "p") return "<p>" + md(b.text) + "</p>";
-      if (b.type === "h") {
-        var lv = Math.min(6, Math.max(3, b.level - (DOC.level || 2) + 2));
-        return "<h" + lv + ' class="sub-h"' + (sec ? ' id="h-' + esc(sec.id) + "-" + bi + '"' : "") + ">" + md(b.text) + "</h" + lv + ">";
+      if (b.type === "p") {
+        var up = unitAt(sec, bi, "p")[0];
+        if (!up) return "<p>" + md(b.text) + "</p>";
+        var pid = "row-" + sec.id + "-" + up.n;
+        return '<div class="row-t row-p" id="' + esc(pid) + '"><p>' + md(b.text, pid) + '</p><span class="rv-inline">' + rowNum(up) + rowSlot(up.key) + "</span></div>";
       }
-      if (b.type === "ul" || b.type === "ol") return listHtml(b);
+      if (b.type === "h") {
+        var lv = Math.min(6, Math.max(3, b.level - ((sec && sec.lvl) || DOC.level || 2) + 2));
+        var hid = sec ? "h-" + sec.id + "-" + bi : null, uh = unitAt(sec, bi, "h")[0];
+        var hh = "<h" + lv + ' class="sub-h"' + (hid ? ' id="' + esc(hid) + '"' : "") + ">" + md(b.text, uh ? "row-" + sec.id + "-" + uh.n : hid) + "</h" + lv + ">";
+        if (!uh) return hh;
+        return '<div class="row-t row-h" id="row-' + esc(sec.id) + "-" + esc(uh.n) + '">' + hh + '<span class="rv-inline">' + rowNum(uh) + rowSlot(uh.key) + "</span></div>";
+      }
+      if (b.type === "ul" || b.type === "ol") return listHtml(b, unitAt(sec, bi, "li"), sec && sec.id);
       if (b.type === "table") return table(b, sec ? rowsAt(sec, bi) : null);
       if (b.type === "code" && b.lang === "mermaid") return diagram(b.text);
       if (b.type === "code") return '<div class="code-box">' + (b.lang ? '<span class="code-lang">' + esc(b.lang) + "</span>" : "") + '<pre class="code">' + esc(b.text) + "</pre></div>";
@@ -1049,12 +1194,15 @@ var STATE = __STATE_JSON__;
     var el = document.createElement("section");
     el.className = "sec"; el.id = "s-" + s.id;
     el.setAttribute("aria-labelledby", "h-" + s.id);
-    el.innerHTML = '<div class="sec-head"><h2 id="h-' + esc(s.id) + '">' + md(s.name) + "</h2>" + (s.empty ? NA_BADGE : reviewSlot(s.id)) + "</div>" + blocks(s.blocks, s);
-    main.appendChild(el);
+    IMG_DIR = tabDir(s.tab);
+    el.innerHTML = '<div class="sec-head"><h2 id="h-' + esc(s.id) + '">' + md(s.name) + "</h2>" + (s.empty ? NA_BADGE : reviewSlot(s.id)) + "</div>" + blocks(s.blocks, s) + acRemoved(s.id);
+    IMG_DIR = "";
+    if (s.tab) el.setAttribute("data-tab", s.tab);
+    (s.tab ? document.getElementById("tab-" + s.tab) : main).appendChild(el);
   }
   /* Subheadings one level below the sections go in the tree, under their section. */
   function subHeads(s) {
-    return (s.blocks || []).map(function (b, bi) { return [b, bi]; }).filter(function (x) { return x[0].type === "h" && x[0].level === (DOC.level || 2) + 1; });
+    return (s.blocks || []).map(function (b, bi) { return [b, bi]; }).filter(function (x) { return x[0].type === "h" && x[0].level === (s.lvl || DOC.level || 2) + 1; });
   }
 
   /* ---------- page assembly ---------- */
@@ -1075,6 +1223,46 @@ var STATE = __STATE_JSON__;
   }
   document.getElementById("tags").innerHTML = DOC.hash ? '<span class="tag mono" title="' + esc(L.hashTitle) + '">' + esc(docName) + " " + esc(DOC.hash) + (DOC.generated ? L.generatedAt + esc(DOC.generated) : "") + "</span>" : "";
 
+  var TABS = DOC.tabs || null, CUR_TAB = null;
+  if (TABS) {
+    var bar = document.createElement("div");
+    bar.className = "tabs"; bar.setAttribute("role", "tablist"); bar.setAttribute("aria-label", L.tabsAria);
+    bar.innerHTML = TABS.map(function (t) {
+      return '<button type="button" class="tab-btn" role="tab" id="tabbtn-' + esc(t.id) + '" data-tab-btn="' + esc(t.id) + '" aria-controls="tab-' + esc(t.id) + '" aria-selected="false"' +
+        (t.exists ? "" : ' disabled title="' + esc(L.tabMissing(t.file)) + '"') + ">" + esc(t.file) + '<span class="tab-n" data-tab-n="' + esc(t.id) + '">' + (t.exists ? "" : "-") + "</span></button>";
+    }).join("");
+    main.appendChild(bar);
+    TABS.forEach(function (t) {
+      var panel = document.createElement("div");
+      panel.className = "tab-panel"; panel.id = "tab-" + t.id; panel.setAttribute("role", "tabpanel"); panel.setAttribute("data-tab", t.id);
+      panel.setAttribute("aria-labelledby", "tabbtn-" + t.id); panel.hidden = true;
+      IMG_DIR = t.dir || "";
+      panel.innerHTML = t.exists
+        ? '<div class="tab-head" id="s-' + esc(t.id) + '-header"><h2>' + md(t.title) + "</h2>" +
+          ((t.front || []).length ? '<dl class="front">' + t.front.map(function (q) { return "<dt>" + md(q[0]) + "</dt><dd>" + md(q[1]) + "</dd>"; }).join("") + "</dl>" : "") +
+          '<div class="tags"><span class="tag mono" title="' + esc(L.hashTitle) + '">' + esc(t.file) + " " + esc(t.hash) + "</span></div></div>"
+        : '<p class="note">' + esc(L.tabMissing(t.file)) + "</p>";
+      IMG_DIR = "";
+      main.appendChild(panel);
+    });
+  }
+  function showTab(id, first) {
+    if (!TABS || CUR_TAB === id) return;
+    CUR_TAB = id;
+    TABS.forEach(function (t) {
+      var on = t.id === id;
+      document.getElementById("tab-" + t.id).hidden = !on;
+      var b = document.getElementById("tabbtn-" + t.id); b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1;
+    });
+    document.querySelectorAll("nav.toc li[data-tab]").forEach(function (li) { li.hidden = li.getAttribute("data-tab") !== id; });
+    store.set("spec-review:tab:" + (DOC.path || ""), id);
+    if (!first) paintReview();
+    // A drawing wired while its tab was hidden measured nothing (no step outlines): draw again the first
+    // time its tab shows. The first tab shown is drawn by the first pass.
+    var panel = document.getElementById("tab-" + id);
+    if (!panel.__seen) { panel.__seen = true; if (!first && panel.querySelector("figure.mmd")) drawDiagrams(); }
+  }
+  function tabOf(el) { var p = el && el.closest && el.closest(".tab-panel"); return p ? p.getAttribute("data-tab") : null; }
   SECTIONS.forEach(section);
   var foot = document.createElement("footer");
   foot.innerHTML = L.mirror + "<code>" + esc(docPath) + "</code>" + (DOC.hash ? " (" + L.hashWord + " " + esc(DOC.hash) + ")" : "") + (DOC.generated ? L.generatedAt + esc(DOC.generated) : "") + L.footerTail;
@@ -1088,9 +1276,9 @@ var STATE = __STATE_JSON__;
 
   document.getElementById("toc").innerHTML = SECTIONS.map(function (s) {
     var dot = s.empty ? '<span class="st" data-state="na" title="' + esc(L.nothingToValidate) + '">' + IC.na + "</span>" : '<span class="st" data-rk-dot="' + esc(s.id) + '"></span>';
-    var li = '<li><a href="#s-' + esc(s.id) + '">' + dot + "<span>" + md(s.name) + "</span></a>";
+    var li = "<li" + (s.tab ? ' data-tab="' + esc(s.tab) + '"' : "") + '><a href="#s-' + esc(s.id) + '">' + dot + "<span>" + md(s.name, false) + "</span></a>";
     var subs = subHeads(s);
-    if (subs.length) li += '<ol class="sub">' + subs.map(function (x) { return '<li><a href="#h-' + esc(s.id) + "-" + x[1] + '">' + md(x[0].text) + "</a></li>"; }).join("") + "</ol>";
+    if (subs.length) li += '<ol class="sub">' + subs.map(function (x) { return '<li><a href="#h-' + esc(s.id) + "-" + x[1] + '">' + md(x[0].text, false) + "</a></li>"; }).join("") + "</ol>";
     return li + "</li>";
   }).join("");
   document.getElementById("rail-cells").innerHTML = SECTIONS.map(function (s) {
@@ -1099,6 +1287,26 @@ var STATE = __STATE_JSON__;
   document.getElementById("rail-meta").innerHTML =
     (DOC.hash ? "<dt>" + esc(docName) + '</dt><dd class="mono">' + esc(DOC.hash) + "</dd>" : "") +
     (DOC.generated ? "<dt>" + L.generated + "</dt><dd>" + esc(DOC.generated) + "</dd>" : "");
+
+  if (TABS) {
+    var firstTab = TABS.filter(function (t) { return t.exists; })[0].id, saved = store.get("spec-review:tab:" + (DOC.path || ""));
+    var fromHash = location.hash ? tabOf(document.getElementById(decodeURIComponent(location.hash.slice(1)))) : null;
+    showTab(fromHash || (TABS.some(function (t) { return t.id === saved && t.exists; }) ? saved : firstTab), true);
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-tab-btn]");
+      if (b && !b.disabled) { showTab(b.getAttribute("data-tab-btn")); return; }
+      var a = e.target.closest && e.target.closest("a[href^='#']");
+      var target = a && document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)));
+      var t = tabOf(target);
+      if (t && t !== CUR_TAB) showTab(t);
+    }, true);
+    document.querySelector(".tabs").addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var on = TABS.filter(function (t) { return t.exists; }).map(function (t) { return t.id; }), at = on.indexOf(CUR_TAB);
+      var next = on[(at + (e.key === "ArrowRight" ? 1 : on.length - 1)) % on.length];
+      showTab(next); document.getElementById("tabbtn-" + next).focus();
+    });
+  }
 
   /* Section menu on phones. */
   var nav = document.getElementById("toc-nav"), menu = document.getElementById("menu-btn");
@@ -1228,6 +1436,16 @@ var STATE = __STATE_JSON__;
     b.disabled = true;
     mark([key], next)
       .then(function () { b.disabled = false; say(""); if (next === "rejected") toast(L.rowRejected(esc(rowLabel(key)))); })
+      .catch(function (err) { b.disabled = false; failed(err); });
+  });
+  /* Removed criteria: "Seen" records that the reviewer read them (review/gone:<section>). */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".ac-seen");
+    if (!b || !DB || !CAN_WRITE) return;
+    var g = b.getAttribute("data-ac-seen"), x = ACC.removed[g]; if (!x) return;
+    b.disabled = true;
+    DB.doc("review/gone:" + g).set({ state: "validated", fp: x.fp, doc: DOC.hash || null, by: ME, at: new Date().toISOString() })
+      .then(function () { b.disabled = false; say(""); })
       .catch(function (err) { b.disabled = false; failed(err); });
   });
   /* Row number: copies "Section #N", to cite the row in the conversation. */

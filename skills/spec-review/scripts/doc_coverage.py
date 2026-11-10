@@ -17,7 +17,7 @@ import json
 import re
 from pathlib import Path
 
-from extract_doc import COMMENT_RE, FENCE, HEADING, HR_RE, TASK_RE, code_mask, is_separator, list_item, outline, split_row
+from doc_extract import COMMENT_RE, FENCE, HEADING, HR_RE, TASK_RE, code_mask, is_separator, list_item, outline, split_row
 
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
@@ -70,6 +70,7 @@ def doc_pieces(doc_path: Path) -> list[dict]:
     if first and first.get("intro") and first["line"] < ol["body_start"]:
         sec = "intro"
     prev_table = False
+    prev_para = -2  # the last line that was plain paragraph text
     for i in range(ol["body_start"], len(lines)):
         ln = lines[i]
         if i == ol["title_line"]:
@@ -111,7 +112,13 @@ def doc_pieces(doc_path: Path) -> list[dict]:
             tm = TASK_RE.match(t) if li[1] == "ul" else None
             add(i, tm[2] if tm else t)
             continue
-        add(i, s)
+        # A paragraph that goes on from the line above is one piece with it: md() renders the joined
+        # paragraph, so code or bold that opens on one line and closes on the next pairs across them.
+        if prev_para == i - 1 and out and out[-1]["kind"] == "text":
+            out[-1]["text"] += " " + s
+        else:
+            add(i, s)
+        prev_para = i
     return out
 
 

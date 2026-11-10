@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build the HTML review page for a plan: plan.md + review-page.json + template.
+"""Build the HTML review page for a plan: plan.md + spec-review.json + template.
 
-Validates review-page.json against the plan before building. Error (exit 1) when the
+Validates spec-review.json against the plan before building. Error (exit 1) when the
 page would misstate or hide something in the plan; warning when it is only poorer.
 
 Also proves coverage: every content piece of plan.md must be in the page data
@@ -11,9 +11,9 @@ of the page; warns when the plan changed since the last publish.
 
 Usage:
     python3 build_page.py --root <project> <feature> --out <file.html>
-        [--data <path to review-page.json>]   (default: .specs/features/<feature>/review-page.json)
+        [--data <path to spec-review.json>]   (default: .specs/features/<feature>/spec-review.json)
     python3 build_page.py --root <project> <feature> --mark-published
-        (after publishing: records in review-page.json the hash of the plan that went live)
+        (after publishing: records in spec-review.json the hash of the plan that went live)
 """
 from __future__ import annotations
 
@@ -28,8 +28,9 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ in the skill folder: the registry would ship it
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from coverage import IMAGE, missing_in_data, rendered_pieces, unsupported_markdown  # noqa: E402
-from extract_plan import extract  # noqa: E402
+import ac_changes  # noqa: E402
+from lean_coverage import IMAGE, missing_in_data, rendered_pieces, unsupported_markdown  # noqa: E402
+from lean_extract import extract  # noqa: E402
 
 
 def plan_hash(plan_path: Path) -> str:
@@ -141,8 +142,28 @@ def fingerprints(plan: dict, pg: dict) -> dict[str, str]:
             fp[f"landing:{n}"] = _h([land_rows[n - 1], cited(d.get("proof"))])
     return fp
 
+def ac_review(plan: dict, pg: dict, now: dict[str, str]) -> tuple[dict, dict]:
+    """Criteria that changed since the reviewer last saw them, per slice, and the next `ac_baseline`
+    (see ac_changes.py). A slice's criteria are acknowledged when the slice was validated or rejected
+    on its current text: in this profile criteria are reviewed with their slice."""
+    secs = {s["id"]: s for s in plan["sections"]}
+    slices = secs.get("criteria", {}).get("criteria", {}).get("slices", [])
+    current = {sl["id"]: [(f"ac:{a['n']}", " ".join([a["text"]] + list(a.get("examples") or [])))
+                          for a in sl["acs"] if "n" in a] for sl in slices}
+    current = {g: xs for g, xs in current.items() if xs}
+    val_fp = pg["review_fingerprints"] if "review_fingerprints" in pg else (pg.get("published_fingerprints") or {})
+    marked = reviewed_keys(plan, pg)
+    groups = {g for g in current if g in marked and g in now and (val_fp.get(g) or now[g]) == now[g]}
+    data, nxt = ac_changes.changes(pg.get("ac_baseline"), current, set(), groups, pg.get("ac_gone_seen"))
+    for key, x in data["items"].items():
+        x["cite"] = "AC " + key[3:]
+    for g, x in data["removed"].items():
+        x["name"] = g
+    return data, nxt
+
+
 def validated_keys(plan: dict, pg: dict) -> set[str]:
-    """Validated sections, slices and rows and confirmed doors in review-page.json.
+    """Validated sections, slices and rows and confirmed doors in spec-review.json.
 
     A row with no state of its own takes its section's: validating a section confirms its rows
     (doors excepted: each one is confirmed on its own).
@@ -161,7 +182,7 @@ def reviewed_keys(plan: dict, pg: dict) -> set[str]:
     return validated_keys(plan, pg) | set(pg.get("rejected") or [])
 
 
-TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "template.html"
+TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "tlc-spec-lean" / "template.html"
 AC_NUM = re.compile(r"\d+")
 # The same runs the template turns into links: "AC 10 to 12", "AC 1–3", "AC 10, 12", "AC 5 and 6".
 # Portuguese "a" / "e" still read as "to" / "and".
@@ -241,7 +262,7 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
         if k not in row_ids:
             warns.append(f"rejected has {k!r}, which is not a table row or door of the current plan; ignored")
         elif review.get(k) or k in doors_ok:
-            errors.append(f"{k} is both validated and rejected in review-page.json: keep one")
+            errors.append(f"{k} is both validated and rejected in spec-review.json: keep one")
     for sid, sec in sections.items():
         if sid not in review and not sec.get("empty"):
             warns.append(f"review has no '{sid}': the section shows as 'not reviewed'")
@@ -373,8 +394,8 @@ def validate(plan: dict, pg: dict) -> tuple[list[str], list[str]]:
         # Landing in plain language: every door in the plan has its explanation, and only those.
         lv = pg.get("landing_visual")
         if n_doors and not lv:
-            errors.append(f"the Landing has {n_doors} door(s) and review-page.json has no landing_visual: "
-                          "the page must explain each door in plain language (references/review-page-json.md)")
+            errors.append(f"the Landing has {n_doors} door(s) and spec-review.json has no landing_visual: "
+                          "the page must explain each door in plain language (references/tlc-spec-lean.md)")
         if lv:
             seen = set()
             for i, d in enumerate(lv.get("doors", [])):
@@ -523,7 +544,7 @@ def main() -> int:
     ap.add_argument("--data")
     ap.add_argument("--out")
     ap.add_argument("--mark-published", action="store_true",
-                    help="record in review-page.json the hash of the plan.md that just went live")
+                    help="record in spec-review.json the hash of the plan.md that just went live")
     ap.add_argument("feature")
     args = ap.parse_args()
     if not args.out and not args.mark_published:
@@ -531,16 +552,17 @@ def main() -> int:
 
     feat = Path(args.root) / ".specs" / "features" / args.feature
     plan_path = feat / "plan.md"
-    pg_path = Path(args.data) if args.data else feat / "review-page.json"
+    pg_path = Path(args.data) if args.data else feat / "spec-review.json"
     if not plan_path.exists():
         print(f"build_page: {plan_path} not found", file=sys.stderr)
         return 1
     if not pg_path.exists():
-        print(f"build_page: {pg_path} not found (write review-page.json: references/review-page-json.md)", file=sys.stderr)
+        print(f"build_page: {pg_path} not found (write it first: references/tlc-spec-lean.md)", file=sys.stderr)
         return 1
 
     pg = json.loads(pg_path.read_text(encoding="utf-8"))
     current = plan_hash(plan_path)
+    ui_path = feat / "ui-preview.json"
 
     if args.mark_published:
         plan = extract(plan_path)
@@ -554,6 +576,7 @@ def main() -> int:
         kept = pg["review_fingerprints"] if "review_fingerprints" in pg else (pg.get("published_fingerprints") or {})
         pg["review_fingerprints"] = {k: kept.get(k) or now[k] for k in sorted(reviewed_keys(plan, pg)) if k in now}
         pg["published_fingerprints"] = now
+        _, pg["ac_baseline"] = ac_review(plan, pg, now)
         pg_path.write_text(json.dumps(pg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"build_page: {pg_path} marked as published (plan.md {current})")
         return 0
@@ -609,6 +632,11 @@ def main() -> int:
     # Current fingerprint of each section, slice, door and table row: the page records the one of the text the
     # user validated (db review/<key>.fp) and shows "changed since" when it stops matching.
     plan["fingerprints"] = {k: v for k, v in fingerprints(plan, pg).items() if not k.startswith(DERIVED)}
+    plan["acChanges"], _ = ac_review(plan, pg, now)
+    for key, x in plan["acChanges"]["items"].items():
+        print(f"  AC-{x['st'].upper()} {x['cite']} ({x['group']}): {'new criterion' if x['st'] == 'new' else 'was: ' + x['was'][:70]}", file=sys.stderr)
+    for g, x in plan["acChanges"]["removed"].items():
+        print(f"  AC-REMOVED {g}: {len(x['texts'])} criterion(s) no longer in the plan", file=sys.stderr)
     for w in warns:
         print(f"  WARN  {w}", file=sys.stderr)
     for e in errors:
@@ -617,6 +645,9 @@ def main() -> int:
         print(f"build_page: {len(errors)} error(s); page not built", file=sys.stderr)
         return 1
 
+    # The optional UI preview is its own artifact; the page only links to it.
+    if ui_path.exists():
+        pg["ui_preview_url"] = json.loads(ui_path.read_text(encoding="utf-8")).get("artifact_url") or ""
     html = TEMPLATE.read_text(encoding="utf-8")
     title = pg.get("title") or plan["title"]
     html = (html.replace("__TITLE__", title.replace("<", "&lt;"))

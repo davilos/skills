@@ -182,7 +182,13 @@ if (data) {
   // views, which are in the DOM even when hidden).
   // Each piece is searched INSIDE its section and in plan ORDER. A section with a
   // Visual | Plan text switch is checked in the "Plan text" view (that is the text that binds).
-  const flat = (el) => (el ? el.textContent.replace(/\s+/g, ' ') : '')
+  // A changed criterion's flag (its text before, the removed ones) is not the plan: out of coverage.
+  const flat = (el) => {
+    if (!el) return ''
+    const c = el.cloneNode(true)
+    c.querySelectorAll('.ac-flag, .ac-was').forEach((x) => x.remove())
+    return c.textContent.replace(/\s+/g, ' ')
+  }
   const containerText = (sec) => {
     if (sec === 'header') return flat(d.querySelector('header.head'))
     const s = d.getElementById(sec)
@@ -224,6 +230,22 @@ if (data) {
   if (problems.length > 10) fail.push(`coverage: ${problems.length - 10} more problems`)
   expected.planCoverage = `${shown}/${cov.length} (in the right section and in order)`
   if (!P.hash) fail.push('the page does not carry the plan.md hash')
+  // Changed criteria: one flag on each, the text before for a changed one, the removed ones under their slice.
+  const acc = P.acChanges || { items: {}, removed: {} }
+  for (const [k, x] of Object.entries(acc.items)) {
+    const el = d.querySelectorAll(`#ac-${k.slice(3)} [data-ac="${k}"]`)
+    if (el.length !== 1) fail.push(`criteria: ${k} changed but has ${el.length} flag(s) in its criterion`)
+    else if (el[0].hidden) fail.push(`criteria: the flag of ${k} is hidden on a page with no marks`)
+    else if (x.st === 'changed' && !el[0].querySelector('.ac-diff')) fail.push(`criteria: ${k} changed but the page does not show the text before`)
+  }
+  for (const [g, x] of Object.entries(acc.removed)) {
+    const inSl = d.querySelector(`#slice-${g} [data-ac-rm="${g}"]`), ban = d.getElementById('ac-banner')
+    const shown = inSl ? inSl.textContent : (ban && !ban.hidden ? ban.textContent : '')
+    if (x.texts.some((t) => !shown.includes(t))) fail.push(`criteria: the criteria removed from ${g} are not all on the page`)
+  }
+  const nAc = Object.keys(acc.items).length + Object.values(acc.removed).reduce((a, x) => a + x.texts.length, 0)
+  if (nAc && d.getElementById('ac-banner').hidden) fail.push('criteria: criteria changed but the page has no notice at the top')
+  if (nAc) expected.criteriaChanged = `${Object.keys(acc.items).length} flagged, ${nAc - Object.keys(acc.items).length} removed`
   if (/\$\d/.test(visible)) fail.push('a literal $N is left in the text (replace with the wrong group)')
 }
 // Validation from the page: runs again with a fake window.claude (db + user) and exercises the flow.
@@ -232,7 +254,7 @@ async function checkReviewFlow() {
     writes = []
   // An empty section (no content, or only `None - <why>`) has nothing to validate: no button, a "nothing to validate" badge.
   const toReview = data.PLAN.sections.filter((s) => !s.empty)
-  // Exercise one section with content (starting as pending on the page, whatever review-page.json says) and another for "changed since".
+  // Exercise one section with content (starting as pending on the page, whatever spec-review.json says) and another for "changed since".
   const [key, other] = toReview.map((s) => s.id)
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   // A section with table rows, also starting as pending (a row with no state of its own takes its section's).
@@ -318,6 +340,10 @@ async function checkReviewFlow() {
     out.push(`review: a validation of an old text shows as "${badgeOf(other)}"`)
   // Rows: Confirm, Reject, Reject again (undo), then the section's Validate confirms them all and Undo clears them.
   if (rsid) {
+    // Start the rows from pending (the section too): a row already marked in the review state would make Confirm undo it.
+    store[rsid] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    for (const r of data.PLAN.rows[rsid]) store[r.key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
+    listener(snap()); await tick()
     const keys = P2.rows[rsid].map((x) => x.key)
     const rk = keys.find((k) => k.startsWith('row:'))
     const rowBadge = (k) => d2.querySelector(`[data-rk-row="${k}"] .badge`).textContent
@@ -363,6 +389,34 @@ async function checkReviewFlow() {
     await tick()
     const w = writes[writes.length - 1] || {}
     if (w.path !== `review/${door}` || w.data.state !== (was ? 'pending' : 'validated')) out.push(`review: Confirm on ${door} did not write it`)
+  }
+  // A changed criterion: validating its slice on the current text takes its flag off; "Seen" takes the removed ones off.
+  const acc = data.PLAN.acChanges || { items: {}, removed: {} }
+  const ak = Object.keys(acc.items)[0]
+  if (ak) {
+    const g = acc.items[ak].group
+    store[g] = { state: 'pending', fp: null }
+    listener(snap()); await tick()
+    const flag = d2.querySelector(`[data-ac="${ak}"]`)
+    if (!flag || flag.hidden) out.push(`criteria: the flag of ${ak} does not show before its slice is validated`)
+    store[g] = { state: 'validated', fp: data.PLAN.fingerprints[g] }
+    listener(snap()); await tick()
+    if (!flag || !flag.hidden) out.push(`criteria: validating ${g} on its current text did not take the flag of ${ak} off`)
+    store[g] = { state: 'pending', fp: null }
+    listener(snap()); await tick()
+    out.acFlow = true
+  }
+  const rg = Object.keys(acc.removed)[0]
+  if (rg) {
+    const seen = d2.querySelector(`.ac-seen[data-ac-seen="${rg}"]`)
+    if (!seen || seen.hidden) out.push(`criteria: the removed criteria of ${rg} have no "Seen" for an editor`)
+    else {
+      seen.click(); await tick()
+      const w = writes[writes.length - 1] || {}
+      if (w.path !== `review/gone:${rg}` || w.data.fp !== acc.removed[rg].fp) out.push(`criteria: "Seen" did not write review/gone:${rg} with the removed criteria's fingerprint`)
+      const box = d2.querySelector(`[data-ac-rm="${rg}"]`)
+      if (box && !box.hidden) out.push(`criteria: after "Seen", the removed criteria of ${rg} still show`)
+    }
   }
   return { out, errs, writes: writes.length }
 }
@@ -542,7 +596,7 @@ async function checkDiagrams() {
     const r = await checkReviewFlow()
     for (const m of r.out) fail.push(m)
     for (const e of r.errs) fail.push('runtime error (with fake db): ' + e)
-    expected.reviewFlow = r.out.length ? 'failed' : `ok (${r.writes} simulated writes)`
+    expected.reviewFlow = r.out.length ? 'failed' : `ok (${r.writes} simulated writes${r.out.acFlow ? '; changed criterion cleared by its slice' : ''})`
   }
   for (const e of errors) fail.push('runtime error: ' + e)
   console.log(JSON.stringify({ ok: fail.length === 0, expected, fail }, null, 2))
