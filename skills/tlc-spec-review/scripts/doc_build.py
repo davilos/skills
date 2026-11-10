@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import sys
@@ -61,6 +62,13 @@ def page_hash(info: dict) -> str:
     return _h([[t["file"], file_hash(Path(t["path"]))] for t in files])
 
 
+def page_base(info: dict) -> Path:
+    """The folder every file of the page sits under: images are copied and loaded relative to it, so
+    files from sibling folders (`docs/a/a.md`, `docs/b/b.md`) keep their images apart (`b/d.png`)."""
+    dirs = [str(Path(t["path"]).parent.absolute()) for t in info["tabs"] if t["exists"]]
+    return Path(os.path.commonpath(dirs))
+
+
 def page_lang(info: dict, lang: str | None) -> str:
     """One language for the whole page: the one asked for, else detected from the first file."""
     if lang:
@@ -80,6 +88,7 @@ def page_data(info: dict, lang: str | None) -> tuple[dict, list[str], list[str]]
     warns: list[str] = []
     page: dict = {"lang": lang, "sections": [], "coverage": [], "images": [], "anchors": {}}
     tabs = []
+    base = page_base(info)
     for t in info["tabs"]:
         if not t["exists"]:
             tabs.append({"id": t["id"], "file": t["file"], "exists": False})
@@ -100,14 +109,16 @@ def page_data(info: dict, lang: str | None) -> tuple[dict, list[str], list[str]]
                 s["tab"] = t["id"]
         for line, sec, kind, text in rendered_pieces(p):
             page["coverage"].append([line, pre + sec, kind, text, t["id"]])
+        tab_dir = p.parent.absolute().relative_to(base).as_posix() if multi else "."
         for src in imgs:
-            rel = str((p.parent / src).relative_to(Path(info["tabs"][0]["path"]).parent)) if multi else src
+            rel = src if tab_dir == "." else f"{tab_dir}/{src}"
             if rel not in page["images"]:
                 page["images"].append(rel)
         page["anchors"].update({k: v for k, v in anchors(d).items() if k not in page["anchors"]})
         page["sections"] += d["sections"]
         tabs.append({"id": t["id"], "file": t["file"], "exists": True, "path": str(p), "title": d["title"],
-                     "front": d["front"], "level": d["level"], "hash": file_hash(p)})
+                     "front": d["front"], "level": d["level"], "hash": file_hash(p),
+                     "dir": "" if tab_dir == "." else tab_dir})
     first = next(x for x in tabs if x["exists"])
     page.update(title=first["title"], front=first["front"], level=first["level"], path=first["path"])
     if multi:
@@ -492,7 +503,7 @@ def build(info: dict, sp: Path, out: Path, lang: str | None) -> int:
     # symlink included) is read only from inside the documents' folder and written only inside the page's.
     images = page["images"]
     out_dir = out.resolve().parent
-    doc_dir = Path(next(t for t in info["tabs"] if t["exists"])["path"]).parent.resolve()
+    doc_dir = page_base(info).resolve()
     for src in list(images):
         origin, target = (doc_dir / src).resolve(), (out_dir / src).resolve()
         if not origin.is_relative_to(doc_dir) or not target.is_relative_to(out_dir):

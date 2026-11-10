@@ -4,7 +4,7 @@ description: 'Builds an interactive review page that mirrors a local Markdown do
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.1.1'
+  version: '1.1.2'
 ---
 
 # TLC Spec Review
@@ -45,7 +45,7 @@ Run everything from the project root. `{skill-dir}` is the directory holding thi
 0. **Bring in the page's validations first**, if the review state already has an `artifact_url`: follow "Bring validations in" below **before** anyone changes the documents. Once the text changes, what was validated on the old text no longer counts.
 1. **Read.** `python3 {skill-dir}/scripts/extract.py {target} [--profile P]` prints the profile, the tabs and the sections. If the cut looks wrong (one giant section, sections that should be subheadings), the document's headings are the problem: tell the user; do not work around it.
 2. **tlc-spec-lean only: write or update the code-derived fields** of the review state, as [references/tlc-spec-lean.md](references/tlc-spec-lean.md) says. Every `where` is a `file:line` you checked; never invent a line number.
-3. **Build.** `python3 {skill-dir}/scripts/build_page.py {target} --out {tmp}/{name}.html [--profile P] [--lang en|pt]`. One language for the whole page: from the review state, else detected from the first file; pass `--lang` when the user asks for the other one. Exit 1: a piece of a document did not reach the page data (`coverage: x.md:N`, a defect in the extractor: report it with the line), the review state contradicts the documents, or (tlc-spec-lean) your data misstates the plan. `STALE` warns that the published page is from earlier documents; `RECHECK` names what was validated on text that changed since; `AC-CHANGED`, `AC-NEW` and `AC-REMOVED` name the acceptance criteria the reviewer has not seen in their current form (see "Changed criteria" below). Each image a document shows is copied beside the HTML at the same path, and the build lists them.
+3. **Build.** `python3 {skill-dir}/scripts/build_page.py {target} --out {tmp}/{name}.html [--profile P] [--lang en|pt]`. One language for the whole page: from the review state, else detected from the first file; pass `--lang` when the user asks for the other one. Exit 1: a piece of a document did not reach the page data (`coverage: x.md:N`, a defect in the extractor: report it with the line), the review state contradicts the documents, or (tlc-spec-lean) your data misstates the plan. `STALE` warns that the published page is from earlier documents; `RECHECK` names what was validated on text that changed since; `AC-CHANGED`, `AC-NEW` and `AC-REMOVED` name the acceptance criteria the reviewer has not seen in their current form (see "Changed criteria" below). Each image a document shows is copied beside the HTML at the same path (with files from several folders, relative to the folder they share: `b/img/x.png`), and the build lists them.
 4. **Check.** `node {skill-dir}/scripts/check_page.cjs {tmp}/{name}.html [path/to/node_modules/jsdom]` must print `"ok": true`, with full coverage (`docCoverage N/N`, and `coverageByFile` per tab; `planCoverage` for a plan). It finds jsdom from the current directory; if there is none, install it outside the repository (`npm install --prefix {tmp}/jsdom jsdom`) and pass `{tmp}/jsdom/node_modules/jsdom`.
 5. **Publish.**
    - **The agent has the `Artifact` tool:**

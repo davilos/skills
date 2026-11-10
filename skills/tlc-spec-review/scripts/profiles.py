@@ -199,7 +199,10 @@ def recorded_profile(targets: list[str]) -> str | None:
     first = Path(targets[0])
     folder = first if first.is_dir() else first.parent
     candidates = []
-    if feature_of(folder):
+    # The feature's state is the page of the whole feature: it speaks for the folder and its profiles'
+    # own files, never for another document in the folder (a `notes.md` beside the spec stays generic).
+    own = {"plan.md"} | {t["file"] for t in load_profile("tlc-spec-driven")["tabs"]}
+    if feature_of(folder) and len(targets) == 1 and (first.is_dir() or first.name in own):
         candidates += [folder / f"{SKILL}.json"]
     if first.is_file():
         candidates += [first.with_name(f"{first.stem}-{SKILL}.json")]

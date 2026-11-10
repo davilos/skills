@@ -516,6 +516,12 @@ var STATE = __STATE_JSON__;
   }
   /* `self`: the element being rendered (an ID does not link to itself); `self === false`: no ID links at all
      (inside a link already, such as the tree of sections). */
+  /* The folder of the file being rendered, relative to the page (a tab's `dir`): its images were copied there. */
+  var IMG_DIR = "";
+  function tabDir(id) {
+    for (var i = 0; i < (DOC.tabs || []).length; i++) if (DOC.tabs[i].id === id) return DOC.tabs[i].dir || "";
+    return "";
+  }
   function md(s, self) {
     var ph = [];
     function hold(html) { ph.push(html); return "\u0000" + (ph.length - 1) + "\u0000"; }
@@ -523,7 +529,8 @@ var STATE = __STATE_JSON__;
       .replace(/`([^`]+)`/g, function (a, c) { return hold("<code>" + esc(c) + "</code>"); })
       .replace(/\\([\\`*_{}\[\]()#+\-.!|~<>])/g, function (a, c) { return hold(esc(c)); })
       .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (a, alt, src) {
-        var ok = /^https?:\/\//i.test(src) || /^[\w.\/-]+$/.test(src);
+        var remote = /^https?:\/\//i.test(src), ok = remote || /^[\w.\/-]+$/.test(src);
+        if (!remote && IMG_DIR) src = IMG_DIR + "/" + src;
         return hold((ok ? '<span class="cap"><img src="' + esc(src) + '" alt="' + esc(alt) + '" loading="lazy"></span>' : "") + '<span class="cap-name">' + esc(alt) + "</span>");
       })
       .replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (a, text, url) {
@@ -1187,7 +1194,9 @@ var STATE = __STATE_JSON__;
     var el = document.createElement("section");
     el.className = "sec"; el.id = "s-" + s.id;
     el.setAttribute("aria-labelledby", "h-" + s.id);
+    IMG_DIR = tabDir(s.tab);
     el.innerHTML = '<div class="sec-head"><h2 id="h-' + esc(s.id) + '">' + md(s.name) + "</h2>" + (s.empty ? NA_BADGE : reviewSlot(s.id)) + "</div>" + blocks(s.blocks, s) + acRemoved(s.id);
+    IMG_DIR = "";
     if (s.tab) el.setAttribute("data-tab", s.tab);
     (s.tab ? document.getElementById("tab-" + s.tab) : main).appendChild(el);
   }
@@ -1227,11 +1236,13 @@ var STATE = __STATE_JSON__;
       var panel = document.createElement("div");
       panel.className = "tab-panel"; panel.id = "tab-" + t.id; panel.setAttribute("role", "tabpanel"); panel.setAttribute("data-tab", t.id);
       panel.setAttribute("aria-labelledby", "tabbtn-" + t.id); panel.hidden = true;
+      IMG_DIR = t.dir || "";
       panel.innerHTML = t.exists
         ? '<div class="tab-head" id="s-' + esc(t.id) + '-header"><h2>' + md(t.title) + "</h2>" +
           ((t.front || []).length ? '<dl class="front">' + t.front.map(function (q) { return "<dt>" + md(q[0]) + "</dt><dd>" + md(q[1]) + "</dd>"; }).join("") + "</dl>" : "") +
           '<div class="tags"><span class="tag mono" title="' + esc(L.hashTitle) + '">' + esc(t.file) + " " + esc(t.hash) + "</span></div></div>"
         : '<p class="note">' + esc(L.tabMissing(t.file)) + "</p>";
+      IMG_DIR = "";
       main.appendChild(panel);
     });
   }
