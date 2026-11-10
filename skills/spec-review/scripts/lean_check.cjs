@@ -254,7 +254,7 @@ async function checkReviewFlow() {
     writes = []
   // An empty section (no content, or only `None - <why>`) has nothing to validate: no button, a "nothing to validate" badge.
   const toReview = data.PLAN.sections.filter((s) => !s.empty)
-  // Exercise one section with content (starting as pending on the page, whatever tlc-spec-review.json says) and another for "changed since".
+  // Exercise one section with content (starting as pending on the page, whatever spec-review.json says) and another for "changed since".
   const [key, other] = toReview.map((s) => s.id)
   if (key) store[key] = { state: 'pending', fp: null, at: '2026-01-01T00:00:00Z' }
   // A section with table rows, also starting as pending (a row with no state of its own takes its section's).

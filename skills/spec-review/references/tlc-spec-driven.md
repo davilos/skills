@@ -1,6 +1,6 @@
 # tlc-spec-driven profile
 
-Read this when the profile is tlc-spec-driven: a feature folder `.specs/features/{slug}/` written by tlc-spec-driven. The page is built only from the files; you write nothing into the review state (`.specs/features/{slug}/tlc-spec-review.json`, written by the scripts).
+Read this when the profile is tlc-spec-driven: a feature folder `.specs/features/{slug}/` written by tlc-spec-driven. The page is built only from the files; you write nothing into the review state (`.specs/features/{slug}/spec-review.json`, written by the scripts).
 
 ## Tabs
 

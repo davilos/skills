@@ -1,13 +1,13 @@
 ---
-name: tlc-spec-review
+name: spec-review
 description: 'Builds an interactive review page that mirrors a local Markdown document section by section and recognizes its format: a tlc-spec-lean plan.md (Visual views, Where / Why / Proof cards, doors, an optional before/after UI preview), a tlc-spec-driven feature (spec, design, tasks and verification as tabs, with EARS criteria, tasks and checks reviewed one by one), or any other document such as a TDD, ADR, RFC or PRD. Every section gets Validate, every table row Confirm / Reject, and scripts prove nothing from the document is missing. Use when the user says "review page", "plan review page", "make a page for the plan", "review this spec as a page", "página de revisão", "quero revisar esse TDD numa página", "update the review page", "UI preview of the plan", or "sync what I validated on the page". Do NOT use for writing, changing or approving the plan, spec or document, or for checking a plan.md structure with validate_plan.py (use tlc-spec-lean or tlc-spec-driven), or for generic diagrams (use mermaid-studio).'
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.1.2'
+  version: '1.1.3'
 ---
 
-# TLC Spec Review
+# Spec Review
 
 The page is a **mirror** of local Markdown that makes it easier for people to review it. It is never the source: the `.md` files are what counts, and the page is rebuilt whenever they change. Never edit the generated HTML by hand.
 
@@ -28,7 +28,7 @@ The build picks one and prints it first (`PROFILE tlc-spec-driven 4.x (...)`):
 | Piece | What it is | Who writes it |
 | --- | --- | --- |
 | the `.md` files | the source | the user (or tlc-spec-lean / tlc-spec-driven) |
-| review state | `.specs/features/{slug}/tlc-spec-review.json` for a plan or feature, `{stem}-tlc-spec-review.json` beside a document: artifact link, profile, validations, fingerprints, language | the scripts; for tlc-spec-lean also you (code-derived fields only) |
+| review state | `.specs/features/{slug}/spec-review.json` for a plan or feature, `{stem}-spec-review.json` beside a document: artifact link, profile, validations, fingerprints, language | the scripts; for tlc-spec-lean also you (code-derived fields only) |
 | `scripts/build_page.py` | picks the profile and builds the HTML; `--mark-published` records the link and hash | fixed |
 | `scripts/check_page.cjs` | runs the page in jsdom: everything shown, in place and in order; fakes Mermaid and the db to test clicks | fixed |
 | `scripts/sync_review.py` | brings what the user validated on the page into the review state | fixed |
@@ -98,7 +98,7 @@ On a published artifact the user validates on the page itself: every section wit
 
 **A plan after review.** The user says: "updated S2 in the plan, refresh the page". Actions: step 0 (pull the `review` collection, `sync_review.py .specs/features/dunning/plan.md --dir ...`, tell the summary) → build: `RECHECK change:2` → re-read the code, fix the code-derived fields → build, check, republish to the same `url`, `--mark-published`. Result: same link; S2 shows "validated · changed since" until the user validates it again.
 
-**The user names the format.** The user says: "revisa esse plan.md como documento genérico". Actions: `build_page.py .specs/features/x/plan.md --profile generic --out ...`; the build warns that detection points to tlc-spec-lean and goes on with generic. Result: the plan as a plain mirror, with its own state beside it (`plan-tlc-spec-review.json`).
+**The user names the format.** The user says: "revisa esse plan.md como documento genérico". Actions: `build_page.py .specs/features/x/plan.md --profile generic --out ...`; the build warns that detection points to tlc-spec-lean and goes on with generic. Result: the plan as a plain mirror, with its own state beside it (`plan-spec-review.json`).
 
 **Agent without the Artifact tool.** Steps 1 to 4, then: "Open /abs/path/to/page.html in a browser. The review buttons only exist on a claude.ai artifact; tell me which sections you validate."
 

@@ -5,7 +5,7 @@
 | Skill                                     | O que faz                                                                                                                                                           | Versão |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | [`local-judge`](skills/local-judge/SKILL.md) | Revisa a branch local contra a base (com mudanças não commitadas) antes de abrir o PR: só findings com evidência `arquivo:linha` ou URL, gate determinístico, ledger por branch para re-runs e aplicação dos fixes escolhidos. | 1.0.0 |
-| [`tlc-spec-review`](skills/tlc-spec-review/SKILL.md) | Transforma documentos Markdown locais numa página HTML interativa de revisão, seção por seção, e prova com scripts que nada ficou de fora. Reconhece o formato: plano da tlc-spec-lean (abas Visual, cards Where / Why / Proof, doors), feature da tlc-spec-driven (uma aba por arquivo, critérios EARS, tasks e checks revisáveis um a um, IDs ligados entre abas) ou qualquer outro documento (TDD, ADR, RFC, PRD). Substitui `plan-review` e `doc-review`; em planos que mudam a tela, oferece um preview de antes e depois. Critérios de aceite que mudaram desde a sua última revisão aparecem sinalizados, com o diff do texto anterior. | 1.1.2 |
+| [`spec-review`](skills/spec-review/SKILL.md) | Transforma documentos Markdown locais numa página HTML interativa de revisão, seção por seção, e prova com scripts que nada ficou de fora. Reconhece o formato: plano da tlc-spec-lean (abas Visual, cards Where / Why / Proof, doors), feature da tlc-spec-driven (uma aba por arquivo, critérios EARS, tasks e checks revisáveis um a um, IDs ligados entre abas) ou qualquer outro documento (TDD, ADR, RFC, PRD). Substitui `plan-review` e `doc-review`; em planos que mudam a tela, oferece um preview de antes e depois. Critérios de aceite que mudaram desde a sua última revisão aparecem sinalizados, com o diff do texto anterior. | 1.1.3 |
 
 ## Instalação
 
@@ -16,11 +16,11 @@ Com o CLI [`skills`](https://www.npmjs.com/package/skills), na raiz do seu proje
 npx skills add davilos/skills
 
 # só uma skill
-npx skills add davilos/skills --skill tlc-spec-review
+npx skills add davilos/skills --skill spec-review
 npx skills add davilos/skills --skill local-judge
 ```
 
-Quem usava `plan-review` ou `doc-review`: instale `tlc-spec-review` e remova as duas. Os arquivos de estado antigos (`review-page.json`, `x-doc-review.json`) são renomeados para `tlc-spec-review.json` / `x-tlc-spec-review.json` no primeiro build, e as páginas publicadas mantêm o link e as validações.
+Quem usava `plan-review` ou `doc-review`: instale `spec-review` e remova as duas. Os arquivos de estado antigos (`review-page.json`, `x-doc-review.json`) são renomeados para `spec-review.json` / `x-spec-review.json` no primeiro build, e as páginas publicadas mantêm o link e as validações.
 
 ## Estrutura
 
