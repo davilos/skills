@@ -5,3 +5,6 @@
 !.claude/hooks/
 .cursor
 .windsurf
+
+# Local test fixtures (not shipped)
+tests/

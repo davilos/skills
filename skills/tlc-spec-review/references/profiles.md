@@ -31,5 +31,5 @@ All regexes are Python syntax; anchor them (`^...$`) so they do not match inside
 ## Adding a profile
 
 1. Prefer the `doc` engine and data only: a new JSON file in `assets/profiles/`, plus its detection in `profiles.py` if it needs more than headings.
-2. Add a fixture (synthetic, no project data) under `tests/fixtures/` and build it: `check_page.cjs` must print `"ok": true` with full coverage per file, and its review flow must exercise each new unit kind.
+2. Build a fixture (synthetic, no project data) in a scratch folder outside the repository (fixtures are not committed): `check_page.cjs` must print `"ok": true` with full coverage per file, and its review flow must exercise each new unit kind.
 3. Document the profile in `references/{name}.md` and point to it from SKILL.md.
