@@ -51,7 +51,7 @@ Optional. A separate page with before/after mockups of the screens a front-end p
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `title`                  | artifact name, 2 to 4 words, stable across publishes (default: plan title + "UI preview")                                         |
 | `artifact_url`           | the preview's artifact link; empty the first time                                                                                   |
-| `review_url`             | where slice and criterion links go; leave it out to use `artifact_url` from doc-spec-review.json                                       |
+| `review_url`             | where slice and criterion links go; leave it out to use `artifact_url` from tlc-spec-review.json                                       |
 | `code_ref`               | repo, branch and commit read for the Before (e.g. `web feat/usage @ 1a2b3c4`)                                                       |
 | `screens`                | list, one per screen (or dialog), in the order a user meets them; its loading, error or empty versions are `states`, not screens   |
 | `published_*`            | written by `--mark-published`; do not edit by hand                                                                                  |
@@ -64,7 +64,7 @@ Screen: `{id, name, route?, summary?, where, before?, after?, css?, width?, stat
 | `name`   | what the user calls the screen ("Billing", "Cancel confirmation")                                                                |
 | `route`  | URL or how to reach it ("/settings/billing (dialog)")                                                                            |
 | `summary` | one or two sentences (md) on what changes on this screen as a whole, read before the mockups and the marks                      |
-| `where`  | files the Before was drawn from, same format as doc-spec-review.json: `file[:lines]` or `folder/`, separated by `·`, no prose         |
+| `where`  | files the Before was drawn from, same format as tlc-spec-review.json: `file[:lines]` or `folder/`, separated by `·`, no prose         |
 | `before` | fragment file of the screen today; leave it out for a screen the plan creates                                                    |
 | `after`  | fragment file of the screen with the plan; leave it out for a screen the plan removes                                             |
 | `css`    | a stylesheet both fragments load, so the styles are written once                                                                 |
@@ -72,7 +72,7 @@ Screen: `{id, name, route?, summary?, where, before?, after?, css?, width?, stat
 | `states` | versions of the screen the reviewer switches between: `[{id, label, before?, after?}]`; see States below                        |
 | `marks`  | what changes, numbered: `[{n, kind?, text (md), s, proof, where?, tbd?, states?}]`                                               |
 
-Mark: `n` = 1, 2, 3... and the element that changes carries `data-mark="n"` in the fragment (in `after` for what arrives or changes, in `before` too for what leaves or moves). `kind` = `add` (green), `change` (amber) or `remove` (red, dashed): the highlight keeps that colour on both sides; without `kind` it is red in Before and green in After. `same` and `effect` are criteria with nothing to draw: the screen stays as today (`same`), or the criterion acts elsewhere, like the request a save sends (`effect`); they have no `n` and no element, and the page lists them under "No change to draw". `text` = what the reviewer should notice, in one sentence; `s` = slice; `proof` = criteria, as in doc-spec-review.json (`AC 1, 2`); `where` = where it lands in code, when the plan says; `tbd: true` = the plan does not fix this detail (copy, exact position, colour), the mockup shows a neutral placeholder or a plausible guess, and the page says "not defined"; `states` = the ids of the states the mark holds in (leave it out when it holds in all).
+Mark: `n` = 1, 2, 3... and the element that changes carries `data-mark="n"` in the fragment (in `after` for what arrives or changes, in `before` too for what leaves or moves). `kind` = `add` (green), `change` (amber) or `remove` (red, dashed): the highlight keeps that colour on both sides; without `kind` it is red in Before and green in After. `same` and `effect` are criteria with nothing to draw: the screen stays as today (`same`), or the criterion acts elsewhere, like the request a save sends (`effect`); they have no `n` and no element, and the page lists them under "No change to draw". `text` = what the reviewer should notice, in one sentence; `s` = slice; `proof` = criteria, as in tlc-spec-review.json (`AC 1, 2`); `where` = where it lands in code, when the plan says; `tbd: true` = the plan does not fix this detail (copy, exact position, colour), the mockup shows a neutral placeholder or a plausible guess, and the page says "not defined"; `states` = the ids of the states the mark holds in (leave it out when it holds in all).
 
 ### States
 
@@ -106,7 +106,7 @@ The build rejects: a slice or criterion the plan does not have, an unknown `kind
 
 - **Before comes from the code**, not from memory: read the component, the page that mounts it and the styles it uses. Copy the real labels and copy text, the real colour and spacing values (from the CSS, tokens or theme file), the real order of elements. Data is representative: take the plan's examples when it has them (its Independent test, its criteria), otherwise plausible values.
 - **After is Before plus what the plan states, and nothing else.** No restyling, no extra improvement, no element the plan does not ask for. Each change is a mark tied to the slice and criteria that require it; a change without a criterion behind it does not belong in the mockup.
-- **What the plan does not fix is "not defined".** If the plan says "a Danger zone card" but not its text, draw the card with a neutral or plausible sentence and mark it `tbd: true`; never present an invented copy or name as decided. A name the plan leaves open (`tbd` in doc-spec-review.json) is `tbd` here too.
+- **What the plan does not fix is "not defined".** If the plan says "a Danger zone card" but not its text, draw the card with a neutral or plausible sentence and mark it `tbd: true`; never present an invented copy or name as decided. A name the plan leaves open (`tbd` in tlc-spec-review.json) is `tbd` here too.
 - **Tell the user what is not plan**: the Before is your reading of the code, the After is your reading of the plan.
 
 ## Spending few tokens

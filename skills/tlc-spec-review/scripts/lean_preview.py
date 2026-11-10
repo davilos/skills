@@ -289,7 +289,7 @@ def main() -> int:
 
     # Slice and criterion links go to the review page, when it is published.
     review_url = pv.get("review_url")
-    rp_path = feat / "doc-spec-review.json"
+    rp_path = feat / "tlc-spec-review.json"
     if review_url is None and rp_path.exists():
         review_url = json.loads(rp_path.read_text(encoding="utf-8")).get("artifact_url") or ""
     data = {

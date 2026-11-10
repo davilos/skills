@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ in the skill folder: the registry would ship it
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from doc_build import fingerprints, load_state, page_data, row_keys, save_state  # noqa: E402
+from doc_build import ac_review, fingerprints, load_state, page_data, row_keys, save_state  # noqa: E402
 
 
 def load_rows(folder: Path) -> dict[str, dict]:
@@ -41,7 +41,12 @@ def sync(info: dict, sp: Path, folder: Path, dry_run: bool) -> int:
     val_fp = dict(st.get("review_fingerprints") or {})
     changed_after = []
     empty = {s["id"] for s in page["sections"] if s.get("empty")}
+    gone_seen = dict(st.get("ac_gone_seen") or {})
     for key, row in rows.items():
+        if key.startswith("gone:"):
+            # "Seen" on the removed criteria of a section: stored apart, it is not a section or a row.
+            (gone_seen.__setitem__(key[5:], row.get("fp")) if row.get("state") == "validated" else gone_seen.pop(key[5:], None))
+            continue
         if key in empty:
             print(f"  WARN  review/{key}: the section is empty, so there is nothing to validate; ignored", file=sys.stderr)
             review.pop(key, None)
@@ -64,6 +69,10 @@ def sync(info: dict, sp: Path, folder: Path, dry_run: bool) -> int:
     st["rejected"] = sorted(rejected)
     st["review_fingerprints"] = val_fp
     st["profile"] = info["profile"]
+    st["ac_gone_seen"] = gone_seen
+    # Criteria the user just marked on their current text stop being flagged as changed.
+    if "ac_baseline" in st:
+        _, st["ac_baseline"] = ac_review(page, info, st, fp)
     if not dry_run:
         save_state(sp, st)
 

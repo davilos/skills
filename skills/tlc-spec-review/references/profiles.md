@@ -18,7 +18,7 @@ The file name alone never picks a profile: a `plan.md` without `Shape` and `Land
 | `detect.file`, `detect.headings` | lean | the file and the `##` headings it must have: a list of `{all: [...]}` or `{any: [...]}`, any of which matches |
 | `detect.files` | doc | per file name, the `##` headings that recognize it |
 | `tabs` | doc | `{id, file, versions?, expected?}` in page order; `expected` shows a missing file as a switched-off tab |
-| `items` | doc | extra review units: `{tab, kind, text, section?, under?, list?, cite}` |
+| `items` | doc | extra review units: `{tab, kind, text, section?, under?, list?, cite, ac?}`; `"ac": true` (list items only) marks them as acceptance criteria, flagged on the page when they change |
 | `ids` | doc | where IDs are defined: `{tab, kind, text, section?}` |
 | `covers` | doc | `{ids, by}`: which IDs list the units that cite them, and which units count (`tab:kind`) |
 

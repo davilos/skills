@@ -11,8 +11,8 @@ Order: the profile the user named wins (the agent warns when detection disagrees
 recorded in the review state; then detection. The file name alone never picks a profile: a
 `plan.md` without the tlc-spec-lean headings is generic.
 
-The review state is named after this skill: `<feature>/doc-spec-review.json` for a feature folder,
-`<stem>-doc-spec-review.json` beside a single document. The older names (`review-page.json` from
+The review state is named after this skill: `<feature>/tlc-spec-review.json` for a feature folder,
+`<stem>-tlc-spec-review.json` beside a single document. The older names (`review-page.json` from
 plan-review, `<stem>-doc-review.json` from doc-review) are renamed on first use.
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "doc-spec-review"
+SKILL = "tlc-spec-review"
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 H2 = re.compile(r"^##\s+(.+?)\s*#*\s*$")
 FENCE = re.compile(r"^\s*(```|~~~)")

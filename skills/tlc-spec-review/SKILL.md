@@ -1,13 +1,13 @@
 ---
-name: doc-spec-review
+name: tlc-spec-review
 description: 'Builds an interactive review page that mirrors a local Markdown document section by section and recognizes its format: a tlc-spec-lean plan.md (Visual views, Where / Why / Proof cards, doors, an optional before/after UI preview), a tlc-spec-driven feature (spec, design, tasks and verification as tabs, with EARS criteria, tasks and checks reviewed one by one), or any other document such as a TDD, ADR, RFC or PRD. Every section gets Validate, every table row Confirm / Reject, and scripts prove nothing from the document is missing. Use when the user says "review page", "plan review page", "make a page for the plan", "review this spec as a page", "página de revisão", "quero revisar esse TDD numa página", "update the review page", "UI preview of the plan", or "sync what I validated on the page". Do NOT use for writing, changing or approving the plan, spec or document, or for checking a plan.md structure with validate_plan.py (use tlc-spec-lean or tlc-spec-driven), or for generic diagrams (use mermaid-studio).'
 license: CC-BY-4.0
 metadata:
   author: Dávilos Tavares - github.com/davilos
-  version: '1.0.0'
+  version: '1.1.0'
 ---
 
-# Doc Spec Review
+# TLC Spec Review
 
 The page is a **mirror** of local Markdown that makes it easier for people to review it. It is never the source: the `.md` files are what counts, and the page is rebuilt whenever they change. Never edit the generated HTML by hand.
 
@@ -28,7 +28,7 @@ The build picks one and prints it first (`PROFILE tlc-spec-driven 4.x (...)`):
 | Piece | What it is | Who writes it |
 | --- | --- | --- |
 | the `.md` files | the source | the user (or tlc-spec-lean / tlc-spec-driven) |
-| review state | `.specs/features/{slug}/doc-spec-review.json` for a plan or feature, `{stem}-doc-spec-review.json` beside a document: artifact link, profile, validations, fingerprints, language | the scripts; for tlc-spec-lean also you (code-derived fields only) |
+| review state | `.specs/features/{slug}/tlc-spec-review.json` for a plan or feature, `{stem}-tlc-spec-review.json` beside a document: artifact link, profile, validations, fingerprints, language | the scripts; for tlc-spec-lean also you (code-derived fields only) |
 | `scripts/build_page.py` | picks the profile and builds the HTML; `--mark-published` records the link and hash | fixed |
 | `scripts/check_page.cjs` | runs the page in jsdom: everything shown, in place and in order; fakes Mermaid and the db to test clicks | fixed |
 | `scripts/sync_review.py` | brings what the user validated on the page into the review state | fixed |
@@ -45,7 +45,7 @@ Run everything from the project root. `{skill-dir}` is the directory holding thi
 0. **Bring in the page's validations first**, if the review state already has an `artifact_url`: follow "Bring validations in" below **before** anyone changes the documents. Once the text changes, what was validated on the old text no longer counts.
 1. **Read.** `python3 {skill-dir}/scripts/extract.py {target} [--profile P]` prints the profile, the tabs and the sections. If the cut looks wrong (one giant section, sections that should be subheadings), the document's headings are the problem: tell the user; do not work around it.
 2. **tlc-spec-lean only: write or update the code-derived fields** of the review state, as [references/tlc-spec-lean.md](references/tlc-spec-lean.md) says. Every `where` is a `file:line` you checked; never invent a line number.
-3. **Build.** `python3 {skill-dir}/scripts/build_page.py {target} --out {tmp}/{name}.html [--profile P] [--lang en|pt]`. One language for the whole page: from the review state, else detected from the first file; pass `--lang` when the user asks for the other one. Exit 1: a piece of a document did not reach the page data (`coverage: x.md:N`, a defect in the extractor: report it with the line), the review state contradicts the documents, or (tlc-spec-lean) your data misstates the plan. `STALE` warns that the published page is from earlier documents; `RECHECK` names what was validated on text that changed since. Each image a document shows is copied beside the HTML at the same path, and the build lists them.
+3. **Build.** `python3 {skill-dir}/scripts/build_page.py {target} --out {tmp}/{name}.html [--profile P] [--lang en|pt]`. One language for the whole page: from the review state, else detected from the first file; pass `--lang` when the user asks for the other one. Exit 1: a piece of a document did not reach the page data (`coverage: x.md:N`, a defect in the extractor: report it with the line), the review state contradicts the documents, or (tlc-spec-lean) your data misstates the plan. `STALE` warns that the published page is from earlier documents; `RECHECK` names what was validated on text that changed since; `AC-CHANGED`, `AC-NEW` and `AC-REMOVED` name the acceptance criteria the reviewer has not seen in their current form (see "Changed criteria" below). Each image a document shows is copied beside the HTML at the same path, and the build lists them.
 4. **Check.** `node {skill-dir}/scripts/check_page.cjs {tmp}/{name}.html [path/to/node_modules/jsdom]` must print `"ok": true`, with full coverage (`docCoverage N/N`, and `coverageByFile` per tab; `planCoverage` for a plan). It finds jsdom from the current directory; if there is none, install it outside the repository (`npm install --prefix {tmp}/jsdom jsdom`) and pass `{tmp}/jsdom/node_modules/jsdom`.
 5. **Publish.**
    - **The agent has the `Artifact` tool:**
@@ -54,7 +54,7 @@ Run everything from the project root. `{skill-dir}` is the directory holding thi
      - Republish (`artifact_url` set): publish with `url` = `artifact_url` (reading the artifact first if this conversation has not) and omit `capabilities`, so the artifact keeps its own. The link does not change.
      - After publishing: `python3 {skill-dir}/scripts/build_page.py {target} --mark-published --url {artifact link}` (the `--url` is only needed the first time). It records the link, the profile and the hash that went live, so the next build knows when the page is stale.
    - **No `Artifact` tool:** give the user the absolute path of `{tmp}/{name}.html` to open in a browser (the images are already beside it). The page works offline without the validate buttons and without drawings (Mermaid comes from a CDN; the source shows instead). Review state then comes from what the user tells you.
-6. **Tell the user** the profile, the link or path, the check result (sections, rows, diagrams, coverage per file) and any `RECHECK`. For tlc-spec-lean, say that Where / Why / Proof are your reading of the code.
+6. **Tell the user** the profile, the link or path, the check result (sections, rows, diagrams, coverage per file), any `RECHECK` and the changed criteria by citation (`P1 AC 1 changed, P2 AC 1 new, 1 removed from Edge Cases`), so they know where to look. For tlc-spec-lean, say that Where / Why / Proof are your reading of the code.
 7. **tlc-spec-lean only: offer the UI preview** when the plan changes the screen. `python3 {skill-dir}/scripts/build_preview.py {plan} --detect` says `ui: yes`, `code-only` or `no`; on `yes`, offer it once with its cost (about 20% more tokens), unless the review state has `"ui_preview": false`. Read [references/ui-preview.md](references/ui-preview.md) before drawing it.
 
 ## Validating on the page
@@ -64,6 +64,8 @@ On a published artifact the user validates on the page itself: every section wit
 **Rows are numbered and reviewed one by one.** Table rows get `1`, `2`... per section; a profile adds its own units (an EARS criterion, a task, a check, a one-way door). A click on the number copies what to cite (`Riscos #2`, `P1 AC 2`, `T1`); when the user cites it in the conversation, `extract.py` shows where it is. The section's "Validate" also confirms all its rows, and "Undo" takes them back to pending. A section counts as validated only when it and all its rows are. A rejected row means the user disagrees with it: **ask what is wrong before changing the document**, never assume.
 
 **Empty sections are not validated.** A section with no content, or whose whole content is `None - <why>` (also `N/A`, `-`, `Nenhum`, `Nada`, `Não se aplica`), shows a "nothing to validate" badge instead of the button and stays out of the progress count.
+
+**Changed criteria** (tlc-spec-lean and tlc-spec-driven). So the reviewer reads only what changed, the review state keeps `ac_baseline`: each acceptance criterion as the reviewer last saw it (a tlc-spec-lean slice's numbered criteria; a tlc-spec-driven spec's EARS items, the profile's `items` with `"ac": true`). The build pairs the current criteria with it by content, so renumbering alone flags nothing, and the page shows "criterion changed" with "See before" (a word diff), "new criterion", the removed ones struck through at the end of their slice or section, and a notice at the top listing them. A flag stays across any number of republishes until the reviewer acknowledges it: confirming or rejecting the criterion on its current text (tlc-spec-driven), or validating its slice or section on its current text; removed criteria also clear with "Seen" (`review/gone:<slice or section>`), the only way when their slice or section is gone. `--mark-published` and `sync_review.py` move the baseline forward only for what was acknowledged. The first publish (no baseline yet) flags nothing. Other units (table rows, tasks, checks, doors) keep only "changed since".
 
 **Bring validations in** (step 0, and whenever the user asks):
 
@@ -96,7 +98,7 @@ On a published artifact the user validates on the page itself: every section wit
 
 **A plan after review.** The user says: "updated S2 in the plan, refresh the page". Actions: step 0 (pull the `review` collection, `sync_review.py .specs/features/dunning/plan.md --dir ...`, tell the summary) → build: `RECHECK change:2` → re-read the code, fix the code-derived fields → build, check, republish to the same `url`, `--mark-published`. Result: same link; S2 shows "validated · changed since" until the user validates it again.
 
-**The user names the format.** The user says: "revisa esse plan.md como documento genérico". Actions: `build_page.py .specs/features/x/plan.md --profile generic --out ...`; the build warns that detection points to tlc-spec-lean and goes on with generic. Result: the plan as a plain mirror, with its own state beside it (`plan-doc-spec-review.json`).
+**The user names the format.** The user says: "revisa esse plan.md como documento genérico". Actions: `build_page.py .specs/features/x/plan.md --profile generic --out ...`; the build warns that detection points to tlc-spec-lean and goes on with generic. Result: the plan as a plain mirror, with its own state beside it (`plan-tlc-spec-review.json`).
 
 **Agent without the Artifact tool.** Steps 1 to 4, then: "Open /abs/path/to/page.html in a browser. The review buttons only exist on a claude.ai artifact; tell me which sections you validate."
 

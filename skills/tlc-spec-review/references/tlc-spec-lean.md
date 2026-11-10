@@ -4,7 +4,7 @@ Read this before writing or changing the review state of a tlc-spec-lean plan. T
 
 ## What you write
 
-The review state (`.specs/features/{slug}/doc-spec-review.json`; the old `review-page.json` is renamed on the first build) holds what the page needs and `plan.md` does not have. Unlike the other profiles, you write part of it:
+The review state (`.specs/features/{slug}/tlc-spec-review.json`; the old `review-page.json` is renamed on the first build) holds what the page needs and `plan.md` does not have. Unlike the other profiles, you write part of it:
 
 1. **Code-derived fields** (`changes`, `flow_visual`, `impact_visual`, `problem_visual`, `landing_visual`): they require reading the code. Every `where` is a `file:line` you actually checked; to sweep many files, delegate to a search subagent and keep only the conclusions. **Never invent a line number**; when unsure, cite the file without the line. `landing_visual` is required whenever the Landing has doors. If the file exists, start from it and change only what the plan changed.
 2. **Review state** (`review`, `doors_confirmed`, `rejected`, `tags`) comes only from what the user said or marked on the page. Validating sections is not approving the plan: approval is the user's word, which tlc-spec-lean writes as `**Approved**:` under the title. The tag says "plan in review" until the plan carries that line; never write `**Approved**:` from the badges. An older plan with a `**Status**:` line takes the sync summary into that line.

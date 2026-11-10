@@ -21,8 +21,8 @@
     { "id": "screens", "file": "screens.md", "versions": ["4.x"] }
   ],
   "items": [
-    { "tab": "spec", "kind": "li", "list": "ol", "under": "^(P\\d+)\\b", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{under} AC {n}" },
-    { "tab": "spec", "kind": "li", "list": "ul", "section": "^Edge Cases$", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{section} #{i}" },
+    { "tab": "spec", "kind": "li", "list": "ol", "under": "^(P\\d+)\\b", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{under} AC {n}", "ac": true },
+    { "tab": "spec", "kind": "li", "list": "ul", "section": "^Edge Cases$", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{section} #{i}", "ac": true },
     { "tab": "tasks", "kind": "h", "text": "^(T\\d+)\\s*:", "cite": "{1}" },
     { "tab": "tasks", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*", "cite": "{1}" }
   ],

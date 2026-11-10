@@ -6,7 +6,7 @@ mermaid blocks, the `## Criteria` slices with their numbered criteria (with the 
 listed under each one), and the `**Approved**:` line (`**Status**:` in older plans). A section with no content or only `None - <why>` comes out with
 `empty: true`: there is nothing in it to validate. Nothing else here interprets the
 plan; whatever requires reading the code (Where / Why / Proof, Flow paths, Impact
-cards) comes from the `doc-spec-review.json` the agent writes.
+cards) comes from the `tlc-spec-review.json` the agent writes.
 
 Usage:
     python3 extract_plan.py --root <project> <feature> [--out plan.json]

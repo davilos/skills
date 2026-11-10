@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ in the skill folder: the registry would ship it
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ac_changes  # noqa: E402
 from doc_coverage import IMAGE, missing_in_data, rendered_pieces, unsupported_markdown  # noqa: E402
 from doc_extract import extract, gh_slug, slugify  # noqa: E402
 from profiles import load_profile  # noqa: E402
@@ -189,6 +190,8 @@ def row_keys(page: dict, info: dict) -> dict[str, list[dict]]:
                         units.append({"key": f"row:{s['id']}:{n}", "n": n, "b": bi, "kind": "li", "i": ii,
                                       "cite": _cite(k, under=um.group(1) if um else "", n=it.get("n", ii + 1),
                                                     i=seen[k], section=s["name"])})
+                        if rule.get("ac"):
+                            units[-1]["ac"] = True
                 else:
                     continue
                 break
@@ -244,6 +247,36 @@ def fingerprints(page: dict, info: dict) -> dict[str, str]:
         for u in units:
             fp[u["key"]] = _h(unit_text(secs[sid], u))
     return fp
+
+
+def _item_text(it: dict) -> str:
+    parts = [it.get("text", "")]
+    for sub in it.get("sub") or []:
+        parts += [_item_text(x) for x in sub["items"]] if sub["type"] in ("ul", "ol") else [sub.get("text", "")]
+    return " ".join(p for p in parts if p)
+
+
+def ac_review(page: dict, info: dict, st: dict, now: dict[str, str]) -> tuple[dict, dict]:
+    """Acceptance criteria (the profile's items with `"ac": true`) that changed since the reviewer
+    last saw them, and the next `ac_baseline` (see ac_changes.py). A criterion is acknowledged when
+    it, or its section, was marked on its current text."""
+    secs = {s["id"]: s for s in page["sections"]}
+    current = {sid: [(u["key"], _item_text(unit_text(secs[sid], u))) for u in us if u.get("ac")]
+               for sid, us in row_keys(page, info).items()}
+    current = {sid: xs for sid, xs in current.items() if xs}
+    if not current and not st.get("ac_baseline"):
+        return {"items": {}, "removed": {}}, {}
+    val_fp = st.get("review_fingerprints") or {}
+    marked = reviewed_keys(page, info, st)
+    on_now = {k for k in marked if k in now and (val_fp.get(k) or now[k]) == now[k]}
+    groups = {sid for sid in current if sid in on_now and sid in (st.get("review") or {})}
+    data, nxt = ac_changes.changes(st.get("ac_baseline"), current, on_now, groups, st.get("ac_gone_seen"))
+    cite = {u["key"]: u.get("cite") for us in row_keys(page, info).values() for u in us}
+    for key, x in data["items"].items():
+        x["cite"] = cite.get(key) or key
+    for sid, x in data["removed"].items():
+        x["name"] = secs[sid]["name"] if sid in secs else sid
+    return data, nxt
 
 
 def xrefs(page: dict, info: dict, units: dict) -> tuple[dict, dict]:
@@ -390,6 +423,9 @@ def mark_published(info: dict, sp: Path, url: str | None, lang: str | None) -> i
     kept = st.get("review_fingerprints") or {}
     st["review_fingerprints"] = {k: kept.get(k) or now[k] for k in sorted(reviewed_keys(page, info, st)) if k in now}
     st["published_fingerprints"] = now
+    _, nxt = ac_review(page, info, st, now)
+    if nxt or "ac_baseline" in st:  # a document with no criteria (generic) gets no baseline
+        st["ac_baseline"] = nxt
     save_state(sp, st)
     print(f"build_page: {sp} marked as published ({st['published_hash']})")
     return 0
@@ -432,6 +468,11 @@ def build(info: dict, sp: Path, out: Path, lang: str | None) -> int:
     # The page stores the fingerprint of the text the user validated (db review/<key>.fp) and shows
     # "changed since" when it stops matching.
     page["fingerprints"] = now
+    page["acChanges"], _ = ac_review(page, info, st, now)
+    for key, x in page["acChanges"]["items"].items():
+        print(f"  AC-{x['st'].upper()} {x['cite']}: {'new criterion' if x['st'] == 'new' else 'was: ' + x['was'][:70]}", file=sys.stderr)
+    for sid, x in page["acChanges"]["removed"].items():
+        print(f"  AC-REMOVED {sid}: {len(x['texts'])} criterion(s) no longer in the document", file=sys.stderr)
     for w in warns:
         print(f"  WARN  {w}", file=sys.stderr)
     for e in errors:
