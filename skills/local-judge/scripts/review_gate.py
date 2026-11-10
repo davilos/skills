@@ -39,6 +39,9 @@ BANNED_OPENERS = [
     "okay", "great", "vou ", "deixa eu", "primeiramente", "olhando", "bom,",
 ]
 INTERNAL_REF = re.compile(r"^.+:\d+$")
+COVERAGE_STATUSES = ("implemented", "partial", "missing", "contradicted", "not-applicable")
+GAP_STATUSES = ("partial", "missing", "contradicted")
+GAP_SEVERITIES = ("blocker", "should-fix")
 
 
 def norm(s: str) -> str:
@@ -102,6 +105,25 @@ def check_location(repo: str, path: str, line, label: str, what: str) -> list:
     return []
 
 
+def check_evidence(ev: list, repo: str, label: str) -> list:
+    v = []
+    for e in ev:
+        t, ref = e.get("type"), e.get("ref", "")
+        if t == "internal":
+            if not INTERNAL_REF.match(ref):
+                v.append(f"{label}: internal evidence '{ref}' must match path:line")
+            else:
+                p, ln = ref.rsplit(":", 1)
+                v += check_location(repo, p, int(ln), label, "internal evidence")
+        elif t == "external" and not ref.startswith("https://"):
+            v.append(f"{label}: external evidence must be an https URL, got '{ref}'")
+        elif t == "repro" and not ref.strip():
+            v.append(f"{label}: repro evidence must carry the command that reproduces the claim")
+        elif t not in ("internal", "external", "repro"):
+            v.append(f"{label}: evidence type must be internal, external or repro, got '{t}'")
+    return v
+
+
 def check_finding(f: dict, meta: dict, seen: set) -> list:
     v = []
     sev = f.get("severity")
@@ -140,20 +162,7 @@ def check_finding(f: dict, meta: dict, seen: set) -> list:
     ev = f.get("evidence") or []
     if sev in ("blocker", "should-fix") and not ev:
         v.append(f"{label}: '{sev}' requires at least one evidence entry")
-    for e in ev:
-        t, ref = e.get("type"), e.get("ref", "")
-        if t == "internal":
-            if not INTERNAL_REF.match(ref):
-                v.append(f"{label}: internal evidence '{ref}' must match path:line")
-            else:
-                p, ln = ref.rsplit(":", 1)
-                v += check_location(meta["repo"], p, int(ln), label, "internal evidence")
-        elif t == "external" and not ref.startswith("https://"):
-            v.append(f"{label}: external evidence must be an https URL, got '{ref}'")
-        elif t == "repro" and not ref.strip():
-            v.append(f"{label}: repro evidence must carry the command that reproduces the claim")
-        elif t not in ("internal", "external", "repro"):
-            v.append(f"{label}: evidence type must be internal, external or repro, got '{t}'")
+    v += check_evidence(ev, meta["repo"], label)
     max_chars, max_lines = CAPS[sev]
     if len(body) > max_chars:
         v.append(f"{label}: body {len(body)} chars exceeds {max_chars} cap")
@@ -205,11 +214,78 @@ def check_resolution(data: dict, meta: dict, findings: list):
     return v, carry
 
 
-def expected_verdict(findings: list, carry: dict) -> str:
+def check_spec(data: dict, meta: dict, summary: str):
+    """With a spec: one spec_coverage row per requirement, evidence on every claim, gaps weigh on the verdict."""
+    v, gaps = [], {"blocker": 0, "should-fix": 0}
+    spec, rows = meta.get("spec"), data.get("spec_coverage")
+    if not spec:
+        if rows:
+            v.append("SPEC: 'spec_coverage' present but collect_diff ran without --spec")
+        return v, gaps
+    try:
+        with open(spec["requirements"], encoding="utf-8") as fh:
+            reqs = json.load(fh).get("requirements") or []
+    except (OSError, json.JSONDecodeError) as e:
+        return [f"SPEC: cannot read {spec['requirements']}: {e}"], gaps
+    if not reqs:
+        return [f"SPEC: {spec['requirements']} lists no requirements; write them by hand from the spec"], gaps
+    spec_lines = line_count("/", spec["path"])
+    known = {}
+    for r in reqs:
+        rid, ln = r.get("id"), r.get("line")
+        if not rid or rid in known:
+            v.append(f"SPEC: requirement id '{rid}' missing or repeated in requirements.json")
+        if not isinstance(ln, int) or spec_lines is None or not 1 <= ln <= spec_lines:
+            v.append(f"SPEC: requirement {rid} line {ln!r} is not a line of {spec['path']}")
+        known[rid] = r
+    if not isinstance(rows, list):
+        return v + ["SPEC: 'spec_coverage' must be a list with one row per requirement"], gaps
+    # previous_gaps is None in round 1 and when the spec changed since the last round: every row is new then
+    prev_gaps = spec.get("previous_gaps") if meta["round"] >= 2 else None
+    seen = set()
+    for row in rows:
+        rid, st = row.get("id"), row.get("status")
+        label = f"SPEC {rid}"
+        if rid not in known:
+            v.append(f"{label}: not a requirement id from requirements.json")
+            continue
+        if rid in seen:
+            v.append(f"{label}: duplicate row")
+        seen.add(rid)
+        if st not in COVERAGE_STATUSES:
+            v.append(f"{label}: status '{st}' not in {COVERAGE_STATUSES}")
+            continue
+        ev = row.get("evidence") or []
+        if st in ("implemented", "partial", "contradicted") and not any(e.get("type") == "internal" for e in ev):
+            v.append(f"{label}: '{st}' requires internal evidence path:line in the code")
+        v += check_evidence(ev, meta["repo"], label)
+        note = row.get("note") or ""
+        if st != "implemented" and not note.strip():
+            v.append(f"{label}: '{st}' needs a 'note' saying what is missing, wrong or out of scope")
+        v += text_violations(note, label)
+        sev = row.get("severity")
+        if st in GAP_STATUSES:
+            if sev not in GAP_SEVERITIES:
+                v.append(f"{label}: '{st}' needs 'severity' blocker or should-fix")
+            else:
+                gaps[sev] += 1
+            if prev_gaps is not None and rid not in prev_gaps and sev != "blocker":
+                v.append(f"{label}: was implemented in the previous round; round {meta['round']} reports a new gap only as blocker, otherwise keep it implemented")
+        elif sev:
+            v.append(f"{label}: 'severity' only applies to {GAP_STATUSES}")
+    for rid in known:
+        if rid not in seen:
+            v.append(f"SPEC {rid}: no spec_coverage row")
+    if not re.search(r"spec coverage", summary, re.I):
+        v.append("SUMMARY: a review with --spec requires a 'Spec coverage' section")
+    return v, gaps
+
+
+def expected_verdict(findings: list, carry: dict, gaps: dict) -> str:
     sevs = {f.get("severity") for f in findings}
-    if "blocker" in sevs or carry["blocker"]:
+    if "blocker" in sevs or carry["blocker"] or gaps["blocker"]:
         return "BLOCKED"
-    if "should-fix" in sevs or carry["should-fix"]:
+    if "should-fix" in sevs or carry["should-fix"] or gaps["should-fix"]:
         return "NEEDS_WORK"
     return "READY"
 
@@ -250,10 +326,12 @@ def main() -> int:
     violations += check_summary(summary, meta["round"])
     res_v, carry = check_resolution(data, meta, findings)
     violations += res_v
+    spec_v, gaps = check_spec(data, meta, summary)
+    violations += spec_v
     if verdict in VERDICTS:
-        expected = expected_verdict(findings, carry)
+        expected = expected_verdict(findings, carry, gaps)
         if verdict != expected:
-            violations.append(f"VERDICT: '{verdict}' inconsistent with findings plus still-open previous findings, expected '{expected}'")
+            violations.append(f"VERDICT: '{verdict}' inconsistent with findings, still-open previous findings and spec gaps, expected '{expected}'")
         if verdict not in summary:
             violations.append(f"SUMMARY: TL;DR must contain the verdict token '{verdict}' verbatim")
 

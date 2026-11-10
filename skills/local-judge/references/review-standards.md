@@ -121,3 +121,26 @@ Flag: copy-pasted blocks (cite both locations as evidence), a near-duplicate of 
 Flag: magic numbers or strings encoding a business rule without a name, sleep or timeout used as synchronization (a delay is not a lock), retries wrapping a deterministic bug, monkey-patching or reflection to reach private internals, string-typed logic where a type or enum exists (parsing error messages by text, switching on class names), hand-edits to generated files, hardcoded URLs, paths, or environment assumptions, and "temporary" workarounds with no owner, no issue, and no ceiling.
 
 A deliberate, labeled simplification is not a gambiarra: "skip X; add it when Y" with an owner and issue is an engineering decision. The difference is the label. Unlabeled, the same code is a finding, because the next reader cannot tell the ceiling was chosen from the ceiling being missed.
+
+## Pass G: Spec Conformance (only with --spec)
+
+This pass answers whether the branch builds what the spec asked for. It reads code, not tests: it does not run proofs or mutations, and a passing test is evidence only when it exercises the exact behavior the requirement names.
+
+For every entry in `requirements.json`, read the requirement at its spec line (with the indented examples under it) and decide:
+
+| Status | When | Evidence |
+|---|---|---|
+| `implemented` | The code produces the behavior for the trigger, condition and values the requirement states | internal `path:line` where it happens; a test line that asserts it may be a second entry |
+| `partial` | Part of it exists: one of two channels, the happy path but not the stated error, the value but not the side effect | the `path:line` that exists; the `note` names the part that does not |
+| `contradicted` | The code does something different from what the requirement states (another status code, another default, another order) | the `path:line` that contradicts it; the `note` quotes both |
+| `missing` | Nothing in the repo produces it | none; the `note` says where it was looked for |
+| `not-applicable` | It belongs to another repo, slice or later phase, or the spec marks it out of scope | the `note` says why |
+
+Rules:
+
+1. Trace before marking `implemented`: follow the trigger from its entry point (route, task, handler, component) to the line that produces the stated result. A function with the right name is not evidence.
+2. Concrete values in the requirement (status codes, limits, field names, texts) are part of it; a different value is `contradicted`, not a nit.
+3. Severity of a gap: `blocker` when the missing or contradicted behavior is security, authorization, money, PII or data loss, or when the requirement is the main purpose of the branch; `should-fix` otherwise. When unsure, `should-fix` with the note phrased as a question.
+4. Behavior in the diff that no requirement asks for is scope creep: an ordinary finding, 🟡 by default, 🟠 when it changes behavior a user or caller relies on. Refactors, tests and wiring that serve a requirement are not scope creep.
+5. A requirement satisfied by code that already existed before the branch is `implemented`, with the evidence pointing there.
+6. Do not raise the same gap twice: a `missing` row is not also a finding.

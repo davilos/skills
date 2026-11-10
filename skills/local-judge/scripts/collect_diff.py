@@ -2,9 +2,11 @@
 # invariant: stdlib only, read-only on the repo (no fetch, no checkout, no index writes); everything it writes lives under the git-dir.
 """Resolve what local-judge reviews and write it under <git-dir>/local-judge/.
 
-Usage: collect_diff.py [--repo PATH] [--base REF] [--fresh]
+Usage: collect_diff.py [--repo PATH] [--base REF] [--fresh] [--spec FILE [--spec-section REGEX]]
 
 --fresh moves the ledger and round reports into archive-<timestamp>/ and starts again at round 1.
+--spec runs extract_requirements.py on FILE and writes <workdir>/requirements.json; later rounds
+reuse the spec of the last recorded round when --spec is omitted.
 
 Writes <workdir>/branch.patch (merge-base vs working tree, untracked files as new),
 <workdir>/since.patch on round 2+ (last reviewed snapshot vs working tree), and
@@ -18,6 +20,9 @@ import os
 import re
 import subprocess
 import sys
+
+sys.dont_write_bytecode = True  # importing the sibling script must not leave __pycache__ in the installed skill
+from extract_requirements import extract  # noqa: E402
 
 DEFAULT_BASES = ("origin/main", "main", "origin/master", "master")
 MECHANICAL = [
@@ -96,7 +101,12 @@ def main():
     ap.add_argument("--repo", default=".")
     ap.add_argument("--base")
     ap.add_argument("--fresh", action="store_true")
+    ap.add_argument("--spec")
+    ap.add_argument("--spec-section")
     a = ap.parse_args()
+    if a.spec_section and not a.spec:
+        print("--spec-section needs --spec", file=sys.stderr)
+        return 2
 
     try:
         repo = git(a.repo, "rev-parse", "--show-toplevel").strip()
@@ -150,6 +160,34 @@ def main():
                       key=lambda k: int(k[1:]))
     next_id = 1 + max((int(k[1:]) for k in findings), default=0)
 
+    spec = None
+    spec_arg = {"path": os.path.abspath(a.spec), "section": a.spec_section} if a.spec else (rounds[-1].get("spec") if rounds else None)
+    if spec_arg:
+        try:
+            with open(spec_arg["path"], encoding="utf-8") as fh:
+                reqs = extract(fh.readlines(), spec_arg.get("section"))
+        except OSError as e:
+            print(f"spec not readable: {e}", file=sys.stderr)
+            return 2
+        except re.error as e:
+            print(f"--spec-section is not a valid regex: {e}", file=sys.stderr)
+            return 2
+        req_path = os.path.join(workdir, "requirements.json")
+        if not reqs and os.path.exists(req_path):
+            # a hand-written list for the same spec and section survives the next round
+            with open(req_path, encoding="utf-8") as fh:
+                kept = json.load(fh)
+            if (kept.get("path"), kept.get("section")) == (spec_arg["path"], spec_arg.get("section")):
+                reqs = kept.get("requirements") or []
+        with open(req_path, "w", encoding="utf-8") as fh:
+            json.dump({**spec_arg, "requirements": reqs}, fh, indent=2, ensure_ascii=False)
+        last_spec = rounds[-1].get("spec") if rounds else None
+        same_spec = bool(last_spec) and (last_spec.get("path"), last_spec.get("section")) == (spec_arg["path"], spec_arg.get("section"))
+        spec = {**spec_arg, "requirements": req_path, "count": len(reqs), "reused": not a.spec,
+                "previous_gaps": rounds[-1].get("spec_gaps", {}) if same_spec else None}
+        if not reqs:
+            print("spec: no requirements recognized; write them by hand into " + req_path, file=sys.stderr)
+
     meta = {
         "repo": repo,
         "branch": branch,
@@ -167,6 +205,7 @@ def main():
         "since": since,
         "previous_open": {k: findings[k] for k in open_ids},
         "next_finding_id": f"F{next_id}",
+        "spec": spec,
     }
     with open(os.path.join(workdir, "meta.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=2, ensure_ascii=False)
