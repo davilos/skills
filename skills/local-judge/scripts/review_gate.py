@@ -105,6 +105,25 @@ def check_location(repo: str, path: str, line, label: str, what: str) -> list:
     return []
 
 
+def check_evidence(ev: list, repo: str, label: str) -> list:
+    v = []
+    for e in ev:
+        t, ref = e.get("type"), e.get("ref", "")
+        if t == "internal":
+            if not INTERNAL_REF.match(ref):
+                v.append(f"{label}: internal evidence '{ref}' must match path:line")
+            else:
+                p, ln = ref.rsplit(":", 1)
+                v += check_location(repo, p, int(ln), label, "internal evidence")
+        elif t == "external" and not ref.startswith("https://"):
+            v.append(f"{label}: external evidence must be an https URL, got '{ref}'")
+        elif t == "repro" and not ref.strip():
+            v.append(f"{label}: repro evidence must carry the command that reproduces the claim")
+        elif t not in ("internal", "external", "repro"):
+            v.append(f"{label}: evidence type must be internal, external or repro, got '{t}'")
+    return v
+
+
 def check_finding(f: dict, meta: dict, seen: set) -> list:
     v = []
     sev = f.get("severity")
@@ -143,20 +162,7 @@ def check_finding(f: dict, meta: dict, seen: set) -> list:
     ev = f.get("evidence") or []
     if sev in ("blocker", "should-fix") and not ev:
         v.append(f"{label}: '{sev}' requires at least one evidence entry")
-    for e in ev:
-        t, ref = e.get("type"), e.get("ref", "")
-        if t == "internal":
-            if not INTERNAL_REF.match(ref):
-                v.append(f"{label}: internal evidence '{ref}' must match path:line")
-            else:
-                p, ln = ref.rsplit(":", 1)
-                v += check_location(meta["repo"], p, int(ln), label, "internal evidence")
-        elif t == "external" and not ref.startswith("https://"):
-            v.append(f"{label}: external evidence must be an https URL, got '{ref}'")
-        elif t == "repro" and not ref.strip():
-            v.append(f"{label}: repro evidence must carry the command that reproduces the claim")
-        elif t not in ("internal", "external", "repro"):
-            v.append(f"{label}: evidence type must be internal, external or repro, got '{t}'")
+    v += check_evidence(ev, meta["repo"], label)
     max_chars, max_lines = CAPS[sev]
     if len(body) > max_chars:
         v.append(f"{label}: body {len(body)} chars exceeds {max_chars} cap")
@@ -234,6 +240,8 @@ def check_spec(data: dict, meta: dict, summary: str):
         known[rid] = r
     if not isinstance(rows, list):
         return v + ["SPEC: 'spec_coverage' must be a list with one row per requirement"], gaps
+    # previous_gaps is None in round 1 and when the spec changed since the last round: every row is new then
+    prev_gaps = spec.get("previous_gaps") if meta["round"] >= 2 else None
     seen = set()
     for row in rows:
         rid, st = row.get("id"), row.get("status")
@@ -250,16 +258,7 @@ def check_spec(data: dict, meta: dict, summary: str):
         ev = row.get("evidence") or []
         if st in ("implemented", "partial", "contradicted") and not any(e.get("type") == "internal" for e in ev):
             v.append(f"{label}: '{st}' requires internal evidence path:line in the code")
-        for e in ev:
-            t, ref = e.get("type"), e.get("ref", "")
-            if t == "internal":
-                if not INTERNAL_REF.match(ref):
-                    v.append(f"{label}: internal evidence '{ref}' must match path:line")
-                else:
-                    p, ln = ref.rsplit(":", 1)
-                    v += check_location(meta["repo"], p, int(ln), label, "internal evidence")
-            elif t not in ("external", "repro"):
-                v.append(f"{label}: evidence type must be internal, external or repro, got '{t}'")
+        v += check_evidence(ev, meta["repo"], label)
         note = row.get("note") or ""
         if st != "implemented" and not note.strip():
             v.append(f"{label}: '{st}' needs a 'note' saying what is missing, wrong or out of scope")
@@ -270,6 +269,8 @@ def check_spec(data: dict, meta: dict, summary: str):
                 v.append(f"{label}: '{st}' needs 'severity' blocker or should-fix")
             else:
                 gaps[sev] += 1
+            if prev_gaps is not None and rid not in prev_gaps and sev != "blocker":
+                v.append(f"{label}: was implemented in the previous round; round {meta['round']} reports a new gap only as blocker, otherwise keep it implemented")
         elif sev:
             v.append(f"{label}: 'severity' only applies to {GAP_STATUSES}")
     for rid in known:

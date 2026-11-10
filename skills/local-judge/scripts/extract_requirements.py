@@ -6,7 +6,8 @@ Usage: extract_requirements.py SPEC [--section REGEX] [--out FILE]
 
 A requirement is:
   - a numbered, bulleted or checkbox item inside a criteria block (a heading or bold label
-    named Acceptance Criteria, Criteria, Requirements, Critérios, Critérios de aceite, Requisitos);
+    named Acceptance Criteria, Criteria, Requirements, Critérios, Critérios de aceite or de aceitação,
+    Requisitos; the colon may sit inside or after the bold);
   - anywhere else, a list item that states an obligation in capitals (SHALL, MUST, DEVE).
 Indented bullets under an item are its examples and are not requirements of their own.
 --section keeps only requirements whose heading chain ("# A > ## B > ### C") matches REGEX.
@@ -21,7 +22,7 @@ import re
 import sys
 
 BLOCK_LABEL = re.compile(
-    r"^(#{1,6}\s+|\*\*|__)?\s*(acceptance criteria|criteria|requirements|crit[eé]rios( de aceite)?|requisitos)\s*(\*\*|__)?\s*:?\s*$",
+    r"^(#{1,6}\s+|\*\*|__)?\s*(acceptance criteria|criteria|requirements|crit[eé]rios( de (aceite|aceita[cç][aã]o))?|requisitos)\s*:?\s*(\*\*|__)?\s*:?\s*$",
     re.I,
 )
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")

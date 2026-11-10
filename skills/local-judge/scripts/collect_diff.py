@@ -174,14 +174,17 @@ def main():
             return 2
         req_path = os.path.join(workdir, "requirements.json")
         if not reqs and os.path.exists(req_path):
-            # a hand-written list for the same spec survives the next round
+            # a hand-written list for the same spec and section survives the next round
             with open(req_path, encoding="utf-8") as fh:
                 kept = json.load(fh)
-            if kept.get("path") == spec_arg["path"]:
+            if (kept.get("path"), kept.get("section")) == (spec_arg["path"], spec_arg.get("section")):
                 reqs = kept.get("requirements") or []
         with open(req_path, "w", encoding="utf-8") as fh:
             json.dump({**spec_arg, "requirements": reqs}, fh, indent=2, ensure_ascii=False)
-        spec = {**spec_arg, "requirements": req_path, "count": len(reqs), "reused": not a.spec}
+        last_spec = rounds[-1].get("spec") if rounds else None
+        same_spec = bool(last_spec) and (last_spec.get("path"), last_spec.get("section")) == (spec_arg["path"], spec_arg.get("section"))
+        spec = {**spec_arg, "requirements": req_path, "count": len(reqs), "reused": not a.spec,
+                "previous_gaps": rounds[-1].get("spec_gaps", {}) if same_spec else None}
         if not reqs:
             print("spec: no requirements recognized; write them by hand into " + req_path, file=sys.stderr)
 
