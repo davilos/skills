@@ -3,7 +3,9 @@
 
 This is the mechanical part of the page: the text of each section, tables, lists,
 mermaid blocks, the `## Criteria` slices with their numbered criteria (with the examples
-listed under each one), and the `**Approved**:` line (`**Status**:` in older plans). A section with no content or only `None - <why>` comes out with
+listed under each one), and the lines under the title: `**Approved**:`, and from tlc-spec-lean 3.x
+`**Settled mid-build:**`, `**Review:**` and `**Fix pass:**` (`**Status**:` in older plans). A
+section with no content or only `None - <why>` comes out with
 `empty: true`: there is nothing in it to validate. Nothing else here interprets the
 plan; whatever requires reading the code (Where / Why / Proof, Flow paths, Impact
 cards) comes from the `spec-review.json` the agent writes.
@@ -18,6 +20,17 @@ import json
 import re
 import sys
 from pathlib import Path
+
+# The lines tlc-spec-lean writes under the title, by the key the page reads. The colon sits
+# outside the bold in `**Approved**:` and inside it in `**Review:**`; either form is read.
+HEADER_LINES = {
+    "Approved": "approved",
+    "Settled mid-build": "settled",
+    "Review": "review_line",
+    "Fix pass": "fix_pass",
+    "Status": "status",
+}
+HEADER_RE = re.compile(r"\*\*(" + "|".join(map(re.escape, HEADER_LINES)) + r")(?::\*\*|\*\*:)\s*(.*)$")
 
 KNOWN_IDS = {
     "problem": "problem",
@@ -203,18 +216,17 @@ def parse_criteria(lines: list[str]) -> dict:
 def extract(plan_path: Path) -> dict:
     text = plan_path.read_text(encoding="utf-8")
     lines = text.splitlines()
-    title, status, approved = "", "", ""
+    title = ""
+    header = dict.fromkeys(HEADER_LINES.values(), "")
     sections: list[dict] = []
     cur = None
     for line in lines:
         if line.startswith("# ") and not title:
             title = line[2:].strip()
             continue
-        if line.startswith("**Status**:") and not sections:
-            status = line[len("**Status**:"):].strip()
-            continue
-        if line.startswith("**Approved**:") and not sections:
-            approved = line[len("**Approved**:"):].strip()
+        m = HEADER_RE.match(line) if not sections else None
+        if m and not header[HEADER_LINES[m.group(1)]]:
+            header[HEADER_LINES[m.group(1)]] = m.group(2).strip()
             continue
         if line.startswith("## "):
             name = line[3:].strip()
@@ -248,7 +260,7 @@ def extract(plan_path: Path) -> dict:
         s["empty"] = is_empty(s["blocks"])
         result.append(s)
 
-    return {"path": str(plan_path), "title": title, "status": status, "approved": approved, "sections": result}
+    return {"path": str(plan_path), "title": title, **header, "sections": result}
 
 
 def main() -> int:

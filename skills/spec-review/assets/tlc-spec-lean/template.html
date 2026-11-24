@@ -1836,10 +1836,13 @@ var PAGE_DATA = __PAGE_DATA_JSON__;
   document.getElementById("plan-path").textContent = planPath;
   document.getElementById("plan-title").textContent = PLAN.title;
   /* Approval is the user's word, written by tlc-spec-lean under the title; validating on this page is not it.
-     Older plans carry a `**Status**:` line instead (or as well). */
+     tlc-spec-lean 3.x adds the build's lines under it; older plans carry a `**Status**:` line instead (or as well). */
   function statusLine(lead, html) { return '<div><b class="lead">' + lead + "</b> " + html + "</div>"; }
   document.getElementById("status").innerHTML =
     (PLAN.approved ? statusLine("Approved:", md(PLAN.approved)) : PLAN.status ? "" : statusLine("Approved:", '<span class="muted">not yet: the plan is in review</span>')) +
+    (PLAN.settled ? statusLine("Settled mid-build:", md(PLAN.settled)) : "") +
+    (PLAN.review_line ? statusLine("Review:", md(PLAN.review_line)) : "") +
+    (PLAN.fix_pass ? statusLine("Fix pass:", md(PLAN.fix_pass)) : "") +
     (PLAN.status ? statusLine("Status:", md(PLAN.status)) : "");
   document.getElementById("tags").innerHTML = (EN.tags || []).map(function (t) { return '<span class="tag' + (t.warn ? " warn" : "") + '">' + esc(t.text) + "</span>"; }).join("") +
     (EN.ui_preview_url ? '<a class="tag" href="' + esc(EN.ui_preview_url) + '" target="_blank" rel="noopener" title="Before/after mockups of the screens this plan changes (not the plan)">UI preview ↗</a>' : "") +

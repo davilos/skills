@@ -32,12 +32,13 @@ Besides each section and each table row:
 | each EARS bullet of `## Edge Cases` | spec | `Edge Cases #1` |
 | each task heading `### T1: ...` (the fingerprint covers the task's whole body) | tasks | `T1` |
 | each check paragraph `**C1** - ...` in `## Checks` (4.x) | tasks | `C1` |
+| the same check paragraphs in a `## Checks` at the end of `spec.md`, where tlc-spec-driven puts them when Tasks is skipped (4.x) | spec | `C1` |
 
 When a citation would repeat on the page (two stories both `P1`), it falls back to `Section #N`; a citation repeated across tabs gets the tab in front (`spec · Risks #2`). The number button on the page copies exactly what the user should cite, and `sync_review.py` reports rejected units the same way.
 
 ## Links across tabs
 
-IDs the files define become links wherever the text writes them: `T1` (task heading), `C1` (check), `LEMB-01` (first cell of a `Requirement Traceability` row), `P1` (story heading). An ID defined twice on the page gets no link (it would point to the wrong one). Under each requirement ID the page lists the tasks and checks whose text cites it ("cited by T2 T4 C1"). Nothing is inferred: an ID the files never write is never linked, and a requirement no task cites shows no list.
+IDs the files define become links wherever the text writes them: `T1` (task heading), `C1` (check, in `tasks.md` or `spec.md`), `LEMB-01` (first cell of a `Requirement Traceability` row), `P1` (story heading). An ID defined twice on the page gets no link (it would point to the wrong one). Under each requirement ID the page lists the tasks and checks whose text cites it ("cited by T2 T4 C1"). Nothing is inferred: an ID the files never write is never linked, and a requirement no task cites shows no list.
 
 ## Approval
 

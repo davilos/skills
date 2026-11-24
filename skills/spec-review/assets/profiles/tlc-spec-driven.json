@@ -24,13 +24,15 @@
     { "tab": "spec", "kind": "li", "list": "ol", "under": "^(P\\d+)\\b", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{under} AC {n}", "ac": true },
     { "tab": "spec", "kind": "li", "list": "ul", "section": "^Edge Cases$", "text": "^(?:WHEN|IF|WHILE|WHERE|The system)\\b", "cite": "{section} #{i}", "ac": true },
     { "tab": "tasks", "kind": "h", "text": "^(T\\d+)\\s*:", "cite": "{1}" },
-    { "tab": "tasks", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*", "cite": "{1}" }
+    { "tab": "tasks", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*", "cite": "{1}" },
+    { "tab": "spec", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*", "cite": "{1}" }
   ],
   "ids": [
     { "tab": "tasks", "kind": "h", "text": "^(T\\d+)\\s*:" },
     { "tab": "tasks", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*" },
+    { "tab": "spec", "kind": "p", "section": "^Checks$", "text": "^\\*\\*(C\\d+)\\*\\*" },
     { "tab": "spec", "kind": "cell", "section": "^Requirement Traceability$", "text": "^([A-Z][A-Z0-9]*-\\d+)$" },
     { "tab": "spec", "kind": "h", "text": "^(P\\d+)\\s*:" }
   ],
-  "covers": { "ids": "^[A-Z][A-Z0-9]*-\\d+$", "by": ["tasks:h", "tasks:p"] }
+  "covers": { "ids": "^[A-Z][A-Z0-9]*-\\d+$", "by": ["tasks:h", "tasks:p", "spec:p"] }
 }
