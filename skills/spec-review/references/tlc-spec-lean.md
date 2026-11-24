@@ -1,6 +1,6 @@
 # tlc-spec-lean profile
 
-Read this before writing or changing the review state of a tlc-spec-lean plan. The plan is tlc-spec-lean 2.x: `**Approved**:` under the title, then `Problem`, `Shape` (the numbered path, its mermaid drawings, the `Changes underneath` table, the `erDiagram` and `New:` line), `Surface`, `Landing`, `Criteria`, `Out of scope`, `Assumptions`, `Differences from the source` and `Sources`. Older plans (`**Status**:`, `Flow`, `Impact`, `Relations`, `Observable`) still build: the path visual goes on `Flow` and the cards on `Impact`.
+Read this before writing or changing the review state of a tlc-spec-lean plan. The plan is tlc-spec-lean 3.x: `**Approved**:` under the title, followed by the build's own lines (`**Settled mid-build:**`, `**Review:**`, `**Fix pass:**`), which the page shows in the header beside the approval and nobody validates; then `Problem`, `Shape` (the numbered path, its mermaid drawings, the `Changes underneath` table, the `erDiagram` and `New:` line), `Surface`, `Landing`, `Criteria`, `Out of scope`, `Assumptions`, `Differences from the source` and `Sources`. 2.x plans, without those three lines, and older ones (`**Status**:`, `Flow`, `Impact`, `Relations`, `Observable`) still build: the path visual goes on `Flow` and the cards on `Impact`.
 
 ## What you write
 
@@ -35,7 +35,7 @@ Tell the user what is **not** plan: Where / Why / Proof, symptoms, cards and pat
 - **`ERROR ... where has prose`**: Where takes only `file[:lines]` or `folder/`, separated by `·`; move the explanation to `why`.
 - **`ERROR door N is cited, but the Landing has 0 door(s)`**: the Landing table's first header is not `One-way door`. Fix the header in the plan (tlc-spec-lean's form), or drop the door citations.
 - **`WARN plan.md:N shows captures/x.png, which does not exist beside plan.md`**: the plan is wrong (tlc-spec-lean's `validate_plan.py` also flags it); tell the user.
-- **`ERROR coverage: plan.md:N did not reach the page data` on several `**Approved**:` lines**: `lean_extract.py` reads only the first approval line under the title. Report it; do not rewrite the plan to get around it unless the user wants to.
+- **`ERROR coverage: plan.md:N did not reach the page data` on a repeated line under the title** (two `**Approved**:`, two `**Review:**`...): `lean_extract.py` reads only the first of each. Report it; do not rewrite the plan to get around it unless the user wants to.
 - **check: `internal links without a target`**: a Proof cites a door, slice or criterion that does not exist on the page; fix the Proof text.
 
 ## The review state

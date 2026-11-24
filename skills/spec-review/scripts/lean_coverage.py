@@ -9,7 +9,8 @@ title), each tagged with the section it belongs to, and checks at both ends:
   section and in plan order (catches template bugs).
 
 Labels the page renders differently are left out as labels, but their content is
-kept: `**Approved**:`, `**Status**:`, `**Acceptance Criteria**`, `**Independent test:**`,
+kept: the lines under the title (`**Approved**:`, `**Settled mid-build:**`, `**Review:**`,
+`**Fix pass:**`, `**Status**:`), `**Acceptance Criteria**`, `**Independent test:**`,
 `**Open questions:**` and the `#`/`##`/`###` of headings.
 """
 from __future__ import annotations
@@ -18,9 +19,10 @@ import json
 import re
 from pathlib import Path
 
-from lean_extract import OPEN_Q_RE, SLICE_RE, section_id, split_row
+from lean_extract import HEADER_LINES, OPEN_Q_RE, SLICE_RE, section_id, split_row
 
-LABELS = ("**Approved**:", "**Status**:", "**Independent test:**", "**Open questions:**")
+LABELS = tuple(f"**{name}{form}" for name in HEADER_LINES for form in ("**:", ":**")) + (
+    "**Independent test:**", "**Open questions:**")
 # A capture shown in the plan: `![name](captures/file.png)`. The page shows the image and its name.
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
 SEPARATOR = re.compile(r"\|?[\s:\-|]+\|?")
